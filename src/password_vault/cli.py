@@ -1,5 +1,7 @@
+import asyncio
 import typer
 from getpass import getpass
+from pathlib import Path
 from src.password_vault.vault import Vault
 
 vault_app = typer.Typer(name="vault", help="Manage encrypted credentials")
@@ -46,3 +48,47 @@ def list():
         creds = _get_vault().list_credentials(svc)
         usernames = ", ".join(c["username"] for c in creds)
         typer.echo(f"{svc}: {usernames}")
+
+
+def run(task_name: str):
+    from src.password_vault.task_runner import get_runner
+    typer.echo(f"Running task: {task_name}")
+    asyncio.run(get_runner().run(task_name))
+    typer.echo(f"Task finished: {get_runner().status.value}")
+
+
+def logs(level: str = "info", since: str = "", task: str = "", json: bool = False):
+    import json as json_mod
+    from datetime import datetime, timezone
+
+    log_file = Path("logs") / "senior-rpa.jsonl"
+    if not log_file.exists():
+        typer.echo("No log file found.", err=True)
+        raise typer.Exit(code=1)
+
+    level_map = {"debug": 10, "info": 20, "warning": 30, "error": 40}
+    min_level = level_map.get(level, 20)
+
+    with log_file.open(encoding="utf-8") as f:
+        lines = f.readlines()
+
+    tail = lines[-200:]
+    for line in tail:
+        try:
+            entry = json_mod.loads(line)
+        except json_mod.JSONDecodeError:
+            continue
+        lvl = entry.get("level", 0)
+        if isinstance(lvl, str):
+            lvl = level_map.get(lvl, 20)
+        if lvl < min_level:
+            continue
+        if task and entry.get("task") != task:
+            continue
+        if json:
+            typer.echo(line.rstrip())
+        else:
+            ts = entry.get("timestamp", "")[11:19] if entry.get("timestamp") else ""
+            ev = entry.get("event", "")
+            lv = entry.get("level", "?").upper() if isinstance(entry.get("level"), str) else "?"
+            typer.echo(f"{ts} [{lv}] {ev}")

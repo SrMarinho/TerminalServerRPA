@@ -1,0 +1,93 @@
+import pytest
+from unittest.mock import patch, MagicMock, mock_open
+from typer.testing import CliRunner
+import click
+
+runner = CliRunner()
+
+
+class TestCliRun:
+    def test_run_function_calls_runner(self):
+        from src.password_vault.cli import run
+        async def fake_run(*a, **kw):
+            pass
+        with patch("src.password_vault.task_runner.get_runner") as mock_get:
+            mock_runner = MagicMock()
+            mock_runner.run = fake_run
+            mock_runner.status.value = "completed"
+            mock_get.return_value = mock_runner
+            run("test-task")
+            assert mock_get.call_count == 2
+
+
+class TestCliLogs:
+    def test_logs_missing_file_exits(self, tmp_path):
+        from src.password_vault.cli import logs
+        import os
+        orig_cwd = os.getcwd()
+        os.chdir(str(tmp_path))
+
+        with patch("typer.echo") as mock_echo:
+            with pytest.raises(click.exceptions.Exit):
+                logs()
+
+        os.chdir(orig_cwd)
+
+    def _make_log_file_mock(self, lines):
+        mock_file = MagicMock()
+        mock_file.readlines.return_value = lines
+        mock_file.__enter__.return_value = mock_file
+        return mock_file
+
+    def test_logs_filters_by_level(self):
+        from src.password_vault.cli import logs
+        from src.password_vault.cli import Path as CliPath
+        mock_file = self._make_log_file_mock([
+            '{"timestamp": "2026-01-01T12:00:00Z", "level": "info", "event": "test event"}\n',
+            '{"timestamp": "2026-01-01T12:01:00Z", "level": "error", "event": "error event"}\n',
+        ])
+        with patch.object(CliPath, "exists", return_value=True):
+            with patch.object(CliPath, "open", return_value=mock_file):
+                with patch("typer.echo") as mock_echo:
+                    logs(level="error")
+                    calls = [c[0][0] for c in mock_echo.call_args_list if "error" in c[0][0].lower()]
+                    assert len(calls) >= 1
+
+    def test_logs_json_output(self):
+        from src.password_vault.cli import logs
+        from src.password_vault.cli import Path as CliPath
+        mock_file = self._make_log_file_mock([
+            '{"timestamp": "2026-01-01T12:00:00Z", "level": "info", "event": "test"}\n',
+        ])
+        with patch.object(CliPath, "exists", return_value=True):
+            with patch.object(CliPath, "open", return_value=mock_file):
+                with patch("typer.echo") as mock_echo:
+                    logs(json=True)
+                    assert any('"event": "test"' in c[0][0] for c in mock_echo.call_args_list)
+
+    def test_logs_skips_invalid_json(self):
+        from src.password_vault.cli import logs
+        from src.password_vault.cli import Path as CliPath
+        mock_file = self._make_log_file_mock([
+            'not valid json\n',
+            '{"timestamp": "2026-01-01T12:00:00Z", "level": "info", "event": "ok"}\n',
+        ])
+        with patch.object(CliPath, "exists", return_value=True):
+            with patch.object(CliPath, "open", return_value=mock_file):
+                with patch("typer.echo") as mock_echo:
+                    logs()
+                    assert any('ok' in c[0][0] for c in mock_echo.call_args_list)
+
+    def test_logs_filters_by_task(self):
+        from src.password_vault.cli import logs
+        from src.password_vault.cli import Path as CliPath
+        mock_file = self._make_log_file_mock([
+            '{"timestamp": "2026-01-01T12:00:00Z", "level": "info", "event": "a", "task": "t1"}\n',
+            '{"timestamp": "2026-01-01T12:01:00Z", "level": "info", "event": "b", "task": "t2"}\n',
+        ])
+        with patch.object(CliPath, "exists", return_value=True):
+            with patch.object(CliPath, "open", return_value=mock_file):
+                with patch("typer.echo") as mock_echo:
+                    logs(task="t1")
+                    assert any('"a"' in c[0][0] or 'a' in c[0][0] for c in mock_echo.call_args_list)
+                    assert not any('"b"' in c[0][0] or (isinstance(c[0][0], str) and c[0][0].endswith('b')) for c in mock_echo.call_args_list)
