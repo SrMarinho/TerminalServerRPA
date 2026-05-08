@@ -6,40 +6,94 @@
 <title>senior-rpa</title>
 <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-900 text-slate-200 font-sans p-8">
-<h1 class="text-cyan-400 text-2xl font-bold mb-6">senior-rpa</h1>
+<body class="bg-slate-900 text-slate-200 font-sans flex h-screen overflow-hidden">
 
-<div class="bg-slate-800 rounded-xl p-6 mb-6 border border-slate-700">
-  <h2 class="text-slate-400 text-sm font-bold uppercase tracking-wider mb-4">Credentials</h2>
-  <form id="credForm">
-    <label class="block text-slate-400 text-sm mb-1" for="service">Service</label>
-    <input id="service" name="service" placeholder="e.g. erp-system" required class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-md text-slate-200 mb-3 focus:outline-none focus:border-cyan-400">
-    <label class="block text-slate-400 text-sm mb-1" for="username">Username</label>
-    <input id="username" name="username" placeholder="e.g. admin" required class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-md text-slate-200 mb-3 focus:outline-none focus:border-cyan-400">
-    <label class="block text-slate-400 text-sm mb-1" for="password">Password</label>
-    <input id="password" type="password" name="password" placeholder="password" required class="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-md text-slate-200 mb-3 focus:outline-none focus:border-cyan-400">
-    <button type="submit" class="bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-semibold px-4 py-2 rounded-md">Save</button>
-  </form>
-  <div id="credList" class="mt-4"></div>
-</div>
-
-<div class="bg-slate-800 rounded-xl p-6 mb-6 border border-slate-700">
-  <h2 class="text-slate-400 text-sm font-bold uppercase tracking-wider mb-4">Tasks</h2>
-  <div id="taskList" class="flex gap-2 flex-wrap"></div>
-  <div class="mt-4 flex gap-2">
-    <button id="btnPause" class="bg-slate-600 hover:bg-slate-500 text-slate-200 font-semibold px-4 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed" disabled onclick="pauseTask()">Pause</button>
-    <button id="btnResume" class="bg-slate-600 hover:bg-slate-500 text-slate-200 font-semibold px-4 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed" disabled onclick="resumeTask()">Resume</button>
-    <button id="btnCancel" class="bg-red-500 hover:bg-red-400 text-white font-semibold px-4 py-2 rounded-md disabled:opacity-50 disabled:cursor-not-allowed" disabled onclick="cancelTask()">Cancel</button>
+<!-- Sidebar -->
+<div class="w-56 bg-slate-800 border-r border-slate-700 flex flex-col shrink-0">
+  <div class="p-4 text-cyan-400 text-lg font-bold border-b border-slate-700">senior-rpa</div>
+  <nav class="flex-1 p-2 space-y-1">
+    <button class="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors sidebar-btn active" data-panel="credentials" onclick="switchPanel('credentials')">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+      Credentials
+    </button>
+    <button class="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors sidebar-btn" data-panel="tasks" onclick="switchPanel('tasks')">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+      Tasks
+    </button>
+  </nav>
+  <div class="p-3 border-t border-slate-700 text-xs text-slate-500">
+    <div id="globalStatus" class="flex items-center gap-2">
+      <span class="w-2 h-2 rounded-full bg-slate-600" id="statusDot"></span>
+      <span id="statusText">idle</span>
+    </div>
   </div>
-  <div class="mt-3">Status: <span id="taskStatus" class="rounded-full px-3 py-1 text-xs font-bold uppercase bg-slate-600 text-slate-200">idle</span></div>
 </div>
 
-<div class="bg-slate-800 rounded-xl p-6 mb-6 border border-slate-700">
-  <h2 class="text-slate-400 text-sm font-bold uppercase tracking-wider mb-4">Log</h2>
-  <div id="log" class="bg-slate-950 border border-slate-700 rounded-md p-3 h-48 overflow-y-auto font-mono text-xs"></div>
+<!-- Main content -->
+<div class="flex-1 overflow-y-auto p-6">
+
+  <!-- Credentials Panel -->
+  <div id="panel-credentials" class="panel">
+    <h2 class="text-slate-400 text-sm font-bold uppercase tracking-wider mb-4">Credentials</h2>
+    <form id="credForm" class="mb-6">
+      <label class="block text-slate-400 text-sm mb-1" for="service">Service</label>
+      <input id="service" name="service" placeholder="e.g. erp-system" required class="w-full max-w-md px-3 py-2 bg-slate-950 border border-slate-700 rounded-md text-slate-200 mb-3 focus:outline-none focus:border-cyan-400">
+      <label class="block text-slate-400 text-sm mb-1" for="username">Username</label>
+      <input id="username" name="username" placeholder="e.g. admin" required class="w-full max-w-md px-3 py-2 bg-slate-950 border border-slate-700 rounded-md text-slate-200 mb-3 focus:outline-none focus:border-cyan-400">
+      <label class="block text-slate-400 text-sm mb-1" for="password">Password</label>
+      <input id="password" type="password" name="password" placeholder="password" required class="w-full max-w-md px-3 py-2 bg-slate-950 border border-slate-700 rounded-md text-slate-200 mb-3 focus:outline-none focus:border-cyan-400">
+      <button type="submit" class="bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-semibold px-4 py-2 rounded-md text-sm">Save</button>
+    </form>
+    <div id="credList"></div>
+  </div>
+
+  <!-- Tasks Panel -->
+  <div id="panel-tasks" class="panel hidden">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-slate-400 text-sm font-bold uppercase tracking-wider">Tasks</h2>
+      <div class="flex gap-2">
+        <button id="btnPause" class="bg-slate-600 hover:bg-slate-500 text-slate-200 text-sm px-3 py-1.5 rounded-md disabled:opacity-50 disabled:cursor-not-allowed" disabled onclick="pauseTask()">Pause</button>
+        <button id="btnResume" class="bg-slate-600 hover:bg-slate-500 text-slate-200 text-sm px-3 py-1.5 rounded-md disabled:opacity-50 disabled:cursor-not-allowed" disabled onclick="resumeTask()">Resume</button>
+        <button id="btnCancel" class="bg-red-500 hover:bg-red-400 text-white text-sm px-3 py-1.5 rounded-md disabled:opacity-50 disabled:cursor-not-allowed" disabled onclick="cancelTask()">Cancel</button>
+      </div>
+    </div>
+    <div id="taskCards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6"></div>
+    <div class="bg-slate-800 rounded-xl p-4 border border-slate-700">
+      <h3 class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Log</h3>
+      <div id="log" class="bg-slate-950 border border-slate-700 rounded-md p-3 h-48 overflow-y-auto font-mono text-xs"></div>
+    </div>
+  </div>
+
 </div>
 
-<div id="toast" class="fixed bottom-4 right-4 px-4 py-3 rounded-md font-semibold transition-all duration-300 translate-y-32 bg-green-500 text-green-950"></div>
+<!-- Modal -->
+<div id="taskModal" class="fixed inset-0 bg-black/60 flex items-center justify-center hidden z-50">
+  <div class="bg-slate-800 rounded-xl border border-slate-700 w-full max-w-lg mx-4 max-h-[80vh] overflow-y-auto">
+    <div class="flex items-center justify-between p-4 border-b border-slate-700">
+      <h3 id="modalTitle" class="text-cyan-400 font-bold text-lg"></h3>
+      <button onclick="closeModal()" class="text-slate-400 hover:text-slate-200 text-xl leading-none">&times;</button>
+    </div>
+    <div class="p-4">
+      <label class="block text-slate-400 text-sm mb-1">Parameters (JSON)</label>
+      <textarea id="modalParams" rows="10" class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-md text-slate-200 font-mono text-sm focus:outline-none focus:border-cyan-400"></textarea>
+    </div>
+    <div class="flex gap-2 justify-end p-4 border-t border-slate-700">
+      <button onclick="saveModalConfig()" class="bg-slate-600 hover:bg-slate-500 text-slate-200 font-semibold px-4 py-2 rounded-md text-sm">Save Config</button>
+      <button onclick="runModalTask()" class="bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-semibold px-4 py-2 rounded-md text-sm">Run</button>
+      <button onclick="closeModal()" class="bg-slate-700 hover:bg-slate-600 text-slate-300 font-semibold px-4 py-2 rounded-md text-sm">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="fixed bottom-4 right-4 px-4 py-3 rounded-md font-semibold transition-all duration-300 translate-y-32 bg-green-500 text-green-950 z-50"></div>
+
+<style>
+.sidebar-btn.active { background: #1e293b; color: #38bdf8; }
+.sidebar-btn:not(.active):hover { background: #334155; }
+.task-card { cursor: pointer; transition: border-color .15s; }
+.task-card:hover { border-color: #38bdf8; }
+</style>
 
 <script>
 const API = '';
@@ -55,20 +109,45 @@ async function api(method, path, body) {
 function toast(msg, isError) {
   const el = document.getElementById('toast');
   el.textContent = msg;
-  el.className = 'fixed bottom-4 right-4 px-4 py-3 rounded-md font-semibold transition-all duration-300 translate-y-32' + (isError ? ' bg-red-500 text-white' : ' bg-green-500 text-green-950');
-  setTimeout(() => el.className = el.className.replace('translate-y-0', 'translate-y-32'), 50);
+  el.className = 'fixed bottom-4 right-4 px-4 py-3 rounded-md font-semibold transition-all duration-300 translate-y-32 z-50' + (isError ? ' bg-red-500 text-white' : ' bg-green-500 text-green-950');
   requestAnimationFrame(() => {
     el.className = el.className.replace('translate-y-32', 'translate-y-0');
     setTimeout(() => el.className = el.className.replace('translate-y-0', 'translate-y-32'), 3000);
   });
 }
 
+/* Sidebar */
+function switchPanel(name) {
+  document.querySelectorAll('.sidebar-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.sidebar-btn[data-panel="${name}"]`).classList.add('active');
+  document.querySelectorAll('.panel').forEach(p => p.classList.add('hidden'));
+  document.getElementById(`panel-${name}`).classList.remove('hidden');
+  if (name === 'tasks') loadTasks();
+  if (name === 'credentials') loadCredentials();
+}
+
+/* Global status */
+function updateGlobalStatus(s) {
+  document.getElementById('statusText').textContent = s;
+  const dot = document.getElementById('statusDot');
+  const colors = { idle: 'bg-slate-600', running: 'bg-green-500', paused: 'bg-yellow-500', completed: 'bg-green-500', failed: 'bg-red-500', cancelled: 'bg-slate-500' };
+  dot.className = `w-2 h-2 rounded-full ${colors[s] || colors.idle}`;
+  document.getElementById('btnPause').disabled = s !== 'running';
+  document.getElementById('btnResume').disabled = s !== 'paused';
+  document.getElementById('btnCancel').disabled = !['running','paused'].includes(s);
+}
+
+/* Credentials */
 async function loadCredentials() {
   try {
     const data = await api('GET', '/api/credentials');
     document.getElementById('credList').innerHTML = data.length
-      ? data.map(c => `<div class="flex justify-between items-center py-2 border-b border-slate-700 last:border-b-0"><span class="text-cyan-400 font-semibold">${esc(c.service)}</span><span class="text-slate-400 text-sm">${esc(c.usernames.join(', '))}</span><button class="bg-red-500 hover:bg-red-400 text-white text-sm px-3 py-1 rounded-md" onclick="deleteCred('${esc(c.service)}')">Delete</button></div>`).join('')
-      : '<div class="text-slate-500 py-2">No credentials stored.</div>';
+      ? `<div class="space-y-2 max-w-md">${data.map(c => `
+        <div class="flex justify-between items-center py-2 px-3 bg-slate-800 rounded-md border border-slate-700">
+          <div><span class="text-cyan-400 font-semibold text-sm">${esc(c.service)}</span><span class="text-slate-400 text-xs ml-2">${esc(c.usernames.join(', '))}</span></div>
+          <button class="bg-red-500 hover:bg-red-400 text-white text-xs px-2 py-1 rounded-md" onclick="deleteCred('${esc(c.service)}')">Delete</button>
+        </div>`).join('')}</div>`
+      : '<div class="text-slate-500 text-sm py-2">No credentials stored.</div>';
   } catch (e) { toast('Failed to load credentials', true); }
 }
 
@@ -84,39 +163,66 @@ document.getElementById('credForm').addEventListener('submit', async (e) => {
   catch (err) { toast('Save failed: ' + err.message, true); }
 });
 
+/* Tasks */
+let currentTask = '';
+
 async function loadTasks() {
   try {
     const data = await api('GET', '/api/tasks');
-    document.getElementById('taskList').innerHTML = data.available.map(t =>
-      `<button class="bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-semibold px-4 py-2 rounded-md text-sm" onclick="runTask('${esc(t)}')">${esc(t)}</button>`
+    updateGlobalStatus(data.current_status);
+    document.getElementById('taskCards').innerHTML = data.available.map(t =>
+      `<div class="task-card bg-slate-800 rounded-xl p-4 border border-slate-700" onclick="openTaskModal('${esc(t)}')">
+        <div class="text-cyan-400 font-semibold text-sm">${esc(t)}</div>
+        <div class="text-slate-500 text-xs mt-1">Click to configure & run</div>
+      </div>`
     ).join('');
-    updateStatus(data.current_status);
   } catch (e) { toast('Failed to load tasks', true); }
 }
 
-async function runTask(name) {
-  try { await api('POST', '/api/run/' + encodeURIComponent(name)); toast('Task started'); loadTasks(); }
-  catch (e) { toast('Run failed: ' + e.message, true); }
+async function openTaskModal(name) {
+  currentTask = name;
+  document.getElementById('modalTitle').textContent = name;
+  document.getElementById('modalParams').value = '{\n  \n}';
+  try {
+    const config = await api('GET', `/api/tasks/${encodeURIComponent(name)}/config`);
+    if (config && Object.keys(config).length > 0) {
+      document.getElementById('modalParams').value = JSON.stringify(config, null, 2);
+    }
+  } catch (e) { /* no saved config */ }
+  document.getElementById('taskModal').classList.remove('hidden');
+}
+
+function closeModal() {
+  document.getElementById('taskModal').classList.add('hidden');
+  currentTask = '';
+}
+
+async function saveModalConfig() {
+  try {
+    const params = JSON.parse(document.getElementById('modalParams').value);
+    await api('POST', `/api/tasks/${encodeURIComponent(currentTask)}/config`, params);
+    toast('Config saved');
+  } catch (e) { toast('Invalid JSON: ' + e.message, true); }
+}
+
+async function runModalTask() {
+  try {
+    const params = JSON.parse(document.getElementById('modalParams').value);
+    await api('POST', `/api/run/${encodeURIComponent(currentTask)}`, params);
+    toast('Task started');
+    closeModal();
+    switchPanel('tasks');
+  } catch (e) { toast('Error: ' + e.message, true); }
 }
 
 async function pauseTask() { try { await api('POST', '/api/tasks/pause'); toast('Paused'); loadTasks(); } catch (e) { toast(e.message, true); } }
 async function resumeTask() { try { await api('POST', '/api/tasks/resume'); toast('Resumed'); loadTasks(); } catch (e) { toast(e.message, true); } }
 async function cancelTask() { try { await api('POST', '/api/tasks/cancel'); toast('Cancelling'); loadTasks(); } catch (e) { toast(e.message, true); } }
 
-function updateStatus(s) {
-  const el = document.getElementById('taskStatus');
-  el.textContent = s;
-  const colors = { idle: 'bg-slate-600 text-slate-200', running: 'bg-green-500 text-green-950', paused: 'bg-yellow-500 text-yellow-950', completed: 'bg-green-500 text-green-950', failed: 'bg-red-500 text-white', cancelled: 'bg-slate-500 text-white' };
-  el.className = 'rounded-full px-3 py-1 text-xs font-bold uppercase ' + (colors[s] || colors.idle);
-  document.getElementById('btnPause').disabled = s !== 'running';
-  document.getElementById('btnResume').disabled = s !== 'paused';
-  document.getElementById('btnCancel').disabled = !['running','paused'].includes(s);
-}
-
 function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
+/* Init */
 loadCredentials();
-loadTasks();
 </script>
 </body>
 </html>
