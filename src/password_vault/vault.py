@@ -2,8 +2,8 @@ import json
 from contextlib import suppress
 
 import keyring
-from keyring.errors import PasswordDeleteError
 from cryptography.fernet import Fernet
+from keyring.errors import PasswordDeleteError
 
 _INDEX_SERVICE = "senior-rpa-index"
 _INDEX_USER = "_service_index"
