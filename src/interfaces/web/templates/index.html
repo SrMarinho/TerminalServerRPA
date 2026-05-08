@@ -1,99 +1,238 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>senior-rpa</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
 <script src="https://cdn.tailwindcss.com"></script>
+<script>
+(function(){
+  try {
+    var stored = localStorage.getItem('senior-rpa.theme');
+    var theme = stored || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    document.documentElement.setAttribute('data-theme', theme);
+  } catch(e) { document.documentElement.setAttribute('data-theme', 'light'); }
+})();
+</script>
+<style>
+:root,[data-theme="dark"]{--bg-0:#000;--bg-1:#08090a;--bg-2:#111316;--bg-3:#1a1d22;--line:#2a2e36;--line-2:#3d4250;--text-0:#fff;--text-1:#c8ccd4;--text-2:#8b909c;--text-3:#5a5f6b;--accent:#4ade80;--accent-dim:#22c55e;--accent-glow:rgba(74,222,128,.25);--accent-on:#000;--warn:#fbbf24;--danger:#f87171;--info:#60a5fa;--grid-opacity:.4;--noise-opacity:.4;--noise-blend:overlay;--card-gradient:linear-gradient(180deg,var(--bg-2) 0%,var(--bg-1) 100%);--shadow-modal:0 24px 64px rgba(0,0,0,.6),0 0 0 1px rgba(74,222,128,.08);--shadow-toast:0 12px 32px rgba(0,0,0,.5)}
+[data-theme="light"]{--bg-0:#f5f5f4;--bg-1:#fff;--bg-2:#fafaf9;--bg-3:#f0efed;--line:#d6d3d0;--line-2:#a8a29e;--text-0:#0c0a09;--text-1:#292524;--text-2:#57534e;--text-3:#78716c;--accent:#15803d;--accent-dim:#166534;--accent-glow:rgba(21,128,61,.18);--accent-on:#fff;--warn:#b45309;--danger:#b91c1c;--info:#1d4ed8;--grid-opacity:.5;--noise-opacity:.25;--noise-blend:multiply;--card-gradient:linear-gradient(180deg,var(--bg-1) 0%,var(--bg-2) 100%);--shadow-modal:0 24px 64px rgba(0,0,0,.18),0 0 0 1px rgba(21,128,61,.1);--shadow-toast:0 12px 32px rgba(0,0,0,.15)}
+*{box-sizing:border-box}
+html,body{background:var(--bg-0);color:var(--text-0);font-family:'JetBrains Mono',ui-monospace,monospace;font-feature-settings:"ss02","ss03","cv11";-webkit-font-smoothing:antialiased;letter-spacing:-.005em;transition:background-color .25s ease,color .25s ease}
+body,aside,.card,.task-tile,.cred-row,.input,.btn,.nav-btn,.log-box,.modal-panel,.toast{transition:background-color .25s ease,color .25s ease,border-color .25s ease,box-shadow .25s ease}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:48px 48px;background-position:-1px -1px;opacity:var(--grid-opacity);transition:opacity .3s;pointer-events:none;z-index:0;mask-image:radial-gradient(ellipse at center,black 20%,transparent 75%);-webkit-mask-image:radial-gradient(ellipse at center,black 20%,transparent 75%)}
+body::after{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");opacity:var(--noise-opacity);mix-blend-mode:var(--noise-blend);pointer-events:none;z-index:1}
+.display-serif{font-family:'Instrument Serif',serif;font-style:italic;letter-spacing:-.01em}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-track{background:var(--bg-1)}
+::-webkit-scrollbar-thumb{background:var(--line-2);border-radius:0;border:2px solid var(--bg-1)}
+::-webkit-scrollbar-thumb:hover{background:var(--text-3)}
+.input{background:var(--bg-1);border:1px solid var(--line);color:var(--text-0);font-family:'JetBrains Mono',monospace;font-size:13px;padding:10px 14px;transition:border-color .15s,box-shadow .15s;outline:none;width:100%}
+.input:focus{border-color:var(--accent-dim);box-shadow:0 0 0 3px var(--accent-glow)}
+.input::placeholder{color:var(--text-3)}
+.btn{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:500;letter-spacing:.02em;padding:9px 16px;border:1px solid transparent;background:transparent;color:var(--text-0);cursor:pointer;transition:all .15s ease;display:inline-flex;align-items:center;gap:8px;text-transform:lowercase;user-select:none}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.btn-primary{background:var(--accent);color:var(--accent-on);border-color:var(--accent)}
+.btn-primary:not(:disabled):hover{background:var(--accent-dim);box-shadow:0 0 24px var(--accent-glow)}
+.btn-ghost{border-color:var(--line-2);color:var(--text-1)}
+.btn-ghost:not(:disabled):hover{border-color:var(--text-2);color:var(--text-0);background:var(--bg-2)}
+.btn-danger{border-color:var(--line-2);color:var(--text-1)}
+.btn-danger:not(:disabled):hover{border-color:var(--danger);color:var(--danger);background:rgba(232,101,101,.06)}
+.nav-btn{width:100%;text-align:left;padding:9px 12px;font-size:13px;color:var(--text-1);border-left:2px solid transparent;background:transparent;transition:all .15s;display:flex;align-items:center;gap:10px;cursor:pointer;font-family:'JetBrains Mono',monospace;letter-spacing:-.005em}
+.nav-btn:hover{color:var(--text-0);background:var(--bg-2)}
+.nav-btn.active{color:var(--accent);border-left-color:var(--accent);background:linear-gradient(90deg,var(--accent-glow),transparent 60%)}
+.nav-btn .nav-num{font-size:10px;color:var(--text-3);margin-left:auto;font-weight:600}
+.nav-btn.active .nav-num{color:var(--accent-dim)}
+.card{background:var(--card-gradient);border:1px solid var(--line);position:relative}
+.card::before{content:'';position:absolute;top:0;left:0;width:12px;height:1px;background:var(--accent)}
+.task-tile{background:var(--bg-1);border:1px solid var(--line);padding:18px;cursor:pointer;transition:all .2s ease;position:relative;overflow:hidden}
+.task-tile::after{content:'';position:absolute;top:0;right:0;width:0;height:0;border-style:solid;border-width:0 12px 12px 0;border-color:transparent var(--line) transparent transparent;transition:border-color .2s}
+.task-tile:hover{border-color:var(--accent-dim);background:var(--bg-2);transform:translateY(-1px)}
+.task-tile:hover::after{border-color:transparent var(--accent) transparent transparent}
+@keyframes pulse-dot{0%,100%{box-shadow:0 0 0 0 currentColor;opacity:1}50%{box-shadow:0 0 0 4px transparent;opacity:.6}}
+.pulse{animation:pulse-dot 1.6s ease-in-out infinite}
+.cred-row{background:var(--bg-1);border:1px solid var(--line);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;transition:border-color .15s}
+.cred-row:hover{border-color:var(--line-2)}
+.log-box{background:var(--bg-0);border:1px solid var(--line);font-family:'JetBrains Mono',monospace;font-size:11.5px;line-height:1.65;color:var(--text-1);padding:14px 16px;height:200px;overflow-y:auto;position:relative}
+.log-box::before{content:'$ ';position:absolute;top:14px;left:16px;color:var(--accent)}
+.modal-backdrop{background:color-mix(in srgb,var(--bg-0) 85%,transparent);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.modal-panel{background:var(--bg-1);border:1px solid var(--line-2);box-shadow:var(--shadow-modal)}
+.toast{background:var(--bg-2);border:1px solid var(--line-2);color:var(--text-0);font-family:'JetBrains Mono',monospace;font-size:12.5px;padding:12px 16px;border-left:2px solid var(--accent);box-shadow:var(--shadow-toast);min-width:240px}
+.toast.error{border-left-color:var(--danger)}
+.theme-switch{display:grid;grid-template-columns:1fr 1fr;background:var(--bg-2);border:1px solid var(--line);padding:3px;gap:2px}
+.theme-opt{display:flex;align-items:center;justify-content:center;gap:6px;padding:6px 8px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-2);background:transparent;border:none;cursor:pointer;transition:all .15s;text-transform:lowercase;letter-spacing:.02em}
+.theme-opt:hover{color:var(--text-0)}
+.theme-opt.active{background:var(--bg-0);color:var(--accent);box-shadow:inset 0 0 0 1px var(--line-2)}
+.label{font-size:10px;color:var(--text-2);text-transform:uppercase;letter-spacing:.12em;font-weight:600;display:block;margin-bottom:6px}
+.section-head{display:flex;align-items:baseline;gap:12px;padding-bottom:16px;border-bottom:1px solid var(--line);margin-bottom:24px}
+.section-head .crumb{font-size:11px;color:var(--text-3);letter-spacing:.1em;text-transform:uppercase}
+.section-head .arrow{color:var(--text-3)}
+.section-head .title{font-size:13px;color:var(--text-0);letter-spacing:.02em}
+.kbd{font-family:'JetBrains Mono',monospace;font-size:10px;background:var(--bg-2);border:1px solid var(--line-2);padding:2px 6px;color:var(--text-1);border-radius:3px}
+@keyframes fade-up{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.fade-up{animation:fade-up .4s ease both}
+@keyframes blink{50%{opacity:0}}
+.blink{animation:blink 1.2s steps(1) infinite}
+.hidden{display:none!important}
+.dot{width:6px;height:6px;border-radius:50%;display:inline-block}
+.dot-idle{background:var(--text-3)}
+.dot-running{background:var(--accent);color:var(--accent)}
+.dot-paused{background:var(--warn);color:var(--warn)}
+.dot-completed{background:var(--accent);color:var(--accent)}
+.dot-failed{background:var(--danger);color:var(--danger)}
+.dot-cancelled{background:var(--text-2)}
+</style>
 </head>
-<body class="bg-slate-900 text-slate-200 font-sans flex h-screen overflow-hidden">
+<body class="flex h-screen overflow-hidden relative">
 
 <!-- Sidebar -->
-<div class="w-56 bg-slate-800 border-r border-slate-700 flex flex-col shrink-0">
-  <div class="p-4 text-cyan-400 text-lg font-bold border-b border-slate-700">senior-rpa</div>
-  <nav class="flex-1 p-2 space-y-1">
-    <button class="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors sidebar-btn active" data-panel="credentials" onclick="switchPanel('credentials')">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-      Credentials
-    </button>
-    <button class="w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors sidebar-btn" data-panel="tasks" onclick="switchPanel('tasks')">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
-      Tasks
-    </button>
-  </nav>
-  <div class="p-3 border-t border-slate-700 text-xs text-slate-500">
-    <div id="globalStatus" class="flex items-center gap-2">
-      <span class="w-2 h-2 rounded-full bg-slate-600" id="statusDot"></span>
-      <span id="statusText">idle</span>
-    </div>
-  </div>
-</div>
-
-<!-- Main content -->
-<div class="flex-1 overflow-y-auto p-6">
-
-  <!-- Credentials Panel -->
-  <div id="panel-credentials" class="panel">
-    <h2 class="text-slate-400 text-sm font-bold uppercase tracking-wider mb-4">Credentials</h2>
-    <form id="credForm" class="mb-6">
-      <label class="block text-slate-400 text-sm mb-1" for="service">Service</label>
-      <input id="service" name="service" placeholder="e.g. erp-system" required class="w-full max-w-md px-3 py-2 bg-slate-950 border border-slate-700 rounded-md text-slate-200 mb-3 focus:outline-none focus:border-cyan-400">
-      <label class="block text-slate-400 text-sm mb-1" for="username">Username</label>
-      <input id="username" name="username" placeholder="e.g. admin" required class="w-full max-w-md px-3 py-2 bg-slate-950 border border-slate-700 rounded-md text-slate-200 mb-3 focus:outline-none focus:border-cyan-400">
-      <label class="block text-slate-400 text-sm mb-1" for="password">Password</label>
-      <input id="password" type="password" name="password" placeholder="password" required class="w-full max-w-md px-3 py-2 bg-slate-950 border border-slate-700 rounded-md text-slate-200 mb-3 focus:outline-none focus:border-cyan-400">
-      <button type="submit" class="bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-semibold px-4 py-2 rounded-md text-sm">Save</button>
-    </form>
-    <div id="credList"></div>
-  </div>
-
-  <!-- Tasks Panel -->
-  <div id="panel-tasks" class="panel hidden">
-    <div class="flex items-center justify-between mb-4">
-      <h2 class="text-slate-400 text-sm font-bold uppercase tracking-wider">Tasks</h2>
-      <div class="flex gap-2">
-        <button id="btnPause" class="bg-slate-600 hover:bg-slate-500 text-slate-200 text-sm px-3 py-1.5 rounded-md disabled:opacity-50 disabled:cursor-not-allowed" disabled onclick="pauseTask()">Pause</button>
-        <button id="btnResume" class="bg-slate-600 hover:bg-slate-500 text-slate-200 text-sm px-3 py-1.5 rounded-md disabled:opacity-50 disabled:cursor-not-allowed" disabled onclick="resumeTask()">Resume</button>
-        <button id="btnCancel" class="bg-red-500 hover:bg-red-400 text-white text-sm px-3 py-1.5 rounded-md disabled:opacity-50 disabled:cursor-not-allowed" disabled onclick="cancelTask()">Cancel</button>
+<aside class="w-64 shrink-0 flex flex-col relative z-10" style="background:var(--bg-1);border-right:1px solid var(--line)">
+  <div class="px-5 py-5" style="border-bottom:1px solid var(--line)">
+    <div class="flex items-center gap-2.5">
+      <div class="relative w-7 h-7 flex items-center justify-center" style="background:var(--accent);color:var(--bg-0)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+      </div>
+      <div>
+        <div class="text-[15px] font-semibold tracking-tight" style="color:var(--text-0)">senior<span style="color:var(--accent)">·</span>rpa</div>
+        <div class="text-[10px]" style="color:var(--text-3);letter-spacing:.1em">v1.0 · OPERADOR</div>
       </div>
     </div>
-    <div id="taskCards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6"></div>
-    <div class="bg-slate-800 rounded-xl p-4 border border-slate-700">
-      <h3 class="text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Log</h3>
-      <div id="log" class="bg-slate-950 border border-slate-700 rounded-md p-3 h-48 overflow-y-auto font-mono text-xs"></div>
+  </div>
+
+  <nav class="flex-1 py-4">
+    <div class="px-5 mb-2 text-[10px] font-semibold" style="color:var(--text-3);letter-spacing:.14em">WORKSPACE</div>
+    <button class="nav-btn active" data-panel="tasks" onclick="switchPanel('tasks')">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+      <span>Tarefas</span><span class="nav-num">01</span>
+    </button>
+    <button class="nav-btn" data-panel="credentials" onclick="switchPanel('credentials')">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="1"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+      <span>Credenciais</span><span class="nav-num">02</span>
+    </button>
+  </nav>
+
+  <div class="px-5 py-4" style="border-top:1px solid var(--line)">
+    <div class="text-[10px] mb-2" style="color:var(--text-3);letter-spacing:.14em">APARÊNCIA</div>
+    <div class="theme-switch" role="radiogroup">
+      <button type="button" class="theme-opt" data-theme-value="dark" onclick="setTheme('dark')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg><span>escuro</span></button>
+      <button type="button" class="theme-opt" data-theme-value="light" onclick="setTheme('light')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg><span>claro</span></button>
     </div>
   </div>
 
-</div>
+  <div class="px-5 py-4" style="border-top:1px solid var(--line)">
+    <div class="text-[10px] mb-2" style="color:var(--text-3);letter-spacing:.14em">EXECUÇÃO</div>
+    <div class="flex items-center gap-2.5" id="globalStatus">
+      <span id="statusDot" class="dot dot-idle"></span>
+      <span class="text-xs" style="color:var(--text-0)" id="statusText">ocioso</span>
+      <span class="ml-auto text-[10px]" style="color:var(--text-3)" id="uptime">—</span>
+    </div>
+  </div>
+</aside>
 
-<!-- Modal -->
-<div id="taskModal" class="fixed inset-0 bg-black/60 flex items-center justify-center hidden z-50">
-  <div class="bg-slate-800 rounded-xl border border-slate-700 w-full max-w-lg mx-4 max-h-[80vh] overflow-y-auto">
-    <div class="flex items-center justify-between p-4 border-b border-slate-700">
-      <h3 id="modalTitle" class="text-cyan-400 font-bold text-lg"></h3>
-      <button onclick="closeModal()" class="text-slate-400 hover:text-slate-200 text-xl leading-none">&times;</button>
+<!-- Main -->
+<main class="flex-1 overflow-y-auto relative z-10">
+  <div class="max-w-5xl mx-auto px-10 py-10">
+
+    <!-- Tarefas Panel -->
+    <section id="panel-tasks" class="panel">
+      <div class="section-head">
+        <span class="crumb">SISTEMA</span><span class="arrow">/</span><span class="crumb">workspace</span><span class="arrow">/</span><span class="title">Tarefas</span>
+      </div>
+      <div class="mb-8 fade-up flex items-end justify-between flex-wrap gap-4">
+        <div>
+          <h1 class="text-3xl mb-1" style="font-weight:600;letter-spacing:-.02em">
+            Tarefas de automação<span class="display-serif" style="color:var(--accent);font-weight:400">.</span>
+          </h1>
+          <p class="text-sm" style="color:var(--text-2)">Clique no card para executar, no ⚙ para configurar.</p>
+        </div>
+        <div class="flex gap-2">
+          <button id="btnPause" class="btn btn-ghost" disabled onclick="pauseTask()"><svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/></svg>pausar</button>
+          <button id="btnResume" class="btn btn-ghost" disabled onclick="resumeTask()"><svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>continuar</button>
+          <button id="btnCancel" class="btn btn-danger" disabled onclick="cancelTask()"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>cancelar</button>
+        </div>
+      </div>
+      <div class="mb-3 flex items-center justify-between">
+        <div class="label" style="margin-bottom:0">ROTINAS DISPONÍVEIS</div>
+        <div class="text-[10px]" style="color:var(--text-3)" id="taskCount">—</div>
+      </div>
+      <div id="taskCards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-10 fade-up"></div>
+
+      <div class="fade-up" style="animation-delay:.05s">
+        <div class="flex items-center justify-between mb-3">
+          <div class="label" style="margin-bottom:0">LOG DE EXECUÇÃO</div>
+          <div class="flex items-center gap-1.5 text-[10px]" style="color:var(--text-3)"><span class="w-1.5 h-1.5 rounded-full blink" style="background:var(--accent)"></span>AO VIVO</div>
+        </div>
+        <div id="log" class="log-box"><div style="padding-left:16px"><span style="color:var(--text-3)">[<span id="bootTime">--:--:--</span>]</span> sistema pronto · aguardando entrada<span class="blink" style="color:var(--accent)">_</span></div></div>
+      </div>
+    </section>
+
+    <!-- Credenciais Panel -->
+    <section id="panel-credentials" class="panel hidden">
+      <div class="section-head">
+        <span class="crumb">SISTEMA</span><span class="arrow">/</span><span class="crumb">workspace</span><span class="arrow">/</span><span class="title">Credenciais</span>
+      </div>
+      <div class="mb-10 fade-up">
+        <h1 class="text-3xl mb-1" style="font-weight:600;letter-spacing:-.02em">
+          Credenciais salvas<span class="display-serif" style="color:var(--accent);font-weight:400">.</span>
+        </h1>
+        <p class="text-sm" style="color:var(--text-2)">Cofre criptografado para autenticação usado por tarefas.</p>
+      </div>
+      <div class="card p-6 mb-8 fade-up" style="animation-delay:.05s">
+        <div class="flex items-center justify-between mb-5">
+          <div>
+            <div class="label" style="margin-bottom:4px">NOVA ENTRADA</div>
+            <div class="text-sm" style="color:var(--text-1)">Adicione credenciais para um novo serviço</div>
+          </div>
+          <div class="text-[10px] flex items-center gap-1.5" style="color:var(--text-3)"><span class="w-1.5 h-1.5 rounded-full" style="background:var(--accent)"></span>CRIPTOGRAFADO</div>
+        </div>
+        <form id="credForm" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div><label class="label">Serviço</label><input id="service" name="service" placeholder="ex: erp-sistema" required class="input"></div>
+          <div><label class="label">Usuário</label><input id="username" name="username" placeholder="admin" required class="input"></div>
+          <div><label class="label">Senha</label><input id="password" type="password" name="password" placeholder="••••••••" required class="input"></div>
+          <div class="md:col-span-3 flex justify-end pt-2"><button type="submit" class="btn btn-primary"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>salvar credencial</button></div>
+        </form>
+      </div>
+      <div class="fade-up" style="animation-delay:.1s">
+        <div class="flex items-center justify-between mb-3">
+          <div class="label" style="margin-bottom:0">ENTRADAS ATIVAS</div>
+          <div class="text-[10px]" style="color:var(--text-3)" id="credCount">—</div>
+        </div>
+        <div id="credList" class="space-y-2"></div>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<!-- Modal de Configuração -->
+<div id="configModal" class="fixed inset-0 modal-backdrop hidden items-center justify-center z-50 p-4" onclick="if(event.target===this)closeConfigModal()">
+  <div class="modal-panel w-full max-w-lg max-h-[85vh] flex flex-col">
+    <div class="flex items-center justify-between px-6 py-4" style="border-bottom:1px solid var(--line)">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 flex items-center justify-center" style="background:var(--bg-2);border:1px solid var(--line-2)">
+          <svg width="14" height="14" fill="none" stroke="var(--accent)" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+        </div>
+        <div>
+          <div class="text-[10px]" style="color:var(--text-3);letter-spacing:.14em">CONFIG</div>
+          <h3 id="configModalTitle" class="text-base" style="font-weight:600"></h3>
+        </div>
+      </div>
+      <button onclick="closeConfigModal()" class="text-xl leading-none w-8 h-8 flex items-center justify-center transition-colors" style="color:var(--text-2)">×</button>
     </div>
-    <div class="p-4">
-      <label class="block text-slate-400 text-sm mb-1">Parameters (JSON)</label>
-      <textarea id="modalParams" rows="10" class="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-md text-slate-200 font-mono text-sm focus:outline-none focus:border-cyan-400"></textarea>
-    </div>
-    <div class="flex gap-2 justify-end p-4 border-t border-slate-700">
-      <button onclick="saveModalConfig()" class="bg-slate-600 hover:bg-slate-500 text-slate-200 font-semibold px-4 py-2 rounded-md text-sm">Save Config</button>
-      <button onclick="runModalTask()" class="bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-semibold px-4 py-2 rounded-md text-sm">Run</button>
-      <button onclick="closeModal()" class="bg-slate-700 hover:bg-slate-600 text-slate-300 font-semibold px-4 py-2 rounded-md text-sm">Cancel</button>
+    <div class="p-6 overflow-y-auto" id="configFields"></div>
+    <div class="flex gap-2 justify-end px-6 py-4" style="border-top:1px solid var(--line)">
+      <button onclick="closeConfigModal()" class="btn btn-ghost">cancelar</button>
+      <button onclick="saveModalConfig()" class="btn btn-ghost"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>salvar config</button>
+      <button onclick="saveAndRun()" class="btn btn-primary"><svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>salvar & executar</button>
     </div>
   </div>
 </div>
 
 <!-- Toast -->
-<div id="toast" class="fixed bottom-4 right-4 px-4 py-3 rounded-md font-semibold transition-all duration-300 translate-y-32 bg-green-500 text-green-950 z-50"></div>
-
-<style>
-.sidebar-btn.active { background: #1e293b; color: #38bdf8; }
-.sidebar-btn:not(.active):hover { background: #334155; }
-.task-card { cursor: pointer; transition: border-color .15s; }
-.task-card:hover { border-color: #38bdf8; }
-</style>
+<div id="toast" class="fixed bottom-6 right-6 toast translate-y-32 opacity-0 transition-all duration-300 z-50 pointer-events-none"></div>
 
 <script>
 const API = '';
@@ -108,59 +247,64 @@ async function api(method, path, body) {
 
 function toast(msg, isError) {
   const el = document.getElementById('toast');
-  el.textContent = msg;
-  el.className = 'fixed bottom-4 right-4 px-4 py-3 rounded-md font-semibold transition-all duration-300 translate-y-32 z-50' + (isError ? ' bg-red-500 text-white' : ' bg-green-500 text-green-950');
-  requestAnimationFrame(() => {
-    el.className = el.className.replace('translate-y-32', 'translate-y-0');
-    setTimeout(() => el.className = el.className.replace('translate-y-0', 'translate-y-32'), 3000);
-  });
+  el.textContent = (isError ? '✕  ' : '✓  ') + msg;
+  el.className = 'fixed bottom-6 right-6 toast translate-y-0 opacity-100 transition-all duration-300 z-50 pointer-events-none' + (isError ? ' error' : '');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.className = 'fixed bottom-6 right-6 toast translate-y-32 opacity-0 transition-all duration-300 z-50 pointer-events-none' + (isError ? ' error' : ''); }, 3000);
 }
 
-/* Sidebar */
+function logLine(msg, type) {
+  const log = document.getElementById('log');
+  const time = new Date().toTimeString().slice(0, 8);
+  const colors = { error: 'var(--danger)', warn: 'var(--warn)', success: 'var(--accent)', info: 'var(--info)' };
+  const line = document.createElement('div');
+  line.style.paddingLeft = '16px';
+  line.innerHTML = '<span style="color:var(--text-3)">[' + time + ']</span> <span style="color:' + (colors[type] || 'var(--text-1)') + '">' + msg + '</span>';
+  log.appendChild(line);
+  log.scrollTop = log.scrollHeight;
+}
+
 function switchPanel(name) {
-  document.querySelectorAll('.sidebar-btn').forEach(b => b.classList.remove('active'));
-  document.querySelector(`.sidebar-btn[data-panel="${name}"]`).classList.add('active');
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('.nav-btn[data-panel="' + name + '"]').classList.add('active');
   document.querySelectorAll('.panel').forEach(p => p.classList.add('hidden'));
-  document.getElementById(`panel-${name}`).classList.remove('hidden');
+  document.getElementById('panel-' + name).classList.remove('hidden');
   if (name === 'tasks') loadTasks();
   if (name === 'credentials') loadCredentials();
 }
 
-/* Global status */
+const STATUS_PT = { idle: 'ocioso', running: 'executando', paused: 'pausado', completed: 'concluído', failed: 'falhou', cancelled: 'cancelado' };
+
 function updateGlobalStatus(s) {
-  document.getElementById('statusText').textContent = s;
+  document.getElementById('statusText').textContent = STATUS_PT[s] || s;
   const dot = document.getElementById('statusDot');
-  const colors = { idle: 'bg-slate-600', running: 'bg-green-500', paused: 'bg-yellow-500', completed: 'bg-green-500', failed: 'bg-red-500', cancelled: 'bg-slate-500' };
-  dot.className = `w-2 h-2 rounded-full ${colors[s] || colors.idle}`;
+  dot.className = 'dot dot-' + s + (s === 'running' || s === 'paused' ? ' pulse' : '');
   document.getElementById('btnPause').disabled = s !== 'running';
   document.getElementById('btnResume').disabled = s !== 'paused';
-  document.getElementById('btnCancel').disabled = !['running','paused'].includes(s);
+  document.getElementById('btnCancel').disabled = !['running', 'paused'].includes(s);
 }
 
 /* Credentials */
 async function loadCredentials() {
   try {
     const data = await api('GET', '/api/credentials');
+    document.getElementById('credCount').textContent = String(data.length).padStart(2, '0') + ' / ' + String(data.length).padStart(2, '0');
     document.getElementById('credList').innerHTML = data.length
-      ? `<div class="space-y-2 max-w-md">${data.map(c => `
-        <div class="flex justify-between items-center py-2 px-3 bg-slate-800 rounded-md border border-slate-700">
-          <div><span class="text-cyan-400 font-semibold text-sm">${esc(c.service)}</span><span class="text-slate-400 text-xs ml-2">${esc(c.usernames.join(', '))}</span></div>
-          <button class="bg-red-500 hover:bg-red-400 text-white text-xs px-2 py-1 rounded-md" onclick="deleteCred('${esc(c.service)}')">Delete</button>
-        </div>`).join('')}</div>`
-      : '<div class="text-slate-500 text-sm py-2">No credentials stored.</div>';
-  } catch (e) { toast('Failed to load credentials', true); }
+      ? data.map((c, i) => '<div class="cred-row fade-up" style="animation-delay:' + (i * 0.03) + 's"><div class="flex items-center gap-4 min-w-0"><div class="text-[10px] tabular-nums" style="color:var(--text-3)">' + String(i + 1).padStart(2, '0') + '</div><div class="min-w-0"><div class="text-sm font-medium truncate" style="color:var(--text-0)">' + esc(c.service) + '</div><div class="text-[11px] truncate" style="color:var(--text-2)">' + esc(c.usernames.join(' · ')) + '</div></div></div><button class="btn btn-danger" style="padding:6px 12px;font-size:11px" onclick="deleteCred(\'' + esc(c.service) + '\')"><svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>remover</button></div>').join('')
+      : '<div class="card p-8 text-center" style="border-style:dashed"><div class="text-sm mb-1" style="color:var(--text-1)">Nenhuma credencial salva</div><div class="text-xs" style="color:var(--text-3)">Adicione sua primeira entrada acima para começar</div></div>';
+  } catch (e) { toast('Falha ao carregar credenciais', true); }
 }
 
 async function deleteCred(service) {
-  try { await api('DELETE', '/api/credentials/' + encodeURIComponent(service)); toast('Deleted'); loadCredentials(); }
-  catch (e) { toast('Delete failed', true); }
+  try { await api('DELETE', '/api/credentials/' + encodeURIComponent(service)); toast('Credencial removida'); logLine('credencial removida: ' + service, 'warn'); loadCredentials(); }
+  catch (e) { toast('Falha ao excluir', true); }
 }
 
 document.getElementById('credForm').addEventListener('submit', async (e) => {
   e.preventDefault();
   const data = { service: document.getElementById('service').value, username: document.getElementById('username').value, password: document.getElementById('password').value };
-  try { await api('POST', '/api/credentials', data); toast('Saved'); e.target.reset(); loadCredentials(); }
-  catch (err) { toast('Save failed: ' + err.message, true); }
+  try { await api('POST', '/api/credentials', data); toast('Credencial salva'); logLine('credencial salva: ' + data.service, 'success'); e.target.reset(); loadCredentials(); }
+  catch (err) { toast('Falha ao salvar: ' + err.message, true); }
 });
 
 /* Tasks */
@@ -170,58 +314,163 @@ async function loadTasks() {
   try {
     const data = await api('GET', '/api/tasks');
     updateGlobalStatus(data.current_status);
-    document.getElementById('taskCards').innerHTML = data.available.map(t =>
-      `<div class="task-card bg-slate-800 rounded-xl p-4 border border-slate-700" onclick="openTaskModal('${esc(t)}')">
-        <div class="text-cyan-400 font-semibold text-sm">${esc(t)}</div>
-        <div class="text-slate-500 text-xs mt-1">Click to configure & run</div>
-      </div>`
+    document.getElementById('taskCount').textContent = String(data.available.length).padStart(2, '0') + ' ROTINAS';
+    document.getElementById('taskCards').innerHTML = data.available.map((t, i) =>
+      '<div class="task-tile fade-up" style="animation-delay:' + (i * 0.04) + 's">'
+        + '<div class="flex items-center justify-between mb-3">'
+          + '<div class="text-[10px] tabular-nums" style="color:var(--text-3);letter-spacing:.1em">ROTINA · ' + String(i + 1).padStart(2, '0') + '</div>'
+          + '<div class="flex gap-1">'
+            + '<button class="btn btn-ghost" style="padding:4px 8px;font-size:11px" onclick="event.stopPropagation();openConfigModal(\'' + esc(t) + '\')" title="Configurar">⚙</button>'
+          + '</div>'
+        + '</div>'
+        + '<div class="text-sm mb-1" style="color:var(--text-0);font-weight:500" onclick="event.stopPropagation();runTaskDirect(\'' + esc(t) + '\')">' + esc(t) + '</div>'
+        + '<div class="text-[11px] flex items-center gap-1.5" style="color:var(--text-2)">clique para executar</div>'
+      + '</div>'
     ).join('');
-  } catch (e) { toast('Failed to load tasks', true); }
+  } catch (e) { toast('Falha ao carregar tarefas', true); }
 }
 
-async function openTaskModal(name) {
-  currentTask = name;
-  document.getElementById('modalTitle').textContent = name;
-  document.getElementById('modalParams').value = '{\n  \n}';
+async function runTaskDirect(name) {
   try {
-    const config = await api('GET', `/api/tasks/${encodeURIComponent(name)}/config`);
-    if (config && Object.keys(config).length > 0) {
-      document.getElementById('modalParams').value = JSON.stringify(config, null, 2);
-    }
-  } catch (e) { /* no saved config */ }
-  document.getElementById('taskModal').classList.remove('hidden');
+    const config = await api('GET', '/api/tasks/' + encodeURIComponent(name) + '/config');
+    await api('POST', '/api/run/' + encodeURIComponent(name), config && Object.keys(config).length ? config : {});
+    toast('Tarefa iniciada: ' + name);
+    logLine('▶ executando ' + name, 'success');
+    switchPanel('tasks');
+  } catch (e) { toast('Erro: ' + e.message, true); }
 }
 
-function closeModal() {
-  document.getElementById('taskModal').classList.add('hidden');
+async function openConfigModal(name) {
+  currentTask = name;
+  document.getElementById('configModalTitle').textContent = name;
+  document.getElementById('configFields').innerHTML = '<div class="text-sm" style="color:var(--text-2)">Carregando...</div>';
+  document.getElementById('configModal').classList.remove('hidden');
+  document.getElementById('configModal').classList.add('flex');
+
+  try {
+    const schema = await api('GET', '/api/tasks/' + encodeURIComponent(name) + '/schema');
+    const config = await api('GET', '/api/tasks/' + encodeURIComponent(name) + '/config');
+    const creds = await api('GET', '/api/credentials');
+    renderConfigFields(schema, config, creds);
+  } catch (e) {
+    document.getElementById('configFields').innerHTML = '<div class="text-sm" style="color:var(--danger)">Erro ao carregar: ' + e.message + '</div>';
+  }
+}
+
+function renderConfigFields(schema, config, creds) {
+  var html = '';
+  for (var i = 0; i < schema.length; i++) {
+    var field = schema[i];
+    var val = config && config[field.name] !== undefined ? JSON.stringify(config[field.name], null, 2) : '';
+    if (field.type === 'credential') {
+      html += '<div class="mb-4"><label class="label" style="margin-bottom:6px">' + esc(field.label) + '</label><select id="cfg-' + field.name + '" class="input">';
+      html += '<option value="">— selecione —</option>';
+      if (creds) {
+        for (var j = 0; j < creds.length; j++) {
+          var svc = creds[j].service;
+          var selected = config && config[field.name] && config[field.name].service === svc ? ' selected' : '';
+          html += '<option value="' + esc(svc) + '"' + selected + '>' + esc(svc) + '</option>';
+        }
+      }
+      html += '</select></div>';
+    } else if (field.type === 'json') {
+      html += '<div class="mb-4"><label class="label" style="margin-bottom:6px">' + esc(field.label) + '</label><textarea id="cfg-' + field.name + '" rows="6" class="input" style="font-family:\'JetBrains Mono\',monospace;resize:vertical;line-height:1.6" spellcheck="false">' + esc(val) + '</textarea></div>';
+    } else if (field.type === 'number') {
+      var numVal = config && config[field.name] !== undefined ? config[field.name] : '';
+      html += '<div class="mb-4"><label class="label" style="margin-bottom:6px">' + esc(field.label) + '</label><input id="cfg-' + field.name + '" type="number" value="' + esc(String(numVal)) + '" class="input"></div>';
+    } else {
+      var strVal = config && config[field.name] !== undefined ? config[field.name] : '';
+      html += '<div class="mb-4"><label class="label" style="margin-bottom:6px">' + esc(field.label) + '</label><input id="cfg-' + field.name + '" type="text" value="' + esc(String(strVal)) + '" placeholder="' + esc(field.label) + '" class="input"></div>';
+    }
+  }
+  if (schema.length === 0) {
+    html = '<div class="text-sm" style="color:var(--text-2)">Esta tarefa não requer parâmetros.</div>';
+  }
+  document.getElementById('configFields').innerHTML = html;
+}
+
+function closeConfigModal() {
+  document.getElementById('configModal').classList.add('hidden');
+  document.getElementById('configModal').classList.remove('flex');
   currentTask = '';
 }
 
 async function saveModalConfig() {
+  var params = collectConfigParams();
+  if (!params) return;
   try {
-    const params = JSON.parse(document.getElementById('modalParams').value);
-    await api('POST', `/api/tasks/${encodeURIComponent(currentTask)}/config`, params);
-    toast('Config saved');
-  } catch (e) { toast('Invalid JSON: ' + e.message, true); }
+    await api('POST', '/api/tasks/' + encodeURIComponent(currentTask) + '/config', params);
+    toast('Config salva');
+    logLine('config salva: ' + currentTask, 'info');
+    closeConfigModal();
+  } catch (e) { toast('Erro ao salvar: ' + e.message, true); }
 }
 
-async function runModalTask() {
+async function saveAndRun() {
+  var params = collectConfigParams();
+  if (!params) return;
   try {
-    const params = JSON.parse(document.getElementById('modalParams').value);
-    await api('POST', `/api/run/${encodeURIComponent(currentTask)}`, params);
-    toast('Task started');
-    closeModal();
+    await api('POST', '/api/tasks/' + encodeURIComponent(currentTask) + '/config', params);
+    await api('POST', '/api/run/' + encodeURIComponent(currentTask), params);
+    toast('Tarefa iniciada');
+    logLine('▶ executando ' + currentTask, 'success');
+    closeConfigModal();
     switchPanel('tasks');
-  } catch (e) { toast('Error: ' + e.message, true); }
+  } catch (e) { toast('Erro: ' + e.message, true); }
 }
 
-async function pauseTask() { try { await api('POST', '/api/tasks/pause'); toast('Paused'); loadTasks(); } catch (e) { toast(e.message, true); } }
-async function resumeTask() { try { await api('POST', '/api/tasks/resume'); toast('Resumed'); loadTasks(); } catch (e) { toast(e.message, true); } }
-async function cancelTask() { try { await api('POST', '/api/tasks/cancel'); toast('Cancelling'); loadTasks(); } catch (e) { toast(e.message, true); } }
+function collectConfigParams() {
+  var schema = document.querySelectorAll('#configFields .mb-4');
+  if (schema.length === 0) return {};
+  var params = {};
+  for (var i = 0; i < schema.length; i++) {
+    var input = schema[i].querySelector('input,textarea,select');
+    if (!input) continue;
+    var name = input.id.replace('cfg-', '');
+    var type = input.type || 'text';
+    if (type === 'number') {
+      params[name] = parseFloat(input.value) || 0;
+    } else if (input.tagName === 'SELECT') {
+      if (input.value) {
+        params[name] = { service: input.value };
+      }
+    } else if (type === 'textarea' || name === 'users') {
+      try { params[name] = JSON.parse(input.value); } catch(e) { toast('JSON inválido no campo ' + name, true); return null; }
+    } else {
+      params[name] = input.value;
+    }
+  }
+  return params;
+}
 
-function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+async function pauseTask() { try { await api('POST', '/api/tasks/pause'); toast('Pausada'); logLine('task pausada', 'warn'); loadTasks(); } catch (e) { toast(e.message, true); } }
+async function resumeTask() { try { await api('POST', '/api/tasks/resume'); toast('Continuada'); logLine('task continuada', 'info'); loadTasks(); } catch (e) { toast(e.message, true); } }
+async function cancelTask() { try { await api('POST', '/api/tasks/cancel'); toast('Cancelando'); logLine('task cancelada', 'error'); loadTasks(); } catch (e) { toast(e.message, true); } }
 
-/* Init */
+function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+/* Uptime */
+const bootEpoch = Date.now();
+document.getElementById('bootTime').textContent = new Date().toTimeString().slice(0, 8);
+setInterval(function() {
+  var s = Math.floor((Date.now() - bootEpoch) / 1000);
+  document.getElementById('uptime').textContent = String(Math.floor(s / 3600)).padStart(2, '0') + ':' + String(Math.floor((s % 3600) / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+}, 1000);
+
+/* Theme */
+const THEME_KEY = 'senior-rpa.theme';
+function setTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  try { localStorage.setItem(THEME_KEY, theme); } catch(e) {}
+  document.querySelectorAll('.theme-opt').forEach(function(b) { b.classList.toggle('active', b.dataset.themeValue === theme); });
+}
+setTheme(document.documentElement.getAttribute('data-theme') || 'light');
+try {
+  window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', function(e) {
+    if (!localStorage.getItem(THEME_KEY)) setTheme(e.matches ? 'light' : 'dark');
+  });
+} catch(e) {}
+
 loadCredentials();
 </script>
 </body>

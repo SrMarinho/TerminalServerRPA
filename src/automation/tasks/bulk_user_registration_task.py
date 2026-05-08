@@ -10,6 +10,14 @@ class BulkUserRegistrationTask:
     def __init__(self, runner=None):
         self._runner = runner
 
+    @staticmethod
+    def get_schema():
+        return [
+            {"name": "base_url",  "label": "URL Base",          "type": "string"},
+            {"name": "credentials", "label": "Credencial",      "type": "credential"},
+            {"name": "users",     "label": "Usuários (JSON)",   "type": "json"},
+        ]
+
     async def execute(self, params: dict) -> dict:
         from playwright.async_api import async_playwright
 

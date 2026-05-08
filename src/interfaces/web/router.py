@@ -117,6 +117,12 @@ async def get_task_config(task_name: str):
     return load_config(task_name)
 
 
+@router.get("/api/tasks/{task_name}/schema")
+async def get_task_schema(task_name: str):
+    TaskRegistry.auto_discover()
+    return TaskRegistry.get_schema(task_name)
+
+
 @router.post("/api/tasks/{task_name}/config")
 async def save_task_config(task_name: str, data: dict):
     save_config(task_name, data)
