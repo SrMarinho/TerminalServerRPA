@@ -1,10 +1,12 @@
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import patch, MagicMock
-from fastapi.testclient import TestClient
 from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
+from src.password_vault.router import router
 
 app = FastAPI()
-from src.password_vault.router import router
 app.include_router(router)
 client = TestClient(app)
 

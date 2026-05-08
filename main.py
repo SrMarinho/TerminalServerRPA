@@ -1,4 +1,5 @@
 import typer
+
 from src.password_vault.logger import configure_logger
 
 app = typer.Typer()

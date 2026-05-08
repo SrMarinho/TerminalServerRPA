@@ -1,8 +1,8 @@
-import httpx
-import json
-from pathlib import Path
 from dataclasses import dataclass
-from typing import Optional
+from pathlib import Path
+
+import httpx
+
 from src.password_vault.logger import get_logger
 
 log = get_logger("senior-rpa.updater")
@@ -22,7 +22,7 @@ class Release:
         return self.tag_name.lstrip("v")
 
 
-def check_for_update(current_version: str) -> Optional[Release]:
+def check_for_update(current_version: str) -> Release | None:
     url = f"https://api.github.com/repos/{OWNER}/{REPO}/releases/latest"
     try:
         resp = httpx.get(url, timeout=10)
@@ -42,7 +42,7 @@ def check_for_update(current_version: str) -> Optional[Release]:
     return None
 
 
-def download_asset(asset_name: str, dest_dir: Path) -> Optional[Path]:
+def download_asset(asset_name: str, dest_dir: Path) -> Path | None:
     url = f"https://github.com/{OWNER}/{REPO}/releases/latest/download/{asset_name}"
     dest = dest_dir / asset_name
     try:

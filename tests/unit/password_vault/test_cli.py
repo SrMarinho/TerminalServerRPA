@@ -1,6 +1,8 @@
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock, call
 from typer.testing import CliRunner
+
 from src.password_vault.cli import vault_app
 from src.password_vault.vault import Vault
 
@@ -52,7 +54,9 @@ class TestCliList:
 
     def test_list_with_services(self, mock_vault):
         mock_vault.list_services.return_value = ["svc1", "svc2"]
-        mock_vault.list_credentials.side_effect = lambda s: [{"username": "usr1"}] if s == "svc1" else [{"username": "usr2"}]
+        mock_vault.list_credentials.side_effect = (
+            lambda s: [{"username": "usr1"}] if s == "svc1" else [{"username": "usr2"}]
+        )
         result = runner.invoke(vault_app, ["list"])
         assert result.exit_code == 0
         assert "svc1" in result.stdout

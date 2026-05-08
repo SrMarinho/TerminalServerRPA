@@ -1,9 +1,8 @@
-from enum import Enum
 import asyncio
-from typing import Optional
+from enum import StrEnum
 
 
-class TaskStatus(str, Enum):
+class TaskStatus(StrEnum):
     IDLE = "idle"
     RUNNING = "running"
     PAUSED = "paused"
@@ -14,7 +13,7 @@ class TaskStatus(str, Enum):
 
 class TaskRunner:
     def __init__(self):
-        self._task: Optional[asyncio.Task] = None
+        self._task: asyncio.Task | None = None
         self._pause_event = asyncio.Event()
         self._pause_event.set()
         self._cancel_requested = False
@@ -24,7 +23,7 @@ class TaskRunner:
     def status(self) -> TaskStatus:
         return self._status
 
-    async def run(self, task_name: str, params: Optional[dict] = None):
+    async def run(self, task_name: str, params: dict | None = None):
         self._status = TaskStatus.RUNNING
         self._cancel_requested = False
         self._pause_event.set()

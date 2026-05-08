@@ -1,6 +1,7 @@
-from unittest.mock import patch, MagicMock, call
-from fastapi import FastAPI
 import asyncio
+from unittest.mock import MagicMock, patch
+
+from fastapi import FastAPI
 
 
 class TestFindFreePort:
@@ -23,8 +24,9 @@ class TestFindFreePort:
             assert find_free_port(9000) == 9001
 
     def test_raises_when_all_busy(self):
-        from src.password_vault.server import find_free_port
         import pytest
+
+        from src.password_vault.server import find_free_port
         with patch("socket.socket") as mock_sock:
             inst = MagicMock()
             inst.connect_ex.return_value = 0
