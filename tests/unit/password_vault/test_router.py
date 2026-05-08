@@ -1,10 +1,10 @@
 import pytest
 from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
-from src.password_vault.router import router
 from fastapi import FastAPI
 
 app = FastAPI()
+from src.password_vault.router import router
 app.include_router(router)
 client = TestClient(app)
 
@@ -23,6 +23,14 @@ class TestIndex:
         resp = client.get("/")
         assert resp.status_code == 200
         assert "text/html" in resp.headers["content-type"]
+
+
+class TestFocus:
+    @patch("src.password_vault.router.webbrowser")
+    def test_focus_opens_browser(self, mock_web):
+        resp = client.get("/_focus")
+        assert resp.status_code == 200
+        assert resp.json() == {"status": "focused"}
 
 
 class TestListCredentials:

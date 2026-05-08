@@ -1,13 +1,17 @@
-from fastapi import APIRouter, HTTPException
+import asyncio
+import webbrowser
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
-from fastapi.requests import Request
 from pathlib import Path
 from src.password_vault.vault import Vault
 from src.password_vault.task_runner import get_runner, TaskStatus
+from src.password_vault.websocket import manager
+from src.password_vault.logger import get_logger
 
 router = APIRouter()
 _vault = Vault()
 _runner = get_runner()
+_log = get_logger("senior-rpa.router")
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 
@@ -16,6 +20,35 @@ TEMPLATES_DIR = Path(__file__).parent / "templates"
 async def index():
     html = (TEMPLATES_DIR / "index.html").read_text(encoding="utf-8")
     return HTMLResponse(html)
+
+
+@router.get("/_focus")
+async def focus():
+    webbrowser.open("http://127.0.0.1:8080")
+    return {"status": "focused"}
+
+
+@router.websocket("/ws")
+async def websocket_endpoint(ws: WebSocket):
+    await manager.connect(ws)
+    try:
+        while True:
+            data = await ws.receive_json()
+            cmd = data.get("type")
+            if cmd == "pause":
+                _runner.pause()
+            elif cmd == "resume":
+                _runner.resume()
+            elif cmd == "cancel":
+                _runner.cancel()
+            elif cmd == "run":
+                task_name = data.get("task_name", "")
+                if _runner.status != TaskStatus.RUNNING:
+                    asyncio.create_task(_runner.run(task_name))
+    except WebSocketDisconnect:
+        manager.disconnect(ws)
+    except Exception:
+        manager.disconnect(ws)
 
 
 @router.get("/api/credentials")
@@ -67,6 +100,7 @@ async def list_tasks():
 async def run_task(task_name: str):
     if _runner.status == TaskStatus.RUNNING:
         raise HTTPException(409, "task already running")
+    asyncio.create_task(_runner.run(task_name))
     return {"status": "started", "task": task_name}
 
 

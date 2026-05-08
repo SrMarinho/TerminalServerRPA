@@ -1,3 +1,4 @@
+import asyncio
 import structlog
 import structlog.processors
 from structlog.dev import ConsoleRenderer
@@ -12,18 +13,23 @@ LOG_FILE = LOG_DIR / "senior-rpa.jsonl"
 
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
-_ws_bridge = None
+_ws_queue: asyncio.Queue | None = None
+_configured = False
 
-def set_ws_bridge(bridge):
-    global _ws_bridge
-    _ws_bridge = bridge
+def set_ws_queue(queue: asyncio.Queue):
+    global _ws_queue
+    _ws_queue = queue
 
 def _ws_processor(logger, method_name, event_dict):
-    if _ws_bridge:
-        _ws_bridge.send(event_dict)
+    if _ws_queue is not None:
+        _ws_queue.put_nowait(event_dict)
     return event_dict
 
 def configure_logger(level=logging.INFO):
+    global _configured
+    if _configured:
+        return
+    _configured = True
     timestamper = TimeStamper(fmt="iso", utc=True)
 
     shared_processors = [
