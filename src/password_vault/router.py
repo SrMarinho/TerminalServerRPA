@@ -1,12 +1,14 @@
 import asyncio
 import webbrowser
+from pathlib import Path
+
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
-from pathlib import Path
-from src.password_vault.vault import Vault
-from src.password_vault.task_runner import get_runner, TaskStatus
-from src.password_vault.websocket import manager
+
 from src.password_vault.logger import get_logger
+from src.password_vault.task_runner import TaskStatus, get_runner
+from src.password_vault.vault import Vault
+from src.password_vault.websocket import manager
 
 router = APIRouter()
 _vault = Vault()
