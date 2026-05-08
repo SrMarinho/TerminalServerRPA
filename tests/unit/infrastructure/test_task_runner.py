@@ -2,7 +2,7 @@ import asyncio
 
 import pytest
 
-from src.password_vault.task_runner import TaskRunner, TaskStatus
+from src.infrastructure.task_runner import TaskRunner, TaskStatus
 
 
 @pytest.fixture
@@ -93,7 +93,7 @@ class TestRun:
 
 class TestGetRunner:
     def test_get_runner_returns_singleton(self):
-        from src.password_vault.task_runner import get_runner
+        from src.infrastructure.task_runner import get_runner
         r1 = get_runner()
         r2 = get_runner()
         assert r1 is r2

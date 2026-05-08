@@ -1,14 +1,15 @@
 import asyncio
+import os
 import webbrowser
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 
-from src.password_vault.logger import get_logger
-from src.password_vault.task_runner import TaskStatus, get_runner
-from src.password_vault.vault import Vault
-from src.password_vault.websocket import manager
+from src.infrastructure.logger import get_logger
+from src.infrastructure.task_runner import TaskStatus, get_runner
+from src.infrastructure.vault import Vault
+from src.interfaces.web.websocket import manager
 
 router = APIRouter()
 _vault = Vault()
@@ -122,3 +123,9 @@ async def resume_task():
 async def cancel_task():
     _runner.cancel()
     return {"status": "cancelling"}
+
+
+@router.post("/api/shutdown")
+async def shutdown():
+    _log.info("server.shutdown.requested")
+    os._exit(0)

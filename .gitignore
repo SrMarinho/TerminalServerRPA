@@ -28,6 +28,9 @@ coverage_html/
 # Pytest
 .pytest_cache/
 
+# Exe output logs
+*.log
+
 # OS
 Thumbs.db
 .DS_Store

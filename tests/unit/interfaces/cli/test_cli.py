@@ -3,20 +3,20 @@ from unittest.mock import MagicMock, patch
 import pytest
 from typer.testing import CliRunner
 
-from src.password_vault.cli import vault_app
-from src.password_vault.vault import Vault
+from src.infrastructure.vault import Vault
+from src.interfaces.cli.cli import vault_app
 
 runner = CliRunner()
 
 @pytest.fixture(autouse=True)
 def mock_vault():
-    import src.password_vault.cli as cli_mod
+    import src.interfaces.cli.cli as cli_mod
     cli_mod._vault = None
     m = MagicMock(spec=Vault)
     m.get_password.return_value = None
     m.list_services.return_value = []
     m.list_credentials.return_value = []
-    with patch("src.password_vault.cli.Vault", return_value=m):
+    with patch("src.interfaces.cli.cli.Vault", return_value=m):
         yield m
 
 class TestCliSet:

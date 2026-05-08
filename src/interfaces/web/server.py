@@ -6,10 +6,10 @@ from contextlib import asynccontextmanager
 import uvicorn
 from fastapi import FastAPI
 
-from src.password_vault.logger import configure_logger, get_logger, set_ws_queue
-from src.password_vault.router import router
-from src.password_vault.single_instance import focus_existing_instance, is_first_instance, save_port
-from src.password_vault.websocket import broadcast_from_queue
+from src.infrastructure.logger import configure_logger, get_logger, set_ws_queue
+from src.infrastructure.single_instance import focus_existing_instance, is_first_instance, save_port
+from src.interfaces.web.router import router
+from src.interfaces.web.websocket import broadcast_from_queue
 
 log = get_logger("senior-rpa.server")
 

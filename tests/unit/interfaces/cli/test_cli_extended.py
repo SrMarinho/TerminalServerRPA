@@ -9,10 +9,10 @@ runner = CliRunner()
 
 class TestCliRun:
     def test_run_function_calls_runner(self):
-        from src.password_vault.cli import run
+        from src.interfaces.cli.cli import run
         async def fake_run(*a, **kw):
             pass
-        with patch("src.password_vault.task_runner.get_runner") as mock_get:
+        with patch("src.infrastructure.task_runner.get_runner") as mock_get:
             mock_runner = MagicMock()
             mock_runner.run = fake_run
             mock_runner.status.value = "completed"
@@ -25,7 +25,7 @@ class TestCliLogs:
     def test_logs_missing_file_exits(self, tmp_path):
         import os
 
-        from src.password_vault.cli import logs
+        from src.interfaces.cli.cli import logs
         orig_cwd = os.getcwd()
         os.chdir(str(tmp_path))
         with patch("typer.echo"), pytest.raises(click.exceptions.Exit):
@@ -40,8 +40,8 @@ class TestCliLogs:
         return mock_file
 
     def test_logs_filters_by_level(self):
-        from src.password_vault.cli import Path as CliPath
-        from src.password_vault.cli import logs
+        from src.interfaces.cli.cli import Path as CliPath
+        from src.interfaces.cli.cli import logs
         mock_file = self._make_log_file_mock([
             '{"timestamp": "2026-01-01T12:00:00Z", "level": "info", "event": "test event"}\n',
             '{"timestamp": "2026-01-01T12:01:00Z", "level": "error", "event": "error event"}\n',
@@ -56,8 +56,8 @@ class TestCliLogs:
             assert len(calls) >= 1
 
     def test_logs_json_output(self):
-        from src.password_vault.cli import Path as CliPath
-        from src.password_vault.cli import logs
+        from src.interfaces.cli.cli import Path as CliPath
+        from src.interfaces.cli.cli import logs
         mock_file = self._make_log_file_mock([
             '{"timestamp": "2026-01-01T12:00:00Z", "level": "info", "event": "test"}\n',
         ])
@@ -70,8 +70,8 @@ class TestCliLogs:
             assert any('"event": "test"' in c[0][0] for c in mock_echo.call_args_list)
 
     def test_logs_skips_invalid_json(self):
-        from src.password_vault.cli import Path as CliPath
-        from src.password_vault.cli import logs
+        from src.interfaces.cli.cli import Path as CliPath
+        from src.interfaces.cli.cli import logs
         mock_file = self._make_log_file_mock([
             'not valid json\n',
             '{"timestamp": "2026-01-01T12:00:00Z", "level": "info", "event": "ok"}\n',
@@ -85,8 +85,8 @@ class TestCliLogs:
             assert any('ok' in c[0][0] for c in mock_echo.call_args_list)
 
     def test_logs_filters_by_task(self):
-        from src.password_vault.cli import Path as CliPath
-        from src.password_vault.cli import logs
+        from src.interfaces.cli.cli import Path as CliPath
+        from src.interfaces.cli.cli import logs
         mock_file = self._make_log_file_mock([
             '{"timestamp": "2026-01-01T12:00:00Z", "level": "info", "event": "a", "task": "t1"}\n',
             '{"timestamp": "2026-01-01T12:01:00Z", "level": "info", "event": "b", "task": "t2"}\n',

@@ -6,7 +6,7 @@ from fastapi import FastAPI
 
 class TestFindFreePort:
     def test_returns_port_when_free(self):
-        from src.password_vault.server import find_free_port
+        from src.interfaces.web.server import find_free_port
         with patch("socket.socket") as mock_sock:
             inst = MagicMock()
             inst.connect_ex.return_value = 1
@@ -14,7 +14,7 @@ class TestFindFreePort:
             assert find_free_port(9000) == 9000
 
     def test_falls_back_when_busy(self):
-        from src.password_vault.server import find_free_port
+        from src.interfaces.web.server import find_free_port
         def connect_ex_side_effect(addr):
             return 0 if addr[1] == 9000 else 1
         with patch("socket.socket") as mock_sock:
@@ -26,7 +26,7 @@ class TestFindFreePort:
     def test_raises_when_all_busy(self):
         import pytest
 
-        from src.password_vault.server import find_free_port
+        from src.interfaces.web.server import find_free_port
         with patch("socket.socket") as mock_sock:
             inst = MagicMock()
             inst.connect_ex.return_value = 0
@@ -37,13 +37,13 @@ class TestFindFreePort:
 
 class TestBuildApp:
     def test_returns_fastapi_app(self):
-        from src.password_vault.server import _build_app
+        from src.interfaces.web.server import _build_app
         app = _build_app(asyncio.Queue())
         assert isinstance(app, FastAPI)
         assert app.title == "senior-rpa"
 
     def test_includes_router(self):
-        from src.password_vault.server import _build_app
+        from src.interfaces.web.server import _build_app
         app = _build_app(asyncio.Queue())
         routes = [r.path for r in app.routes]
         assert "/api/credentials" in routes
@@ -51,40 +51,40 @@ class TestBuildApp:
 
 
 class TestRunServer:
-    @patch("src.password_vault.server.uvicorn")
-    @patch("src.password_vault.server.webbrowser")
-    @patch("src.password_vault.server.find_free_port", return_value=8080)
-    @patch("src.password_vault.server.is_first_instance", return_value=True)
+    @patch("src.interfaces.web.server.uvicorn")
+    @patch("src.interfaces.web.server.webbrowser")
+    @patch("src.interfaces.web.server.find_free_port", return_value=8080)
+    @patch("src.interfaces.web.server.is_first_instance", return_value=True)
     def test_starts_uvicorn(self, mock_first, mock_port, mock_web, mock_uvicorn):
-        from src.password_vault.server import run_server
+        from src.interfaces.web.server import run_server
         run_server(port=8080, open_browser=False)
         mock_uvicorn.run.assert_called_once()
         assert mock_uvicorn.run.call_args[1]["port"] == 8080
 
-    @patch("src.password_vault.server.uvicorn")
-    @patch("src.password_vault.server.webbrowser")
-    @patch("src.password_vault.server.find_free_port", return_value=8080)
-    @patch("src.password_vault.server.is_first_instance", return_value=True)
+    @patch("src.interfaces.web.server.uvicorn")
+    @patch("src.interfaces.web.server.webbrowser")
+    @patch("src.interfaces.web.server.find_free_port", return_value=8080)
+    @patch("src.interfaces.web.server.is_first_instance", return_value=True)
     def test_opens_browser(self, mock_first, mock_port, mock_web, mock_uvicorn):
-        from src.password_vault.server import run_server
+        from src.interfaces.web.server import run_server
         run_server(port=8080, open_browser=True)
         mock_web.open.assert_called_once_with("http://127.0.0.1:8080")
 
-    @patch("src.password_vault.server.uvicorn")
-    @patch("src.password_vault.server.webbrowser")
-    @patch("src.password_vault.server.find_free_port", return_value=8081)
-    @patch("src.password_vault.server.is_first_instance", return_value=True)
+    @patch("src.interfaces.web.server.uvicorn")
+    @patch("src.interfaces.web.server.webbrowser")
+    @patch("src.interfaces.web.server.find_free_port", return_value=8081)
+    @patch("src.interfaces.web.server.is_first_instance", return_value=True)
     def test_uses_fallback_port(self, mock_first, mock_port, mock_web, mock_uvicorn):
-        from src.password_vault.server import run_server
+        from src.interfaces.web.server import run_server
         run_server(port=8080, open_browser=False)
         mock_uvicorn.run.assert_called_once()
         assert mock_uvicorn.run.call_args[1]["port"] == 8081
 
-    @patch("src.password_vault.server.uvicorn")
-    @patch("src.password_vault.server.focus_existing_instance")
-    @patch("src.password_vault.server.is_first_instance", return_value=False)
+    @patch("src.interfaces.web.server.uvicorn")
+    @patch("src.interfaces.web.server.focus_existing_instance")
+    @patch("src.interfaces.web.server.is_first_instance", return_value=False)
     def test_focuses_existing_when_duplicate(self, mock_first, mock_focus, mock_uvicorn):
-        from src.password_vault.server import run_server
+        from src.interfaces.web.server import run_server
         run_server(port=8080, open_browser=False)
         mock_focus.assert_called_once()
         mock_uvicorn.run.assert_not_called()
