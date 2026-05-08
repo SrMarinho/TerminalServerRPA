@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.spec
+
+# Virtual environment
+.venv/
+
+# IDE
+.vscode/
+.idea/
+
+# Agent instructions
+AGENTS.md
+
+# Logs
+logs/*.jsonl
+logs/*.jsonl.*
+!logs/.gitkeep
+
+# OS
+Thumbs.db
+.DS_Store

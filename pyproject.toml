@@ -1,0 +1,9 @@
+[project]
+name = "senior-rpa"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "structlog>=25.5.0",
+]
