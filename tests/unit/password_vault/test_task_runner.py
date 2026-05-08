@@ -69,7 +69,7 @@ class TestCheckpoint:
 class TestRun:
     @pytest.mark.asyncio
     async def test_run_marks_completed(self, runner):
-        await runner.run("bulk-register-users")
+        await runner.run("noop-task")
         assert runner.status == TaskStatus.COMPLETED
 
     @pytest.mark.asyncio
@@ -79,7 +79,7 @@ class TestRun:
             runner._cancel_requested = True
             return await original_checkpoint(name)
         runner.checkpoint = cancel_on_first_checkpoint
-        await runner.run("bulk-register-users")
+        await runner.run("noop-task")
         assert runner.status == TaskStatus.CANCELLED
 
     @pytest.mark.asyncio
@@ -87,7 +87,7 @@ class TestRun:
         async def raise_error(*a, **kw):
             raise ValueError("simulated failure")
         runner._execute = raise_error
-        await runner.run("bulk-register-users")
+        await runner.run("noop-task")
         assert runner.status == TaskStatus.FAILED
 
 
