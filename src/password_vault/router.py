@@ -65,10 +65,10 @@ async def list_credentials():
 
 @router.post("/api/credentials")
 async def save_credential(data: dict):
-    service = data.get("service")
-    username = data.get("username")
-    password = data.get("password")
-    if not all([service, username, password]):
+    service: str = data.get("service") or ""
+    username: str = data.get("username") or ""
+    password: str = data.get("password") or ""
+    if not service or not username or not password:
         raise HTTPException(400, "service, username, password required")
     _vault.set_password(service, username, password)
     return {"status": "ok"}
