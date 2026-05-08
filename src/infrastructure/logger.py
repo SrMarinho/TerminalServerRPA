@@ -76,6 +76,10 @@ def configure_logger(level=logging.INFO):
 
     root_logger.setLevel(level)
 
+    for name in ("uvicorn", "uvicorn.access", "uvicorn.error"):
+        logging.getLogger(name).handlers.clear()
+        logging.getLogger(name).propagate = False
+
     structlog.configure(
         processors=[
             structlog.stdlib.add_log_level,
