@@ -4,7 +4,7 @@ from pathlib import Path
 
 import typer
 
-from src.password_vault.vault import Vault
+from src.infrastructure.vault import Vault
 
 vault_app = typer.Typer(name="vault", help="Manage encrypted credentials")
 _vault: Vault | None = None
@@ -53,7 +53,7 @@ def list():
 
 
 def run(task_name: str):
-    from src.password_vault.task_runner import get_runner
+    from src.infrastructure.task_runner import get_runner
     typer.echo(f"Running task: {task_name}")
     asyncio.run(get_runner().run(task_name))
     typer.echo(f"Task finished: {get_runner().status.value}")
@@ -93,3 +93,19 @@ def logs(level: str = "info", since: str = "", task: str = "", json: bool = Fals
             ev = entry.get("event", "")
             lv = entry.get("level", "?").upper() if isinstance(entry.get("level"), str) else "?"
             typer.echo(f"{ts} [{lv}] {ev}")
+
+
+def shutdown():
+    import httpx
+
+    from src.infrastructure.single_instance import read_port
+    port = read_port()
+    if port is None:
+        typer.echo("No running instance found.", err=True)
+        raise typer.Exit(code=1)
+    try:
+        resp = httpx.post(f"http://127.0.0.1:{port}/api/shutdown", timeout=5)
+        typer.echo(f"Server shut down: {resp.json()['status']}")
+    except httpx.ConnectError:
+        typer.echo("No running instance found.", err=True)
+        raise typer.Exit(code=1)

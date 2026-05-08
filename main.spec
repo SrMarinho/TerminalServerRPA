@@ -9,7 +9,7 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[
-        ("src/password_vault/templates", "src/password_vault/templates"),
+        ("src/interfaces/web/templates", "src/interfaces/web/templates"),
     ],
     hiddenimports=[
         "structlog",

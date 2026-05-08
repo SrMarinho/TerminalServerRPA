@@ -3,13 +3,13 @@ from unittest.mock import patch
 import pytest
 from keyring.errors import PasswordDeleteError
 
-from src.password_vault.vault import Vault
+from src.infrastructure.vault import Vault
 
 
 @pytest.fixture(autouse=True)
 def mock_keyring():
     store = {}
-    with patch("src.password_vault.vault.keyring") as mock:
+    with patch("src.infrastructure.vault.keyring") as mock:
         mock.get_password.side_effect = lambda s, u: store.get((s, u))
         mock.set_password.side_effect = lambda s, u, p: store.update({(s, u): p})
         mock.delete_password.side_effect = lambda s, u: store.pop((s, u), None)

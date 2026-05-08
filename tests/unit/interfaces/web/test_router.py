@@ -4,7 +4,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from src.password_vault.router import router
+from src.interfaces.web.router import router
 
 app = FastAPI()
 app.include_router(router)
@@ -13,7 +13,7 @@ client = TestClient(app)
 
 @pytest.fixture(autouse=True)
 def mock_vault():
-    with patch("src.password_vault.router._vault") as m:
+    with patch("src.interfaces.web.router._vault") as m:
         m.list_services.return_value = ["svc1"]
         m.list_credentials.return_value = [{"username": "usr1"}]
         m.get_password.return_value = "secret123"
@@ -28,7 +28,7 @@ class TestIndex:
 
 
 class TestFocus:
-    @patch("src.password_vault.router.webbrowser")
+    @patch("src.interfaces.web.router.webbrowser")
     def test_focus_opens_browser(self, mock_web):
         resp = client.get("/_focus")
         assert resp.status_code == 200

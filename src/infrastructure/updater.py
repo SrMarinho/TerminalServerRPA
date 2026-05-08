@@ -3,7 +3,7 @@ from pathlib import Path
 
 import httpx
 
-from src.password_vault.logger import get_logger
+from src.infrastructure.logger import get_logger
 
 log = get_logger("senior-rpa.updater")
 

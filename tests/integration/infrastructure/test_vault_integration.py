@@ -1,6 +1,6 @@
 import pytest
 
-from src.password_vault.vault import Vault
+from src.infrastructure.vault import Vault
 
 
 @pytest.fixture
