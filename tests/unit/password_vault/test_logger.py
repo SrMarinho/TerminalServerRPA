@@ -1,6 +1,7 @@
 import pytest
 from unittest.mock import patch, MagicMock, call
 import logging
+import asyncio
 
 
 @pytest.fixture(autouse=True)
@@ -8,6 +9,8 @@ def cleanup_logger():
     root = logging.getLogger()
     handlers = root.handlers[:]
     root.handlers.clear()
+    import src.password_vault.logger as logger_mod
+    logger_mod._configured = False
     yield
     root.handlers.clear()
     root.handlers.extend(handlers)
@@ -28,27 +31,35 @@ class TestConfigureLogger:
         root = logging.getLogger()
         assert root.level == logging.WARNING
 
+    def test_is_idempotent(self, cleanup_logger):
+        from src.password_vault.logger import configure_logger
+        configure_logger()
+        root = logging.getLogger()
+        count = len(root.handlers)
+        configure_logger()
+        assert len(root.handlers) == count
 
-class TestWsBridge:
-    def test_set_bridge(self):
-        import src.password_vault.logger as logger_mod
-        mock_bridge = MagicMock()
-        logger_mod.set_ws_bridge(mock_bridge)
-        assert logger_mod._ws_bridge == mock_bridge
-        logger_mod.set_ws_bridge(None)
 
-    def test_ws_processor_calls_send_when_bridge_set(self):
+class TestWsQueue:
+    def test_set_queue(self):
         import src.password_vault.logger as logger_mod
-        mock_bridge = MagicMock()
-        logger_mod.set_ws_bridge(mock_bridge)
-        result = logger_mod._ws_processor(None, "info", {"event": "test"})
-        mock_bridge.send.assert_called_once_with({"event": "test"})
-        assert result == {"event": "test"}
-        logger_mod.set_ws_bridge(None)
+        q = asyncio.Queue()
+        logger_mod.set_ws_queue(q)
+        assert logger_mod._ws_queue is q
+        logger_mod.set_ws_queue(None)
 
-    def test_ws_processor_skips_when_no_bridge(self):
+    def test_processor_puts_event(self):
         import src.password_vault.logger as logger_mod
-        logger_mod.set_ws_bridge(None)
+        q = asyncio.Queue()
+        logger_mod.set_ws_queue(q)
+        logger_mod._ws_processor(None, "info", {"event": "test"})
+        assert not q.empty()
+        assert q.get_nowait() == {"event": "test"}
+        logger_mod.set_ws_queue(None)
+
+    def test_processor_skips_when_no_queue(self):
+        import src.password_vault.logger as logger_mod
+        logger_mod.set_ws_queue(None)
         result = logger_mod._ws_processor(None, "info", {"event": "test"})
         assert result == {"event": "test"}
 
