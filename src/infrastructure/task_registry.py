@@ -1,5 +1,3 @@
-import importlib
-import pkgutil
 from typing import Protocol
 
 
@@ -28,6 +26,13 @@ class TaskRegistry:
 
     @classmethod
     def auto_discover(cls):
+        import importlib
+        import pkgutil
+
         import src.automation.tasks as pkg
+        count = 0
         for _importer, modname, _ispkg in pkgutil.iter_modules(pkg.__path__):
             importlib.import_module(f"src.automation.tasks.{modname}")
+            count += 1
+        if count == 0:
+            importlib.import_module("src.automation.tasks")
