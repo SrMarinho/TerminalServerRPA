@@ -20,6 +20,13 @@ def mock_vault():
         yield m
 
 
+@pytest.fixture(autouse=True)
+def mock_config():
+    with patch("src.interfaces.web.router.load_config", return_value={}), \
+         patch("src.interfaces.web.router.save_config") as m:
+        yield m
+
+
 class TestIndex:
     def test_returns_html(self):
         resp = client.get("/")
@@ -97,3 +104,21 @@ class TestTasks:
         assert client.post("/api/tasks/pause").status_code == 200
         assert client.post("/api/tasks/resume").status_code == 200
         assert client.post("/api/tasks/cancel").status_code == 200
+
+
+class TestTaskConfig:
+    def test_get_config_returns_empty_by_default(self, mock_vault, mock_config):
+        resp = client.get("/api/tasks/test-task/config")
+        assert resp.status_code == 200
+        assert resp.json() == {}
+
+    def test_save_config(self, mock_vault, mock_config):
+        resp = client.post("/api/tasks/test-task/config", json={"key": "val"})
+        assert resp.status_code == 200
+        assert resp.json() == {"status": "saved"}
+        mock_config.assert_called_once_with("test-task", {"key": "val"})
+
+    def test_run_saves_config_when_body_provided(self, mock_vault, mock_config):
+        resp = client.post("/api/run/test-task", json={"env": "prod"})
+        assert resp.status_code == 200
+        mock_config.assert_called_once_with("test-task", {"env": "prod"})

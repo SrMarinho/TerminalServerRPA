@@ -16,6 +16,9 @@ build/
 # Agent instructions
 AGENTS.md
 
+# Local data
+.local/
+
 # Logs
 logs/*.jsonl
 logs/*.jsonl.*

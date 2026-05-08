@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 
 from src.infrastructure.logger import get_logger
+from src.infrastructure.task_config import load_config, save_config
 from src.infrastructure.task_runner import TaskStatus, get_runner
 from src.infrastructure.vault import Vault
 from src.interfaces.web.websocket import manager
@@ -100,11 +101,24 @@ async def list_tasks():
 
 
 @router.post("/api/run/{task_name}")
-async def run_task(task_name: str):
+async def run_task(task_name: str, data: dict | None = None):
     if _runner.status == TaskStatus.RUNNING:
         raise HTTPException(409, "task already running")
-    asyncio.create_task(_runner.run(task_name))
+    if data:
+        save_config(task_name, data)
+    asyncio.create_task(_runner.run(task_name, data or None))
     return {"status": "started", "task": task_name}
+
+
+@router.get("/api/tasks/{task_name}/config")
+async def get_task_config(task_name: str):
+    return load_config(task_name)
+
+
+@router.post("/api/tasks/{task_name}/config")
+async def save_task_config(task_name: str, data: dict):
+    save_config(task_name, data)
+    return {"status": "saved"}
 
 
 @router.post("/api/tasks/pause")
