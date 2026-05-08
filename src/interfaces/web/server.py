@@ -57,4 +57,4 @@ def run_server(port: int = 8080, open_browser: bool = True):
     if open_browser:
         webbrowser.open(f"http://127.0.0.1:{actual_port}")
 
-    uvicorn.run(app, host="127.0.0.1", port=actual_port, log_level="info")
+    uvicorn.run(app, host="127.0.0.1", port=actual_port, log_config=None)

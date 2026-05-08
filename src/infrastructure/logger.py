@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import sys
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
@@ -56,21 +57,23 @@ def configure_logger(level=logging.INFO):
     )
     file_handler.setFormatter(file_fmt)
 
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(level)
-    console_fmt = structlog.stdlib.ProcessorFormatter(
-        processors=[
-            timestamper,
-            structlog.stdlib.add_log_level,
-            structlog.dev.ConsoleRenderer(),
-        ],
-        foreign_pre_chain=shared_processors,
-    )
-    console_handler.setFormatter(console_fmt)
-
     root_logger = logging.getLogger()
     root_logger.addHandler(file_handler)
-    root_logger.addHandler(console_handler)
+
+    if sys.stderr is not None:
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(level)
+        console_fmt = structlog.stdlib.ProcessorFormatter(
+            processors=[
+                timestamper,
+                structlog.stdlib.add_log_level,
+                structlog.dev.ConsoleRenderer(),
+            ],
+            foreign_pre_chain=shared_processors,
+        )
+        console_handler.setFormatter(console_fmt)
+        root_logger.addHandler(console_handler)
+
     root_logger.setLevel(level)
 
     structlog.configure(
