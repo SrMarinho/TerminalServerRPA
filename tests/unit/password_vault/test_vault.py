@@ -1,7 +1,10 @@
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import patch, MagicMock
 from keyring.errors import PasswordDeleteError
+
 from src.password_vault.vault import Vault
+
 
 @pytest.fixture(autouse=True)
 def mock_keyring():

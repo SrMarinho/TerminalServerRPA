@@ -1,12 +1,11 @@
 import asyncio
-import structlog
-import structlog.processors
-from structlog.dev import ConsoleRenderer
-from structlog.processors import JSONRenderer, TimeStamper
 import logging
-import os
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
+
+import structlog
+import structlog.processors
+from structlog.processors import JSONRenderer, TimeStamper
 
 LOG_DIR = Path("logs")
 LOG_FILE = LOG_DIR / "senior-rpa.jsonl"

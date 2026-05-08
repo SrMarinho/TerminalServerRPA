@@ -1,7 +1,9 @@
 import asyncio
-import typer
 from getpass import getpass
 from pathlib import Path
+
+import typer
+
 from src.password_vault.vault import Vault
 
 vault_app = typer.Typer(name="vault", help="Manage encrypted credentials")
@@ -59,7 +61,6 @@ def run(task_name: str):
 
 def logs(level: str = "info", since: str = "", task: str = "", json: bool = False):
     import json as json_mod
-    from datetime import datetime, timezone
 
     log_file = Path("logs") / "senior-rpa.jsonl"
     if not log_file.exists():

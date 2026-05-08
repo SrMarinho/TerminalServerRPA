@@ -1,6 +1,7 @@
-import pytest
-from typer.testing import CliRunner
 from unittest.mock import patch
+
+from typer.testing import CliRunner
+
 from src.password_vault.vault import Vault
 
 runner = CliRunner()

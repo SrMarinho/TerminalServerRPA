@@ -1,5 +1,6 @@
 import json
-from typing import Optional
+from contextlib import suppress
+
 import keyring
 from keyring.errors import PasswordDeleteError
 from cryptography.fernet import Fernet
@@ -49,7 +50,7 @@ class Vault:
             users.append(username)
         self._save_index(idx)
 
-    def _remove_from_index(self, service: str, username: Optional[str] = None):
+    def _remove_from_index(self, service: str, username: str | None = None):
         idx = self._load_index()
         if service not in idx:
             return
@@ -66,23 +67,21 @@ class Vault:
         keyring.set_password(service, username, encrypted)
         self._add_to_index(service, username)
 
-    def get_password(self, service: str, username: str) -> Optional[str]:
+    def get_password(self, service: str, username: str) -> str | None:
         encrypted = keyring.get_password(service, username)
         if not encrypted:
             return None
         return self._decrypt(encrypted)
 
-    def delete_password(self, service: str, username: Optional[str] = None):
+    def delete_password(self, service: str, username: str | None = None):
         if username:
             keyring.delete_password(service, username)
             self._remove_from_index(service, username)
         else:
             creds = self.list_credentials(service)
             for c in creds:
-                try:
+                with suppress(PasswordDeleteError):
                     keyring.delete_password(service, c["username"])
-                except PasswordDeleteError:
-                    pass
             self._remove_from_index(service)
 
     def list_services(self) -> list:

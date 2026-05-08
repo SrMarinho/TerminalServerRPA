@@ -4,7 +4,7 @@ import os
 import socket
 from pathlib import Path
 
-_MUTEX_NAME = "SeniorRPA-{0}".format(
+_MUTEX_NAME = "SeniorRPA-{}".format(
     str(Path(__file__).resolve().parent.parent.parent).replace("\\", "_").replace(":", "")
 )
 
@@ -50,5 +50,5 @@ def focus_existing_instance():
             s.sendall(b"GET /_focus HTTP/1.0\r\nHost: 127.0.0.1\r\n\r\n")
             s.recv(1024)
         return True
-    except (ConnectionRefusedError, OSError, socket.timeout):
+    except (TimeoutError, ConnectionRefusedError, OSError):
         return False

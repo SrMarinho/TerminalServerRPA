@@ -1,5 +1,7 @@
 import pytest
+
 from src.password_vault.vault import Vault
+
 
 @pytest.fixture
 def vault():
