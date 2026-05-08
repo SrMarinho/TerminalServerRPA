@@ -36,3 +36,10 @@ class TaskRegistry:
             count += 1
         if count == 0:
             importlib.import_module("src.automation.tasks")
+
+    @classmethod
+    def get_schema(cls, name: str) -> list:
+        task_cls = cls.get(name)
+        if task_cls is None or not hasattr(task_cls, "get_schema"):
+            return []
+        return task_cls.get_schema()

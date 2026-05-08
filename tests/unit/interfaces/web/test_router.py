@@ -30,7 +30,8 @@ def mock_config():
 @pytest.fixture(autouse=True)
 def mock_registry():
     with patch("src.interfaces.web.router.TaskRegistry.list", return_value=["bulk-register-users"]), \
-         patch("src.interfaces.web.router.TaskRegistry.auto_discover"):
+         patch("src.interfaces.web.router.TaskRegistry.auto_discover"), \
+         patch("src.interfaces.web.router.TaskRegistry.get_schema", return_value=[{"name": "x", "type": "string"}]):
         yield
 
 
@@ -129,3 +130,10 @@ class TestTaskConfig:
         resp = client.post("/api/run/test-task", json={"env": "prod"})
         assert resp.status_code == 200
         mock_config.assert_called_once_with("test-task", {"env": "prod"})
+
+
+class TestTaskSchema:
+    def test_get_schema(self, mock_vault, mock_registry):
+        resp = client.get("/api/tasks/test-task/schema")
+        assert resp.status_code == 200
+        assert resp.json() == [{"name": "x", "type": "string"}]
