@@ -1,0 +1,88 @@
+from fastapi import APIRouter, HTTPException
+from fastapi.responses import HTMLResponse
+from fastapi.requests import Request
+from pathlib import Path
+from src.password_vault.vault import Vault
+from src.password_vault.task_runner import get_runner, TaskStatus
+
+router = APIRouter()
+_vault = Vault()
+_runner = get_runner()
+
+TEMPLATES_DIR = Path(__file__).parent / "templates"
+
+
+@router.get("/", response_class=HTMLResponse)
+async def index():
+    html = (TEMPLATES_DIR / "index.html").read_text(encoding="utf-8")
+    return HTMLResponse(html)
+
+
+@router.get("/api/credentials")
+async def list_credentials():
+    services = _vault.list_services()
+    result = []
+    for svc in services:
+        creds = _vault.list_credentials(svc)
+        result.append({"service": svc, "usernames": [c["username"] for c in creds]})
+    return result
+
+
+@router.post("/api/credentials")
+async def save_credential(data: dict):
+    service = data.get("service")
+    username = data.get("username")
+    password = data.get("password")
+    if not all([service, username, password]):
+        raise HTTPException(400, "service, username, password required")
+    _vault.set_password(service, username, password)
+    return {"status": "ok"}
+
+
+@router.get("/api/credentials/{service}")
+async def get_credential(service: str, username: str = ""):
+    if not username:
+        raise HTTPException(400, "username query param required")
+    password = _vault.get_password(service, username)
+    if password is None:
+        raise HTTPException(404, "credential not found")
+    return {"service": service, "username": username, "password": password}
+
+
+@router.delete("/api/credentials/{service}")
+async def delete_credential(service: str):
+    _vault.delete_password(service)
+    return {"status": "deleted"}
+
+
+@router.get("/api/tasks")
+async def list_tasks():
+    return {
+        "available": ["bulk-register-users"],
+        "current_status": _runner.status.value,
+    }
+
+
+@router.post("/api/run/{task_name}")
+async def run_task(task_name: str):
+    if _runner.status == TaskStatus.RUNNING:
+        raise HTTPException(409, "task already running")
+    return {"status": "started", "task": task_name}
+
+
+@router.post("/api/tasks/pause")
+async def pause_task():
+    _runner.pause()
+    return {"status": "paused"}
+
+
+@router.post("/api/tasks/resume")
+async def resume_task():
+    _runner.resume()
+    return {"status": "resumed"}
+
+
+@router.post("/api/tasks/cancel")
+async def cancel_task():
+    _runner.cancel()
+    return {"status": "cancelling"}
