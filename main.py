@@ -6,6 +6,13 @@ app = typer.Typer()
 configure_logger()
 
 
+@app.callback(invoke_without_command=True)
+def main(ctx: typer.Context):
+    if ctx.invoked_subcommand is None:
+        from src.password_vault.server import run_server
+        run_server()
+
+
 @app.command()
 def web(port: int = 8080, browser: bool = True):
     from src.password_vault.server import run_server
