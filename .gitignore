@@ -21,6 +21,13 @@ logs/*.jsonl
 logs/*.jsonl.*
 !logs/.gitkeep
 
+# Coverage
+.coverage
+coverage_html/
+
+# Pytest
+.pytest_cache/
+
 # OS
 Thumbs.db
 .DS_Store
