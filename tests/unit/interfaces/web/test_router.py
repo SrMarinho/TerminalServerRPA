@@ -27,6 +27,13 @@ def mock_config():
         yield m
 
 
+@pytest.fixture(autouse=True)
+def mock_registry():
+    with patch("src.interfaces.web.router.TaskRegistry.list", return_value=["bulk-register-users"]), \
+         patch("src.interfaces.web.router.TaskRegistry.auto_discover"):
+        yield
+
+
 class TestIndex:
     def test_returns_html(self):
         resp = client.get("/")

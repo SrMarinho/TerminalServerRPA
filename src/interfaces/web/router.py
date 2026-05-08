@@ -8,6 +8,7 @@ from fastapi.responses import HTMLResponse
 
 from src.infrastructure.logger import get_logger
 from src.infrastructure.task_config import load_config, save_config
+from src.infrastructure.task_registry import TaskRegistry
 from src.infrastructure.task_runner import TaskStatus, get_runner
 from src.infrastructure.vault import Vault
 from src.interfaces.web.websocket import manager
@@ -94,8 +95,9 @@ async def delete_credential(service: str):
 
 @router.get("/api/tasks")
 async def list_tasks():
+    TaskRegistry.auto_discover()
     return {
-        "available": ["bulk-register-users"],
+        "available": TaskRegistry.list(),
         "current_status": _runner.status.value,
     }
 

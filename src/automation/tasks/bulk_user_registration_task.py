@@ -2,25 +2,42 @@ from src.automation.pages.login_page import LoginPage
 from src.automation.pages.user_registration_page import UserRegistrationPage
 from src.core.entities.user import User
 from src.core.use_cases.register_users_use_case import RegisterUsersUseCase
+from src.infrastructure.task_registry import TaskRegistry
 
 
+@TaskRegistry.register("bulk-register-users")
 class BulkUserRegistrationTask:
-    def __init__(self, login_page: LoginPage, reg_page: UserRegistrationPage, use_case: RegisterUsersUseCase):
-        self._login_page = login_page
-        self._reg_page = reg_page
-        self._use_case = use_case
+    def __init__(self, runner=None):
+        self._runner = runner
 
-    async def execute(self, users: list[User], credentials: dict) -> dict:
-        await self._login_page.navigate()
-        await self._login_page.login(credentials["username"], credentials["password"])
+    async def execute(self, params: dict) -> dict:
+        from playwright.async_api import async_playwright
 
-        result = self._use_case.execute(users)
+        creds = params.get("credentials", {})
+        users_data = params.get("users", [])
+        base_url = params.get("base_url", "")
+        users = [User(**u) for u in users_data]
 
-        for user in result.success:
-            await self._reg_page.navigate()
-            await self._reg_page.register(user.username, user.password, user.email, user.full_name)
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            page = await browser.new_page()
+            try:
+                login_p = LoginPage(page, base_url)
+                reg_p = UserRegistrationPage(page, base_url)
+                use_case = RegisterUsersUseCase()
 
-        return {
-            "registered": len(result.success),
-            "errors": result.errors,
-        }
+                await login_p.navigate()
+                await login_p.login(creds["username"], creds["password"])
+
+                result = use_case.execute(users)
+
+                for user in result.success:
+                    await reg_p.navigate()
+                    await reg_p.register(user.username, user.password, user.email, user.full_name)
+
+                return {
+                    "registered": len(result.success),
+                    "errors": result.errors,
+                }
+            finally:
+                await browser.close()
