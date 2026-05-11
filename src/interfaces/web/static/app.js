@@ -29,11 +29,13 @@ function logLine(msg, type) {
 
 function switchPanel(name) {
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-  document.querySelector('.nav-btn[data-panel="' + name + '"]').classList.add('active');
+  var btn = document.querySelector('.nav-btn[data-panel="' + name + '"]');
+  if (btn) btn.classList.add('active');
   document.querySelectorAll('.panel').forEach(p => p.classList.add('hidden'));
   document.getElementById('panel-' + name).classList.remove('hidden');
   if (name === 'tasks') loadTasks();
   if (name === 'credentials') loadCredentials();
+  if (name === 'history') loadHistory();
 }
 
 const STATUS_PT = { idle: 'ocioso', running: 'executando', paused: 'pausado', completed: 'concluído', failed: 'falhou', cancelled: 'cancelado' };
@@ -288,3 +290,45 @@ try {
 loadCredentials();
 loadTasks();
 setInterval(refreshRunning, 1000);
+
+/* History */
+async function loadHistory() {
+  try {
+    const data = await api('GET', '/api/executions');
+    document.getElementById('historyList').innerHTML = data.length
+      ? data.map(function(e) {
+          var statusClass = 'dot-' + e.status;
+          var statusText = STATUS_PT[e.status] || e.status;
+          var start = e.started_at ? e.started_at.slice(11, 19) : '--:--:--';
+          var end = e.finished_at ? e.finished_at.slice(11, 19) : '—';
+          return '<div class="card p-4" onclick="openExecutionDetail(\'' + e.id + '\')" style="cursor:pointer">'
+            + '<div class="flex items-center justify-between mb-2">'
+            + '<div class="flex items-center gap-2"><span class="dot ' + statusClass + '"></span><span class="text-sm font-medium" style="color:var(--text-0)">' + esc(e.task_name) + '</span></div>'
+            + '<span class="text-[10px]" style="color:var(--text-3)">' + start + ' — ' + end + '</span>'
+            + '</div>'
+            + '<div class="text-[11px]" style="color:var(--text-3)">status: ' + statusText + '</div>'
+            + '</div>';
+        }).join('')
+      : '<div class="card p-8 text-center" style="border-style:dashed"><div class="text-sm" style="color:var(--text-1)">Nenhuma execução ainda.</div></div>';
+  } catch (e) { toast('Falha ao carregar histórico', true); }
+}
+
+async function openExecutionDetail(id) {
+  try {
+    const exec = await api('GET', '/api/executions/' + id);
+    var statusText = STATUS_PT[exec.status] || exec.status;
+    var stepsHtml = exec.steps && exec.steps.length
+      ? exec.steps.map(function(s) {
+          var icons = { running: '●', completed: '✓', failed: '✗', pending: '○' };
+          return '<div class="flex items-center gap-2 text-xs py-1"><span style="color:var(--accent)">' + (icons[s.status] || '○') + '</span><span style="color:var(--text-1)">' + esc(s.name) + '</span><span class="ml-auto text-[10px]" style="color:var(--text-3)">' + (s.timestamp ? s.timestamp.slice(11, 19) : '') + '</span></div>';
+        }).join('')
+      : '<div class="text-xs" style="color:var(--text-3)">Nenhum passo registrado.</div>';
+    var resultHtml = exec.result ? '<div class="mt-3"><div class="label" style="margin-bottom:4px">RESULTADO</div><pre class="text-xs" style="color:var(--text-1);white-space:pre-wrap">' + esc(JSON.stringify(exec.result, null, 2)) + '</pre></div>' : '';
+    document.getElementById('detailTaskName').textContent = exec.task_name + ' (' + id + ')';
+    document.getElementById('detailContent').innerHTML = ''
+      + '<div class="card p-6"><span class="label" style="margin-bottom:4px">STATUS</span><span class="text-sm" style="color:var(--text-0)">' + statusText + '</span></div>'
+      + '<div class="card p-6"><span class="label" style="margin-bottom:4px">PASSOS</span>' + stepsHtml + '</div>'
+      + resultHtml;
+    switchPanel('task-detail');
+  } catch (e) { toast('Erro: ' + e.message, true); }
+}
