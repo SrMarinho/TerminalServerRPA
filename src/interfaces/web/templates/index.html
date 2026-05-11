@@ -129,6 +129,7 @@ body::after{content:'';position:fixed;inset:0;background-image:url("data:image/s
       <span class="text-xs" style="color:var(--text-0)" id="statusText">ocioso</span>
       <span class="ml-auto text-[10px]" style="color:var(--text-3)" id="uptime">—</span>
     </div>
+    <div class="text-[10px] mt-1" style="color:var(--text-3)" id="runningCountSidebar"></div>
   </div>
 </aside>
 
@@ -148,17 +149,23 @@ body::after{content:'';position:fixed;inset:0;background-image:url("data:image/s
           </h1>
           <p class="text-sm" style="color:var(--text-2)">Clique no card para executar, no ⚙ para configurar.</p>
         </div>
-        <div class="flex gap-2">
-          <button id="btnPause" class="btn btn-ghost" disabled onclick="pauseTask()"><svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14"/><rect x="14" y="5" width="4" height="14"/></svg>pausar</button>
-          <button id="btnResume" class="btn btn-ghost" disabled onclick="resumeTask()"><svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>continuar</button>
-          <button id="btnCancel" class="btn btn-danger" disabled onclick="cancelTask()"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>cancelar</button>
-        </div>
+        <button class="btn btn-ghost" onclick="api('DELETE','/api/tasks/running').then(()=>toast('Limpeza concluída'))"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>limpar finalizadas</button>
       </div>
       <div class="mb-3 flex items-center justify-between">
         <div class="label" style="margin-bottom:0">ROTINAS DISPONÍVEIS</div>
         <div class="text-[10px]" style="color:var(--text-3)" id="taskCount">—</div>
       </div>
       <div id="taskCards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-10 fade-up"></div>
+
+      <div class="mb-10 fade-up" style="animation-delay:.04s">
+        <div class="flex items-center justify-between mb-3">
+          <div class="label" style="margin-bottom:0">EXECUÇÕES ATIVAS</div>
+          <div class="text-[10px]" style="color:var(--text-3)" id="runningCount">0</div>
+        </div>
+        <div id="runningTasks" class="space-y-2">
+          <div class="text-xs" style="color:var(--text-3)">Nenhuma tarefa em execução.</div>
+        </div>
+      </div>
 
       <div class="fade-up" style="animation-delay:.05s">
         <div class="flex items-center justify-between mb-3">
@@ -275,13 +282,68 @@ function switchPanel(name) {
 
 const STATUS_PT = { idle: 'ocioso', running: 'executando', paused: 'pausado', completed: 'concluído', failed: 'falhou', cancelled: 'cancelado' };
 
-function updateGlobalStatus(s) {
-  document.getElementById('statusText').textContent = STATUS_PT[s] || s;
+function updateSidebarRunning(tasks) {
+  const entries = Object.values(tasks);
+  const active = entries.filter(r => r.status === 'running' || r.status === 'paused');
   const dot = document.getElementById('statusDot');
-  dot.className = 'dot dot-' + s + (s === 'running' || s === 'paused' ? ' pulse' : '');
-  document.getElementById('btnPause').disabled = s !== 'running';
-  document.getElementById('btnResume').disabled = s !== 'paused';
-  document.getElementById('btnCancel').disabled = !['running', 'paused'].includes(s);
+  const text = document.getElementById('statusText');
+  const sidebar = document.getElementById('runningCountSidebar');
+  if (active.length === 0) {
+    dot.className = 'dot dot-idle';
+    text.textContent = 'ocioso';
+    sidebar.textContent = '';
+  } else {
+    const running = active.filter(r => r.status === 'running').length;
+    const paused = active.filter(r => r.status === 'paused').length;
+    dot.className = 'dot dot-running pulse';
+    text.textContent = active.length + ' ativa' + (active.length > 1 ? 's' : '');
+    sidebar.textContent = [running && running + ' rodando', paused && paused + ' pausada'].filter(Boolean).join(' · ');
+  }
+}
+
+function renderRunningTasks(tasks) {
+  const entries = Object.entries(tasks);
+  document.getElementById('runningCount').textContent = entries.length;
+  const container = document.getElementById('runningTasks');
+  if (entries.length === 0) {
+    container.innerHTML = '<div class="text-xs" style="color:var(--text-3)">Nenhuma tarefa em execução.</div>';
+    return;
+  }
+  container.innerHTML = entries.map(([id, info]) => {
+    const s = info.status;
+    return '<div class="cred-row" id="run-' + id + '">'
+      + '<div class="flex items-center gap-3">'
+        + '<span class="dot dot-' + s + (s === 'running' || s === 'paused' ? ' pulse' : '') + '"></span>'
+        + '<div>'
+          + '<div class="text-xs font-medium" style="color:var(--text-0)">' + esc(id) + '</div>'
+          + '<div class="text-[10px]" style="color:var(--text-2)">' + (STATUS_PT[s] || s) + '</div>'
+        + '</div>'
+      + '</div>'
+      + '<div class="flex gap-1">'
+        + '<button class="btn btn-ghost" style="padding:5px 10px;font-size:11px" ' + (s !== 'running' ? 'disabled' : '') + ' onclick="pauseById(\'' + id + '\')">pausar</button>'
+        + '<button class="btn btn-ghost" style="padding:5px 10px;font-size:11px" ' + (s !== 'paused' ? 'disabled' : '') + ' onclick="resumeById(\'' + id + '\')">continuar</button>'
+        + '<button class="btn btn-danger" style="padding:5px 10px;font-size:11px" ' + (!['running','paused'].includes(s) ? 'disabled' : '') + ' onclick="cancelById(\'' + id + '\')">cancelar</button>'
+      + '</div>'
+    + '</div>';
+  }).join('');
+  updateSidebarRunning(tasks);
+}
+
+async function refreshRunning() {
+  try { renderRunningTasks(await api('GET', '/api/tasks/running')); } catch (e) {}
+}
+
+async function pauseById(id) {
+  try { await api('POST', '/api/tasks/' + id + '/pause'); toast('Pausada'); logLine('task ' + id + ' pausada', 'warn'); }
+  catch (e) { toast(e.message, true); }
+}
+async function resumeById(id) {
+  try { await api('POST', '/api/tasks/' + id + '/resume'); toast('Continuada'); logLine('task ' + id + ' continuada', 'info'); }
+  catch (e) { toast(e.message, true); }
+}
+async function cancelById(id) {
+  try { await api('POST', '/api/tasks/' + id + '/cancel'); toast('Cancelando'); logLine('task ' + id + ' cancelada', 'error'); }
+  catch (e) { toast(e.message, true); }
 }
 
 /* Credentials */
@@ -313,7 +375,6 @@ let currentTask = '';
 async function loadTasks() {
   try {
     const data = await api('GET', '/api/tasks');
-    updateGlobalStatus(data.current_status);
     document.getElementById('taskCount').textContent = String(data.available.length).padStart(2, '0') + ' ROTINAS';
     document.getElementById('taskCards').innerHTML = data.available.map((t, i) =>
       '<div class="task-tile fade-up" style="animation-delay:' + (i * 0.04) + 's">'
@@ -333,9 +394,9 @@ async function loadTasks() {
 async function runTaskDirect(name) {
   try {
     const config = await api('GET', '/api/tasks/' + encodeURIComponent(name) + '/config');
-    await api('POST', '/api/run/' + encodeURIComponent(name), config && Object.keys(config).length ? config : {});
+    const res = await api('POST', '/api/run/' + encodeURIComponent(name), config && Object.keys(config).length ? config : {});
     toast('Tarefa iniciada: ' + name);
-    logLine('▶ executando ' + name, 'success');
+    logLine('▶ ' + name + ' [' + res.task_id + ']', 'success');
     switchPanel('tasks');
   } catch (e) { toast('Erro: ' + e.message, true); }
 }
@@ -411,9 +472,9 @@ async function saveAndRun() {
   if (!params) return;
   try {
     await api('POST', '/api/tasks/' + encodeURIComponent(currentTask) + '/config', params);
-    await api('POST', '/api/run/' + encodeURIComponent(currentTask), params);
+    const res = await api('POST', '/api/run/' + encodeURIComponent(currentTask), params);
     toast('Tarefa iniciada');
-    logLine('▶ executando ' + currentTask, 'success');
+    logLine('▶ ' + currentTask + ' [' + res.task_id + ']', 'success');
     closeConfigModal();
     switchPanel('tasks');
   } catch (e) { toast('Erro: ' + e.message, true); }
@@ -443,9 +504,6 @@ function collectConfigParams() {
   return params;
 }
 
-async function pauseTask() { try { await api('POST', '/api/tasks/pause'); toast('Pausada'); logLine('task pausada', 'warn'); loadTasks(); } catch (e) { toast(e.message, true); } }
-async function resumeTask() { try { await api('POST', '/api/tasks/resume'); toast('Continuada'); logLine('task continuada', 'info'); loadTasks(); } catch (e) { toast(e.message, true); } }
-async function cancelTask() { try { await api('POST', '/api/tasks/cancel'); toast('Cancelando'); logLine('task cancelada', 'error'); loadTasks(); } catch (e) { toast(e.message, true); } }
 
 function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
@@ -472,6 +530,8 @@ try {
 } catch(e) {}
 
 loadCredentials();
+loadTasks();
+setInterval(refreshRunning, 1000);
 </script>
 </body>
 </html>

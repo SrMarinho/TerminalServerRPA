@@ -12,13 +12,11 @@ class TestCliRun:
         from src.interfaces.cli.cli import run
         async def fake_run(*a, **kw):
             pass
-        with patch("src.infrastructure.task_runner.get_runner") as mock_get:
-            mock_runner = MagicMock()
-            mock_runner.run = fake_run
-            mock_runner.status.value = "completed"
-            mock_get.return_value = mock_runner
+        mock_runner = MagicMock()
+        mock_runner.run = fake_run
+        mock_runner.status.value = "completed"
+        with patch("src.infrastructure.task_runner.TaskRunner", return_value=mock_runner):
             run("test-task")
-            assert mock_get.call_count == 2
 
 
 class TestCliLogs:
