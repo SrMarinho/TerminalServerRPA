@@ -54,7 +54,7 @@ def run_server(port: int = 8080, open_browser: bool = True, dev: bool = False):
 
     if actual_port != port:
         log.warning("port.busy", requested=port, fallback=actual_port)
-    log.info("server.starting", port=actual_port)
+    (log.debug if dev else log.info)("server.starting", port=actual_port)
 
     ws_queue: asyncio.Queue = asyncio.Queue()
     set_ws_queue(ws_queue)
