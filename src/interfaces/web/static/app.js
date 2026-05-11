@@ -420,7 +420,7 @@ try {
 } catch(e) {}
 
 loadCredentials();
-loadTasks();
+setTimeout(function() { switchPanel('tasks'); }, 100);
 setInterval(refreshRunning, 1000);
 
 /* History */
