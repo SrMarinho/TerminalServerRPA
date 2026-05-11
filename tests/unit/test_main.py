@@ -11,14 +11,14 @@ class TestMainWeb:
         from main import app
         result = runner.invoke(app, ["web", "--port", "9090", "--no-browser"])
         assert result.exit_code == 0
-        mock_run_server.assert_called_once_with(port=9090, open_browser=False)
+        mock_run_server.assert_called_once_with(port=9090, open_browser=False, dev=False)
 
     @patch("src.interfaces.web.server.run_server")
     def test_web_defaults(self, mock_run_server):
         from main import app
         result = runner.invoke(app, ["web"])
         assert result.exit_code == 0
-        mock_run_server.assert_called_once_with(port=8080, open_browser=True)
+        mock_run_server.assert_called_once_with(port=8080, open_browser=True, dev=False)
 
 
 class TestMainVault:
