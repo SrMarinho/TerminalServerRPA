@@ -37,13 +37,17 @@
 
   <nav class="flex-1 py-4">
     <div class="px-5 mb-2 text-[10px] font-semibold" style="color:var(--text-3);letter-spacing:.14em">WORKSPACE</div>
-    <button class="nav-btn active" data-panel="tasks" onclick="switchPanel('tasks')">
+    <button class="nav-btn" data-panel="tasks" onclick="switchPanel('tasks')">
       <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
       <span>Tarefas</span><span class="nav-num">01</span>
     </button>
+    <button class="nav-btn" data-panel="history" onclick="switchPanel('history')">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      <span>Histórico</span><span class="nav-num">02</span>
+    </button>
     <button class="nav-btn" data-panel="credentials" onclick="switchPanel('credentials')">
       <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="1"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
-      <span>Credenciais</span><span class="nav-num">02</span>
+      <span>Credenciais</span><span class="nav-num">03</span>
     </button>
   </nav>
 
@@ -106,6 +110,22 @@
           <div class="flex items-center gap-1.5 text-[10px]" style="color:var(--text-3)"><span class="w-1.5 h-1.5 rounded-full blink" style="background:var(--accent)"></span>AO VIVO</div>
         </div>
         <div id="log" class="log-box"><div style="padding-left:16px"><span style="color:var(--text-3)">[<span id="bootTime">--:--:--</span>]</span> sistema pronto · aguardando entrada<span class="blink" style="color:var(--accent)">_</span></div></div>
+      </div>
+    </section>
+
+    <!-- Histórico Panel -->
+    <section id="panel-history" class="panel hidden">
+      <div class="section-head">
+        <span class="crumb">SISTEMA</span><span class="arrow">/</span><span class="crumb">workspace</span><span class="arrow">/</span><span class="title">Histórico</span>
+      </div>
+      <div class="mb-10 fade-up">
+        <h1 class="text-3xl mb-1" style="font-weight:600;letter-spacing:-.02em">
+          Histórico de execuções<span class="display-serif" style="color:var(--accent);font-weight:400">.</span>
+        </h1>
+        <p class="text-sm" style="color:var(--text-2)">Todas as execuções em ordem decrescente.</p>
+      </div>
+      <div id="historyList" class="space-y-3 fade-up">
+        <div class="text-xs" style="color:var(--text-3)">Carregando...</div>
       </div>
     </section>
 
