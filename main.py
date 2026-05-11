@@ -10,7 +10,7 @@ configure_logger()
 def main(ctx: typer.Context):
     if ctx.invoked_subcommand is None:
         from src.interfaces.web.server import run_server
-        run_server(dev=True)
+        run_server()
 
 
 @app.command()
