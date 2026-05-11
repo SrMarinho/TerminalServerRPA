@@ -91,9 +91,9 @@ class TestRun:
         assert runner.status == TaskStatus.FAILED
 
 
-class TestGetRunner:
-    def test_get_runner_returns_singleton(self):
-        from src.infrastructure.task_runner import get_runner
-        r1 = get_runner()
-        r2 = get_runner()
-        assert r1 is r2
+class TestGetPool:
+    def test_get_pool_returns_singleton(self):
+        from src.infrastructure.task_runner import get_pool
+        p1 = get_pool()
+        p2 = get_pool()
+        assert p1 is p2

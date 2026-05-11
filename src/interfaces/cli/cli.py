@@ -53,10 +53,11 @@ def list():
 
 
 def run(task_name: str):
-    from src.infrastructure.task_runner import get_runner
+    from src.infrastructure.task_runner import TaskRunner
     typer.echo(f"Running task: {task_name}")
-    asyncio.run(get_runner().run(task_name))
-    typer.echo(f"Task finished: {get_runner().status.value}")
+    runner = TaskRunner()
+    asyncio.run(runner.run(task_name))
+    typer.echo(f"Task finished: {runner.status.value}")
 
 
 def logs(level: str = "info", since: str = "", task: str = "", json: bool = False):

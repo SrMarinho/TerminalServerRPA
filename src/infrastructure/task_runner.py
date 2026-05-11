@@ -1,4 +1,5 @@
 import asyncio
+import uuid
 from enum import StrEnum
 
 from src.infrastructure.task_registry import TaskRegistry
@@ -15,7 +16,6 @@ class TaskStatus(StrEnum):
 
 class TaskRunner:
     def __init__(self):
-        self._task: asyncio.Task | None = None
         self._pause_event = asyncio.Event()
         self._pause_event.set()
         self._cancel_requested = False
@@ -69,8 +69,37 @@ class TaskRunner:
             self._pause_event.set()
 
 
-_task_runner = TaskRunner()
+class TaskPool:
+    def __init__(self):
+        self._runners: dict[str, TaskRunner] = {}
+
+    def start(self, task_name: str, params: dict | None = None) -> str:
+        task_id = str(uuid.uuid4())[:8]
+        runner = TaskRunner()
+        self._runners[task_id] = runner
+        asyncio.create_task(self._run(task_id, task_name, params or {}))
+        return task_id
+
+    async def _run(self, task_id: str, task_name: str, params: dict):
+        await self._runners[task_id].run(task_name, params)
+
+    def get(self, task_id: str) -> TaskRunner | None:
+        return self._runners.get(task_id)
+
+    def list_all(self) -> dict[str, dict]:
+        return {tid: {"task_id": tid, "status": r.status.value} for tid, r in self._runners.items()}
+
+    def cleanup_done(self):
+        done = [
+            tid for tid, r in self._runners.items()
+            if r.status not in (TaskStatus.RUNNING, TaskStatus.PAUSED)
+        ]
+        for tid in done:
+            del self._runners[tid]
 
 
-def get_runner() -> TaskRunner:
-    return _task_runner
+_pool = TaskPool()
+
+
+def get_pool() -> TaskPool:
+    return _pool

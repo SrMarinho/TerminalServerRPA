@@ -95,23 +95,42 @@ class TestDeleteCredential:
         mock_vault.delete_password.assert_called_once_with("svc1")
 
 
+@pytest.fixture(autouse=True)
+def mock_pool():
+    with patch("src.interfaces.web.router._pool") as m:
+        m.start.return_value = "abc12345"
+        m.list_all.return_value = {}
+        m.get.return_value = None
+        yield m
+
+
 class TestTasks:
     def test_list_tasks(self, mock_vault):
         resp = client.get("/api/tasks")
         assert resp.status_code == 200
         data = resp.json()
         assert "bulk-register-users" in data["available"]
-        assert data["current_status"] == "idle"
+        assert "current_status" not in data
 
-    def test_run_task(self, mock_vault):
+    def test_run_task(self, mock_vault, mock_pool):
         resp = client.post("/api/run/bulk-register-users")
         assert resp.status_code == 200
-        assert resp.json()["status"] == "started"
+        data = resp.json()
+        assert data["status"] == "started"
+        assert "task_id" in data
 
-    def test_pause_resume_cancel(self, mock_vault):
-        assert client.post("/api/tasks/pause").status_code == 200
-        assert client.post("/api/tasks/resume").status_code == 200
-        assert client.post("/api/tasks/cancel").status_code == 200
+    def test_list_running(self, mock_vault, mock_pool):
+        resp = client.get("/api/tasks/running")
+        assert resp.status_code == 200
+        assert resp.json() == {}
+
+    def test_pause_by_id_not_found(self, mock_pool):
+        resp = client.post("/api/tasks/nonexistent/pause")
+        assert resp.status_code == 404
+
+    def test_cancel_by_id_not_found(self, mock_pool):
+        resp = client.post("/api/tasks/nonexistent/cancel")
+        assert resp.status_code == 404
 
 
 class TestTaskConfig:

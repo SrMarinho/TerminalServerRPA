@@ -9,13 +9,13 @@ from fastapi.responses import HTMLResponse
 from src.infrastructure.logger import get_logger
 from src.infrastructure.task_config import load_config, save_config
 from src.infrastructure.task_registry import TaskRegistry
-from src.infrastructure.task_runner import TaskStatus, get_runner
+from src.infrastructure.task_runner import TaskStatus, get_pool
 from src.infrastructure.vault import Vault
 from src.interfaces.web.websocket import manager
 
 router = APIRouter()
 _vault = Vault()
-_runner = get_runner()
+_pool = get_pool()
 _log = get_logger("senior-rpa.router")
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
@@ -40,16 +40,9 @@ async def websocket_endpoint(ws: WebSocket):
         while True:
             data = await ws.receive_json()
             cmd = data.get("type")
-            if cmd == "pause":
-                _runner.pause()
-            elif cmd == "resume":
-                _runner.resume()
-            elif cmd == "cancel":
-                _runner.cancel()
-            elif cmd == "run":
+            if cmd == "run":
                 task_name = data.get("task_name", "")
-                if _runner.status != TaskStatus.RUNNING:
-                    asyncio.create_task(_runner.run(task_name))
+                _pool.start(task_name)
     except WebSocketDisconnect:
         manager.disconnect(ws)
     except Exception:
@@ -96,20 +89,26 @@ async def delete_credential(service: str):
 @router.get("/api/tasks")
 async def list_tasks():
     TaskRegistry.auto_discover()
-    return {
-        "available": TaskRegistry.list(),
-        "current_status": _runner.status.value,
-    }
+    return {"available": TaskRegistry.list()}
+
+
+@router.get("/api/tasks/running")
+async def list_running():
+    return _pool.list_all()
+
+
+@router.delete("/api/tasks/running")
+async def cleanup_running():
+    _pool.cleanup_done()
+    return {"status": "cleaned"}
 
 
 @router.post("/api/run/{task_name}")
 async def run_task(task_name: str, data: dict | None = None):
-    if _runner.status == TaskStatus.RUNNING:
-        raise HTTPException(409, "task already running")
     if data:
         save_config(task_name, data)
-    asyncio.create_task(_runner.run(task_name, data or None))
-    return {"status": "started", "task": task_name}
+    task_id = _pool.start(task_name, data or None)
+    return {"status": "started", "task": task_name, "task_id": task_id}
 
 
 @router.get("/api/tasks/{task_name}/config")
@@ -129,21 +128,30 @@ async def save_task_config(task_name: str, data: dict):
     return {"status": "saved"}
 
 
-@router.post("/api/tasks/pause")
-async def pause_task():
-    _runner.pause()
+@router.post("/api/tasks/{task_id}/pause")
+async def pause_task(task_id: str):
+    runner = _pool.get(task_id)
+    if not runner:
+        raise HTTPException(404, "task not found")
+    runner.pause()
     return {"status": "paused"}
 
 
-@router.post("/api/tasks/resume")
-async def resume_task():
-    _runner.resume()
+@router.post("/api/tasks/{task_id}/resume")
+async def resume_task(task_id: str):
+    runner = _pool.get(task_id)
+    if not runner:
+        raise HTTPException(404, "task not found")
+    runner.resume()
     return {"status": "resumed"}
 
 
-@router.post("/api/tasks/cancel")
-async def cancel_task():
-    _runner.cancel()
+@router.post("/api/tasks/{task_id}/cancel")
+async def cancel_task(task_id: str):
+    runner = _pool.get(task_id)
+    if not runner:
+        raise HTTPException(404, "task not found")
+    runner.cancel()
     return {"status": "cancelling"}
 
 
