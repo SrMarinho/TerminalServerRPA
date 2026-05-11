@@ -14,7 +14,10 @@
     var stored = localStorage.getItem('senior-rpa.theme');
     var theme = stored || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
     document.documentElement.setAttribute('data-theme', theme);
-  } catch(e) { document.documentElement.setAttribute('data-theme', 'light'); }
+    if (!stored) { try { localStorage.setItem('senior-rpa.theme', theme); } catch(e) {} }
+  } catch(e) {
+    document.documentElement.setAttribute('data-theme', 'light');
+  }
 })();
 </script>
 <link rel="stylesheet" href="/static/styles.css">

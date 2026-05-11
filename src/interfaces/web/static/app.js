@@ -205,13 +205,30 @@ function renderTaskDetail(name, schema, config, creds, executions) {
   }
   if (!schema.length) paramsHtml = '<div class="text-sm" style="color:var(--text-2)">Sem parâmetros.</div>';
 
-  var myExecs = (executions || []).filter(function(e) { return e.task_name === name; }).slice(0, 5);
+  var myExecs = (executions || []).filter(function(e) { return e.task_name === name; }).slice(0, 10);
   var histHtml = myExecs.length
     ? myExecs.map(function(e) {
         var sc = 'dot-' + e.status;
         var sl = STATUS_PT[e.status] || e.status;
         var st = e.started_at ? e.started_at.slice(11, 19) : '--:--:--';
-        return '<div class="flex items-center gap-2 py-1.5" onclick="event.stopPropagation();openExecutionDetail(\'' + e.id + '\')" style="cursor:pointer"><span class="' + sc + '"></span><span class="text-xs" style="color:var(--text-1)">' + sl + '</span><span class="text-[10px] ml-auto" style="color:var(--text-3)">' + st + '</span></div>';
+        var dur = '';
+        if (e.started_at && e.finished_at) {
+          var diff = new Date(e.finished_at) - new Date(e.started_at);
+          var sec = Math.floor(diff / 1000);
+          dur = (sec >= 60 ? Math.floor(sec / 60) + 'm ' : '') + (sec % 60) + 's';
+        } else if (e.started_at) {
+          var diff = Date.now() - new Date(e.started_at);
+          var sec = Math.floor(diff / 1000);
+          dur = (sec >= 60 ? Math.floor(sec / 60) + 'm ' : '') + (sec % 60) + 's';
+        }
+        return '<div class="cred-row" style="cursor:pointer;margin-bottom:6px" onclick="openExecutionDetail(\'' + e.id + '\')">'
+          + '<div class="flex items-center gap-3 min-w-0">'
+          + '<span class="dot ' + sc + '" style="flex-shrink:0"></span>'
+          + '<div class="min-w-0"><div class="text-sm" style="color:var(--text-0)">' + esc(e.task_name) + '</div>'
+          + '<div class="text-[11px]" style="color:var(--text-2)">' + sl + (dur ? ' · ' + dur : '') + '</div></div>'
+          + '</div>'
+          + '<span class="text-[10px] tabular-nums" style="color:var(--text-3)">' + st + '</span>'
+          + '</div>';
       }).join('')
     : '<div class="text-xs" style="color:var(--text-3)">Nenhuma execução anterior.</div>';
 
@@ -354,6 +371,30 @@ function collectConfigParams() {
 }
 
 
+/* JSON syntax highlight */
+function renderJson(obj, depth) {
+  if (depth > 10) return '<span style="color:var(--text-3)">…</span>';
+  if (obj === null || obj === undefined) return '<span style="color:#78716c">null</span>';
+  if (typeof obj === 'string') return '<span style="color:#22c55e">"' + esc(obj) + '"</span>';
+  if (typeof obj === 'number') return '<span style="color:#f59e0b">' + obj + '</span>';
+  if (typeof obj === 'boolean') return '<span style="color:#a78bfa">' + obj + '</span>';
+  if (Array.isArray(obj)) {
+    if (obj.length === 0) return '[]';
+    var items = obj.map(function(v) { return renderJson(v, depth + 1); });
+    return '[\n' + items.map(function(v) { return '  ' + v; }).join(',\n') + '\n]';
+  }
+  if (typeof obj === 'object') {
+    var keys = Object.keys(obj);
+    if (keys.length === 0) return '{}';
+    var pairs = keys.map(function(k) {
+      return '<span style="color:#06b6d4">"' + esc(k) + '"</span>: ' + renderJson(obj[k], depth + 1);
+    });
+    return '{\n' + pairs.map(function(v) { return '  ' + v; }).join(',\n') + '\n}';
+  }
+  return esc(String(obj));
+}
+
+
 function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
 /* Uptime */
@@ -414,7 +455,14 @@ async function openExecutionDetail(id) {
           return '<div class="flex items-center gap-2 text-xs py-1"><span style="color:var(--accent)">' + (icons[s.status] || '○') + '</span><span style="color:var(--text-1)">' + esc(s.name) + '</span><span class="ml-auto text-[10px]" style="color:var(--text-3)">' + (s.timestamp ? s.timestamp.slice(11, 19) : '') + '</span></div>';
         }).join('')
       : '<div class="text-xs" style="color:var(--text-3)">Nenhum passo registrado.</div>';
-    var resultHtml = exec.result ? '<div class="mt-3"><div class="label" style="margin-bottom:4px">RESULTADO</div><pre class="text-xs" style="color:var(--text-1);white-space:pre-wrap">' + esc(JSON.stringify(exec.result, null, 2)) + '</pre></div>' : '';
+    var resultHtml = exec.result
+      ? '<div class="card p-6"><div class="flex items-center justify-between mb-2"><div class="label" style="margin-bottom:0">RESULTADO</div>'
+        + '<button class="btn btn-ghost" style="padding:4px 8px;font-size:10px" onclick="var t=this.nextElementSibling;if(t.style.display===\'none\'){t.style.display=\'block\';this.textContent=\'ocultar\'}else{t.style.display=\'none\';this.textContent=\'mostrar\'}">ocultar</button>'
+        + '<textarea readonly style="position:absolute;left:-9999px" id="copyTarget-' + id + '">' + esc(JSON.stringify(exec.result, null, 2)) + '</textarea>'
+        + '</div>'
+        + '<button class="btn btn-ghost" style="padding:4px 8px;font-size:10px;float:right" onclick="var t=document.getElementById(\'copyTarget-' + id + '\');t.select();navigator.clipboard.writeText(t.value);toast(\'Copiado\')">📋 copiar</button>'
+        + '<pre id="resultDisplay-' + id + '" class="text-xs" style="white-space:pre-wrap;color:var(--text-1)">' + renderJson(exec.result, 0) + '</pre></div>'
+      : '';
     document.getElementById('detailTaskName').textContent = exec.task_name + ' (' + id + ')';
     document.getElementById('detailContent').innerHTML = ''
       + '<div class="card p-6"><span class="label" style="margin-bottom:4px">STATUS</span><span class="text-sm" style="color:var(--text-0)">' + statusText + '</span></div>'
