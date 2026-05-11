@@ -41,7 +41,7 @@ def _build_app(ws_queue: asyncio.Queue) -> FastAPI:
     return app
 
 
-def run_server(port: int = 8080, open_browser: bool = True):
+def run_server(port: int = 8080, open_browser: bool = True, dev: bool = False):
     if not is_first_instance():
         log.info("instance.duplicate", action="focus_existing")
         if focus_existing_instance():
@@ -63,4 +63,13 @@ def run_server(port: int = 8080, open_browser: bool = True):
     if open_browser:
         webbrowser.open(f"http://127.0.0.1:{actual_port}")
 
-    uvicorn.run(app, host="127.0.0.1", port=actual_port, log_config=None, access_log=False)
+    if dev:
+        log.info("server.dev_mode", reload_dirs="templates, static")
+        uvicorn.run(app, host="127.0.0.1", port=actual_port,
+                    log_config=None, access_log=False,
+                    reload=True,
+                    reload_includes=["*.html", "*.css", "*.js"],
+                    reload_dirs=[str(Path(__file__).parent / "templates"),
+                                 str(STATIC_DIR)])
+    else:
+        uvicorn.run(app, host="127.0.0.1", port=actual_port, log_config=None, access_log=False)

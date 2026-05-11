@@ -10,13 +10,13 @@ configure_logger()
 def main(ctx: typer.Context):
     if ctx.invoked_subcommand is None:
         from src.interfaces.web.server import run_server
-        run_server()
+        run_server(dev=True)
 
 
 @app.command()
-def web(port: int = 8080, browser: bool = True):
+def web(port: int = 8080, browser: bool = True, dev: bool = False):
     from src.interfaces.web.server import run_server
-    run_server(port=port, open_browser=browser)
+    run_server(port=port, open_browser=browser, dev=dev)
 
 
 @app.command()
