@@ -10,6 +10,7 @@ a = Analysis(
     binaries=[],
     datas=[
         ("src/interfaces/web/templates", "src/interfaces/web/templates"),
+        ("src/interfaces/web/static", "src/interfaces/web/static"),
     ],
     hiddenimports=[
         "structlog",
