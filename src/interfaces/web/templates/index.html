@@ -79,37 +79,29 @@
       <div class="section-head">
         <span class="crumb">SISTEMA</span><span class="arrow">/</span><span class="crumb">workspace</span><span class="arrow">/</span><span class="title">Tarefas</span>
       </div>
-      <div class="mb-8 fade-up flex items-end justify-between flex-wrap gap-4">
-        <div>
-          <h1 class="text-3xl mb-1" style="font-weight:600;letter-spacing:-.02em">
-            Tarefas de automação<span class="display-serif" style="color:var(--accent);font-weight:400">.</span>
-          </h1>
-          <p class="text-sm" style="color:var(--text-2)">Clique no card para executar, no ⚙ para configurar.</p>
-        </div>
-        <button class="btn btn-ghost" onclick="api('DELETE','/api/tasks/running').then(()=>toast('Limpeza concluída'))"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>limpar finalizadas</button>
+      <div class="mb-8 fade-up">
+        <h1 class="text-3xl mb-1" style="font-weight:600;letter-spacing:-.02em">
+          Tarefas de automação<span class="display-serif" style="color:var(--accent);font-weight:400">.</span>
+        </h1>
+        <p class="text-sm" style="color:var(--text-2)">Selecione uma tarefa para configurar e executar.</p>
+      </div>
+      <div class="mb-4">
+        <input id="taskSearch" type="text" placeholder="Buscar tarefa..." class="input" style="max-width:400px" oninput="filterTasks()">
       </div>
       <div class="mb-3 flex items-center justify-between">
         <div class="label" style="margin-bottom:0">ROTINAS DISPONÍVEIS</div>
         <div class="text-[10px]" style="color:var(--text-3)" id="taskCount">—</div>
       </div>
       <div id="taskCards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-10 fade-up"></div>
+    </section>
 
-      <div class="mb-10 fade-up" style="animation-delay:.04s">
-        <div class="flex items-center justify-between mb-3">
-          <div class="label" style="margin-bottom:0">EXECUÇÕES ATIVAS</div>
-          <div class="text-[10px]" style="color:var(--text-3)" id="runningCount">0</div>
-        </div>
-        <div id="runningTasks" class="space-y-2">
-          <div class="text-xs" style="color:var(--text-3)">Nenhuma tarefa em execução.</div>
-        </div>
+    <!-- Task Detail Panel -->
+    <section id="panel-task-detail" class="panel hidden">
+      <div class="section-head">
+        <span class="crumb" onclick="switchPanel('tasks')" style="cursor:pointer">← VOLTAR</span><span class="arrow">/</span><span class="title" id="detailTaskName">Tarefa</span>
       </div>
-
-      <div class="fade-up" style="animation-delay:.05s">
-        <div class="flex items-center justify-between mb-3">
-          <div class="label" style="margin-bottom:0">LOG DE EXECUÇÃO</div>
-          <div class="flex items-center gap-1.5 text-[10px]" style="color:var(--text-3)"><span class="w-1.5 h-1.5 rounded-full blink" style="background:var(--accent)"></span>AO VIVO</div>
-        </div>
-        <div id="log" class="log-box"><div style="padding-left:16px"><span style="color:var(--text-3)">[<span id="bootTime">--:--:--</span>]</span> sistema pronto · aguardando entrada<span class="blink" style="color:var(--accent)">_</span></div></div>
+      <div id="detailContent" class="space-y-6">
+        <div class="text-sm" style="color:var(--text-2)">Carregando...</div>
       </div>
     </section>
 

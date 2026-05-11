@@ -128,35 +128,126 @@ document.getElementById('credForm').addEventListener('submit', async (e) => {
 });
 
 /* Tasks */
-let currentTask = '';
+var allTasks = [];
+var currentTask = '';
 
 async function loadTasks() {
   try {
     const data = await api('GET', '/api/tasks');
-    document.getElementById('taskCount').textContent = String(data.available.length).padStart(2, '0') + ' ROTINAS';
-    document.getElementById('taskCards').innerHTML = data.available.map((t, i) =>
-      '<div class="task-tile fade-up" style="animation-delay:' + (i * 0.04) + 's">'
-        + '<div class="flex items-center justify-between mb-3">'
-          + '<div class="text-[10px] tabular-nums" style="color:var(--text-3);letter-spacing:.1em">ROTINA · ' + String(i + 1).padStart(2, '0') + '</div>'
-          + '<div class="flex gap-1">'
-            + '<button class="btn btn-ghost" style="padding:4px 8px;font-size:11px" onclick="event.stopPropagation();openConfigModal(\'' + esc(t) + '\')" title="Configurar">⚙</button>'
-          + '</div>'
-        + '</div>'
-        + '<div class="text-sm mb-1" style="color:var(--text-0);font-weight:500" onclick="event.stopPropagation();runTaskDirect(\'' + esc(t) + '\')">' + esc(t) + '</div>'
-        + '<div class="text-[11px] flex items-center gap-1.5" style="color:var(--text-2)">clique para executar</div>'
-      + '</div>'
-    ).join('');
+    allTasks = data.available;
+    document.getElementById('taskCount').textContent = String(allTasks.length).padStart(2, '0') + ' ROTINAS';
+    renderTaskList(allTasks);
   } catch (e) { toast('Falha ao carregar tarefas', true); }
 }
 
-async function runTaskDirect(name) {
+function filterTasks() {
+  const q = document.getElementById('taskSearch').value.toLowerCase();
+  renderTaskList(allTasks.filter(function(t) { return t.toLowerCase().indexOf(q) !== -1; }));
+}
+
+function renderTaskList(tasks) {
+  document.getElementById('taskCards').innerHTML = tasks.length
+    ? tasks.map(function(t, i) {
+        return '<div class="task-tile fade-up" style="animation-delay:' + (i * 0.04) + 's" onclick="openTaskDetail(\'' + esc(t) + '\')">'
+          + '<div class="flex items-center justify-between mb-3">'
+          + '<div class="text-[10px] tabular-nums" style="color:var(--text-3);letter-spacing:.1em">ROTINA · ' + String(i + 1).padStart(2, '0') + '</div>'
+          + '<div class="dot dot-idle"></div>'
+          + '</div>'
+          + '<div class="text-sm mb-1" style="color:var(--text-0);font-weight:500">' + esc(t) + '</div>'
+          + '<div class="text-[11px]" style="color:var(--text-2)">clique para abrir</div>'
+          + '</div>';
+      }).join('')
+    : '<div class="card p-8 text-center" style="border-style:dashed"><div class="text-sm" style="color:var(--text-1)">Nenhuma tarefa encontrada</div></div>';
+}
+
+async function openTaskDetail(name) {
+  currentTask = name;
+  document.getElementById('detailTaskName').textContent = name;
+  document.getElementById('detailContent').innerHTML = '<div class="text-sm" style="color:var(--text-2)">Carregando...</div>';
+  switchPanel('task-detail');
+
   try {
-    const config = await api('GET', '/api/tasks/' + encodeURIComponent(name) + '/config');
-    const res = await api('POST', '/api/run/' + encodeURIComponent(name), config && Object.keys(config).length ? config : {});
-    toast('Tarefa iniciada: ' + name);
-    logLine('▶ ' + name + ' [' + res.task_id + ']', 'success');
-    switchPanel('tasks');
-  } catch (e) { toast('Erro: ' + e.message, true); }
+    const [schema, config, creds, executions] = await Promise.all([
+      api('GET', '/api/tasks/' + encodeURIComponent(name) + '/schema'),
+      api('GET', '/api/tasks/' + encodeURIComponent(name) + '/config'),
+      api('GET', '/api/credentials'),
+      api('GET', '/api/executions'),
+    ]);
+    renderTaskDetail(name, schema, config, creds, executions);
+  } catch (e) {
+    document.getElementById('detailContent').innerHTML = '<div class="text-sm" style="color:var(--danger)">Erro: ' + esc(e.message) + '</div>';
+  }
+}
+
+function renderTaskDetail(name, schema, config, creds, executions) {
+  var paramsHtml = '';
+  for (var i = 0; i < schema.length; i++) {
+    var f = schema[i];
+    var fieldId = 'cfg-' + f.name;
+    if (f.type === 'credential') {
+      paramsHtml += '<div><label class="label">' + esc(f.label) + '</label><select id="' + fieldId + '" class="input"><option value="">— selecione —</option>';
+      if (creds) for (var j = 0; j < creds.length; j++) {
+        var svc = creds[j].service;
+        var sel = config && config[f.name] && config[f.name].service === svc ? ' selected' : '';
+        paramsHtml += '<option value="' + esc(svc) + '"' + sel + '>' + esc(svc) + '</option>';
+      }
+      paramsHtml += '</select></div>';
+    } else if (f.type === 'json') {
+      var val = config && config[f.name] !== undefined ? JSON.stringify(config[f.name], null, 2) : '';
+      paramsHtml += '<div><label class="label">' + esc(f.label) + '</label><textarea id="' + fieldId + '" rows="5" class="input" style="font-family:\'JetBrains Mono\',monospace">' + esc(val) + '</textarea></div>';
+    } else if (f.type === 'number') {
+      var nv = config && config[f.name] !== undefined ? config[f.name] : '';
+      paramsHtml += '<div><label class="label">' + esc(f.label) + '</label><input id="' + fieldId + '" type="number" value="' + esc(String(nv)) + '" class="input"></div>';
+    } else {
+      var sv = config && config[f.name] !== undefined ? config[f.name] : '';
+      paramsHtml += '<div><label class="label">' + esc(f.label) + '</label><input id="' + fieldId + '" type="text" value="' + esc(String(sv)) + '" class="input"></div>';
+    }
+  }
+  if (!schema.length) paramsHtml = '<div class="text-sm" style="color:var(--text-2)">Sem parâmetros.</div>';
+
+  var myExecs = (executions || []).filter(function(e) { return e.task_name === name; }).slice(0, 5);
+  var histHtml = myExecs.length
+    ? myExecs.map(function(e) {
+        var sc = 'dot-' + e.status;
+        var sl = STATUS_PT[e.status] || e.status;
+        var st = e.started_at ? e.started_at.slice(11, 19) : '--:--:--';
+        return '<div class="flex items-center gap-2 py-1.5" onclick="event.stopPropagation();openExecutionDetail(\'' + e.id + '\')" style="cursor:pointer"><span class="' + sc + '"></span><span class="text-xs" style="color:var(--text-1)">' + sl + '</span><span class="text-[10px] ml-auto" style="color:var(--text-3)">' + st + '</span></div>';
+      }).join('')
+    : '<div class="text-xs" style="color:var(--text-3)">Nenhuma execução anterior.</div>';
+
+  document.getElementById('detailContent').innerHTML = ''
+    + '<div class="card p-6"><div class="label" style="margin-bottom:12px">PARÂMETROS</div>' + paramsHtml
+    + '<div class="flex gap-2 mt-4"><button class="btn btn-ghost" onclick="saveDetailConfig()"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>salvar config</button>'
+    + '<button class="btn btn-primary" onclick="runDetailTask()"><svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>executar</button></div></div>'
+    + '<div class="card p-6"><div class="label" style="margin-bottom:12px">ÚLTIMAS EXECUÇÕES</div>' + histHtml + '</div>';
+}
+
+function collectDetailParams() {
+  var p = {};
+  var els = document.querySelectorAll('#detailContent [id^="cfg-"]');
+  for (var i = 0; i < els.length; i++) {
+    var el = els[i];
+    var name = el.id.replace('cfg-', '');
+    if (el.tagName === 'SELECT') { if (el.value) p[name] = { service: el.value }; }
+    else if (el.type === 'number') { p[name] = parseFloat(el.value) || 0; }
+    else if (el.tagName === 'TEXTAREA') { try { p[name] = JSON.parse(el.value); } catch(e) { toast('JSON inválido em ' + name, true); return null; } }
+    else { p[name] = el.value; }
+  }
+  return p;
+}
+
+async function saveDetailConfig() {
+  var p = collectDetailParams(); if (!p) return;
+  await api('POST', '/api/tasks/' + encodeURIComponent(currentTask) + '/config', p);
+  toast('Config salva');
+}
+
+async function runDetailTask() {
+  var p = collectDetailParams(); if (!p) return;
+  await api('POST', '/api/tasks/' + encodeURIComponent(currentTask) + '/config', p);
+  var res = await api('POST', '/api/run/' + encodeURIComponent(currentTask), p);
+  toast('Tarefa iniciada');
+  logLine('▶ ' + currentTask + ' [' + res.task_id + ']', 'success');
 }
 
 async function openConfigModal(name) {
