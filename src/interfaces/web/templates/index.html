@@ -101,7 +101,7 @@
     <!-- Task Detail Panel -->
     <section id="panel-task-detail" class="panel hidden">
       <div class="section-head">
-        <span class="crumb" onclick="switchPanel('tasks')" style="cursor:pointer">← VOLTAR</span><span class="arrow">/</span><span class="title" id="detailTaskName">Tarefa</span>
+        <span class="crumb" onclick="goBack()" style="cursor:pointer">← VOLTAR</span><span class="arrow">/</span><span class="title" id="detailTaskName">Tarefa</span>
       </div>
       <div id="detailContent" class="space-y-6">
         <div class="text-sm" style="color:var(--text-2)">Carregando...</div>
@@ -145,8 +145,8 @@
         </div>
         <form id="credForm" class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div><label class="label">Serviço</label><input id="service" name="service" placeholder="ex: erp-sistema" required class="input"></div>
-          <div><label class="label">Usuário</label><input id="username" name="username" placeholder="admin" required class="input"></div>
-          <div><label class="label">Senha</label><input id="password" type="password" name="password" placeholder="••••••••" required class="input"></div>
+          <div><label class="label">Usuário</label><input id="username" name="username" placeholder="admin" class="input"></div>
+          <div><label class="label">Senha</label><input id="password" type="password" name="password" placeholder="••••••••" class="input"></div>
           <div class="md:col-span-3 flex justify-end pt-2"><button type="submit" class="btn btn-primary"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>salvar credencial</button></div>
         </form>
       </div>
@@ -189,6 +189,6 @@
 <!-- Toast -->
 <div id="toast" class="fixed bottom-6 right-6 toast translate-y-32 opacity-0 transition-all duration-300 z-50 pointer-events-none"></div>
 
-<script src="/static/app.js"></script>
+<script src="/static/app.js?v=2"></script>
 </body>
 </html>

@@ -1,4 +1,3 @@
-import asyncio
 import os
 import webbrowser
 from pathlib import Path
@@ -6,10 +5,11 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 
+from src.infrastructure.execution_manager import get_manager
 from src.infrastructure.logger import get_logger
 from src.infrastructure.task_config import load_config, save_config
 from src.infrastructure.task_registry import TaskRegistry
-from src.infrastructure.task_runner import TaskStatus, get_pool
+from src.infrastructure.task_runner import get_pool
 from src.infrastructure.vault import Vault
 from src.interfaces.web.websocket import manager
 
@@ -64,8 +64,10 @@ async def save_credential(data: dict):
     service: str = data.get("service") or ""
     username: str = data.get("username") or ""
     password: str = data.get("password") or ""
-    if not service or not username or not password:
-        raise HTTPException(400, "service, username, password required")
+    if not service:
+        raise HTTPException(400, "service required")
+    if not username and not password:
+        raise HTTPException(400, "username or password required")
     _vault.set_password(service, username, password)
     return {"status": "ok"}
 
@@ -111,6 +113,17 @@ async def run_task(task_name: str, data: dict | None = None):
     return {"status": "started", "task": task_name, "task_id": task_id}
 
 
+@router.get("/api/executions")
+async def list_executions():
+    return get_manager().list_all()
+
+
+@router.get("/api/executions/{execution_id}")
+async def get_execution(execution_id: str):
+    exec_data = get_manager().get(execution_id)
+    if exec_data is None:
+        raise HTTPException(404, "execution not found")
+    return exec_data
 @router.get("/api/tasks/{task_name}/config")
 async def get_task_config(task_name: str):
     return load_config(task_name)

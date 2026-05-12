@@ -18,6 +18,7 @@ function toast(msg, isError) {
 
 function logLine(msg, type) {
   const log = document.getElementById('log');
+  if (!log) return;
   const time = new Date().toTimeString().slice(0, 8);
   const colors = { error: 'var(--danger)', warn: 'var(--warn)', success: 'var(--accent)', info: 'var(--info)' };
   const line = document.createElement('div');
@@ -27,7 +28,13 @@ function logLine(msg, type) {
   log.scrollTop = log.scrollHeight;
 }
 
+const PANEL_KEY = 'senior-rpa.panel';
+const PERSIST_PANELS = ['tasks', 'credentials', 'history'];
+var _prevPanel = 'tasks';
+
 function switchPanel(name) {
+  if (name !== 'task-detail') _stopExecPoll();
+  if (PERSIST_PANELS.includes(name)) _prevPanel = name;
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   var btn = document.querySelector('.nav-btn[data-panel="' + name + '"]');
   if (btn) btn.classList.add('active');
@@ -36,6 +43,13 @@ function switchPanel(name) {
   if (name === 'tasks') loadTasks();
   if (name === 'credentials') loadCredentials();
   if (name === 'history') loadHistory();
+  if (PERSIST_PANELS.includes(name)) try { localStorage.setItem(PANEL_KEY, name); } catch(e) {}
+}
+
+var _backFn = null;
+function goBack() {
+  if (_backFn) { var fn = _backFn; _backFn = null; fn(); }
+  else switchPanel(_prevPanel);
 }
 
 const STATUS_PT = { idle: 'ocioso', running: 'executando', paused: 'pausado', completed: 'concluído', failed: 'falhou', cancelled: 'cancelado' };
@@ -61,8 +75,10 @@ function updateSidebarRunning(tasks) {
 
 function renderRunningTasks(tasks) {
   const entries = Object.entries(tasks);
-  document.getElementById('runningCount').textContent = entries.length;
+  const countEl = document.getElementById('runningCount');
+  if (countEl) countEl.textContent = entries.length;
   const container = document.getElementById('runningTasks');
+  if (!container) { updateSidebarRunning(tasks); return; }
   if (entries.length === 0) {
     container.innerHTML = '<div class="text-xs" style="color:var(--text-3)">Nenhuma tarefa em execução.</div>';
     return;
@@ -162,6 +178,7 @@ function renderTaskList(tasks) {
 
 async function openTaskDetail(name) {
   currentTask = name;
+  _backFn = null;
   document.getElementById('detailTaskName').textContent = name;
   document.getElementById('detailContent').innerHTML = '<div class="text-sm" style="color:var(--text-2)">Carregando...</div>';
   switchPanel('task-detail');
@@ -264,7 +281,7 @@ async function runDetailTask() {
   await api('POST', '/api/tasks/' + encodeURIComponent(currentTask) + '/config', p);
   var res = await api('POST', '/api/run/' + encodeURIComponent(currentTask), p);
   toast('Tarefa iniciada');
-  logLine('▶ ' + currentTask + ' [' + res.task_id + ']', 'success');
+  openExecutionDetail(res.task_id);
 }
 
 async function openConfigModal(name) {
@@ -340,9 +357,8 @@ async function saveAndRun() {
     await api('POST', '/api/tasks/' + encodeURIComponent(currentTask) + '/config', params);
     const res = await api('POST', '/api/run/' + encodeURIComponent(currentTask), params);
     toast('Tarefa iniciada');
-    logLine('▶ ' + currentTask + ' [' + res.task_id + ']', 'success');
     closeConfigModal();
-    switchPanel('tasks');
+    openExecutionDetail(res.task_id);
   } catch (e) { toast('Erro: ' + e.message, true); }
 }
 
@@ -399,7 +415,8 @@ function esc(s) { var d = document.createElement('div'); d.textContent = s; retu
 
 /* Uptime */
 const bootEpoch = Date.now();
-document.getElementById('bootTime').textContent = new Date().toTimeString().slice(0, 8);
+var _bootEl = document.getElementById('bootTime');
+if (_bootEl) _bootEl.textContent = new Date().toTimeString().slice(0, 8);
 setInterval(function() {
   var s = Math.floor((Date.now() - bootEpoch) / 1000);
   document.getElementById('uptime').textContent = String(Math.floor(s / 3600)).padStart(2, '0') + ':' + String(Math.floor((s % 3600) / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
@@ -419,8 +436,10 @@ try {
   });
 } catch(e) {}
 
+var _initPanel = 'tasks';
+try { _initPanel = localStorage.getItem(PANEL_KEY) || 'tasks'; } catch(e) {}
 loadCredentials();
-setTimeout(function() { switchPanel('tasks'); }, 100);
+switchPanel(_initPanel);
 setInterval(refreshRunning, 1000);
 
 /* History */
@@ -445,29 +464,78 @@ async function loadHistory() {
   } catch (e) { toast('Falha ao carregar histórico', true); }
 }
 
+var _execPoll = null;
+
+function _stopExecPoll() {
+  if (_execPoll) { clearInterval(_execPoll); _execPoll = null; }
+}
+
+function _renderExecDetail(id, exec) {
+  var statusText = STATUS_PT[exec.status] || exec.status;
+  var stepIcons = { running: '●', completed: '✓', failed: '✗', cancelled: '✗', pending: '○' };
+  var stepColors = { running: 'var(--accent)', completed: 'var(--accent)', failed: 'var(--danger)', cancelled: 'var(--warn)', pending: 'var(--text-3)' };
+  var stepsHtml = exec.steps && exec.steps.length
+    ? exec.steps.map(function(s) {
+        return '<div class="flex items-center gap-2 text-xs py-1">'
+          + '<span style="color:' + (stepColors[s.status] || 'var(--text-3)') + '">' + (stepIcons[s.status] || '○') + '</span>'
+          + '<span style="color:var(--text-1)">' + esc(s.name) + '</span>'
+          + '<span class="ml-auto text-[10px]" style="color:var(--text-3)">' + (s.timestamp ? s.timestamp.slice(11, 19) : '') + '</span>'
+          + '</div>';
+      }).join('')
+    : '<div class="text-xs" style="color:var(--text-3)">Nenhum passo registrado.</div>';
+
+  var logsHtml = exec.logs && exec.logs.length
+    ? '<div class="card p-6 mt-4"><div class="label" style="margin-bottom:8px">LOG</div>'
+      + '<div id="execLogBox" class="log-box" style="height:180px;overflow-y:auto">'
+      + exec.logs.map(function(l) {
+          var lvlColor = { error: 'var(--danger)', warn: 'var(--warn)', info: 'var(--text-1)' };
+          return '<div style="padding-left:8px"><span style="color:var(--text-3)">[' + (l.timestamp ? l.timestamp.slice(11, 19) : '') + ']</span> '
+            + '<span style="color:' + (lvlColor[l.level] || 'var(--text-1)') + '">' + esc(l.message) + '</span></div>';
+        }).join('')
+      + '</div></div>'
+    : '';
+
+  var resultHtml = exec.result
+    ? '<div class="card p-6"><div class="flex items-center justify-between mb-2"><div class="label" style="margin-bottom:0">RESULTADO</div>'
+      + '<button class="btn btn-ghost" style="padding:4px 8px;font-size:10px" onclick="var t=this.nextElementSibling;if(t.style.display===\'none\'){t.style.display=\'block\';this.textContent=\'ocultar\'}else{t.style.display=\'none\';this.textContent=\'mostrar\'}">ocultar</button>'
+      + '<textarea readonly style="position:absolute;left:-9999px" id="copyTarget-' + id + '">' + esc(JSON.stringify(exec.result, null, 2)) + '</textarea>'
+      + '</div>'
+      + '<button class="btn btn-ghost" style="padding:4px 8px;font-size:10px;float:right" onclick="var t=document.getElementById(\'copyTarget-' + id + '\');t.select();navigator.clipboard.writeText(t.value);toast(\'Copiado\')">📋 copiar</button>'
+      + '<pre id="resultDisplay-' + id + '" class="text-xs" style="white-space:pre-wrap;color:var(--text-1)">' + renderJson(exec.result, 0) + '</pre></div>'
+    : '';
+
+  document.getElementById('detailTaskName').textContent = exec.task_name + ' (' + id + ')';
+  document.getElementById('detailContent').innerHTML = ''
+    + '<div class="card p-6"><span class="label" style="margin-bottom:4px">STATUS</span><span class="text-sm" style="color:var(--text-0)">' + statusText + '</span></div>'
+    + '<div class="card p-6"><div class="label" style="margin-bottom:8px">PASSOS</div>' + stepsHtml + logsHtml + '</div>'
+    + resultHtml;
+
+  var logBox = document.getElementById('execLogBox');
+  if (logBox) logBox.scrollTop = logBox.scrollHeight;
+}
+
 async function openExecutionDetail(id) {
+  _stopExecPoll();
+  var _taskAtOpen = currentTask;
+  _backFn = _taskAtOpen ? function() { openTaskDetail(_taskAtOpen); } : null;
+
+  document.getElementById('detailTaskName').textContent = '…';
+  document.getElementById('detailContent').innerHTML = '<div class="text-sm" style="color:var(--text-2)">Carregando...</div>';
+  switchPanel('task-detail');
+
   try {
     const exec = await api('GET', '/api/executions/' + id);
-    var statusText = STATUS_PT[exec.status] || exec.status;
-    var stepsHtml = exec.steps && exec.steps.length
-      ? exec.steps.map(function(s) {
-          var icons = { running: '●', completed: '✓', failed: '✗', pending: '○' };
-          return '<div class="flex items-center gap-2 text-xs py-1"><span style="color:var(--accent)">' + (icons[s.status] || '○') + '</span><span style="color:var(--text-1)">' + esc(s.name) + '</span><span class="ml-auto text-[10px]" style="color:var(--text-3)">' + (s.timestamp ? s.timestamp.slice(11, 19) : '') + '</span></div>';
-        }).join('')
-      : '<div class="text-xs" style="color:var(--text-3)">Nenhum passo registrado.</div>';
-    var resultHtml = exec.result
-      ? '<div class="card p-6"><div class="flex items-center justify-between mb-2"><div class="label" style="margin-bottom:0">RESULTADO</div>'
-        + '<button class="btn btn-ghost" style="padding:4px 8px;font-size:10px" onclick="var t=this.nextElementSibling;if(t.style.display===\'none\'){t.style.display=\'block\';this.textContent=\'ocultar\'}else{t.style.display=\'none\';this.textContent=\'mostrar\'}">ocultar</button>'
-        + '<textarea readonly style="position:absolute;left:-9999px" id="copyTarget-' + id + '">' + esc(JSON.stringify(exec.result, null, 2)) + '</textarea>'
-        + '</div>'
-        + '<button class="btn btn-ghost" style="padding:4px 8px;font-size:10px;float:right" onclick="var t=document.getElementById(\'copyTarget-' + id + '\');t.select();navigator.clipboard.writeText(t.value);toast(\'Copiado\')">📋 copiar</button>'
-        + '<pre id="resultDisplay-' + id + '" class="text-xs" style="white-space:pre-wrap;color:var(--text-1)">' + renderJson(exec.result, 0) + '</pre></div>'
-      : '';
-    document.getElementById('detailTaskName').textContent = exec.task_name + ' (' + id + ')';
-    document.getElementById('detailContent').innerHTML = ''
-      + '<div class="card p-6"><span class="label" style="margin-bottom:4px">STATUS</span><span class="text-sm" style="color:var(--text-0)">' + statusText + '</span></div>'
-      + '<div class="card p-6"><span class="label" style="margin-bottom:4px">PASSOS</span>' + stepsHtml + '</div>'
-      + resultHtml;
-    switchPanel('task-detail');
+    _renderExecDetail(id, exec);
+
+    var terminal = ['completed', 'failed', 'cancelled'];
+    if (!terminal.includes(exec.status)) {
+      _execPoll = setInterval(async function() {
+        try {
+          var updated = await api('GET', '/api/executions/' + id);
+          _renderExecDetail(id, updated);
+          if (terminal.includes(updated.status)) _stopExecPoll();
+        } catch(e) { _stopExecPoll(); }
+      }, 1000);
+    }
   } catch (e) { toast('Erro: ' + e.message, true); }
 }
