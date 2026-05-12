@@ -1,7 +1,8 @@
 import asyncio
-import uuid
+import traceback
 from enum import StrEnum
 
+from src.infrastructure.execution_manager import get_manager
 from src.infrastructure.task_registry import TaskRegistry
 
 
@@ -15,7 +16,9 @@ class TaskStatus(StrEnum):
 
 
 class TaskRunner:
-    def __init__(self):
+    def __init__(self, execution_id: str = ""):
+        self._execution_id = execution_id
+        self._current_step: str = ""
         self._pause_event = asyncio.Event()
         self._pause_event.set()
         self._cancel_requested = False
@@ -26,6 +29,10 @@ class TaskRunner:
     def status(self) -> TaskStatus:
         return self._status
 
+    @property
+    def execution_id(self) -> str:
+        return self._execution_id
+
     async def run(self, task_name: str, params: dict | None = None):
         self._status = TaskStatus.RUNNING
         self._cancel_requested = False
@@ -34,10 +41,19 @@ class TaskRunner:
             await self._execute(task_name, params or {})
             if not self._cancel_requested:
                 self._status = TaskStatus.COMPLETED
+                if self._current_step:
+                    get_manager().update_step_status(self._execution_id, self._current_step, "completed")
+                get_manager().complete(self._execution_id, self._result)
         except asyncio.CancelledError:
             self._status = TaskStatus.CANCELLED
-        except Exception:
+            if self._current_step:
+                get_manager().update_step_status(self._execution_id, self._current_step, "cancelled")
+            get_manager().cancel(self._execution_id)
+        except Exception as e:
             self._status = TaskStatus.FAILED
+            if self._current_step:
+                get_manager().update_step_status(self._execution_id, self._current_step, "failed")
+            get_manager().fail(self._execution_id, str(e) + "\n" + traceback.format_exc())
 
     async def _execute(self, task_name: str, params: dict):
         TaskRegistry.auto_discover()
@@ -47,6 +63,18 @@ class TaskRunner:
             return
         task = task_cls(runner=self)
         self._result = await task.execute(params)
+
+    def log(self, message: str, level: str = "info"):
+        if self._execution_id:
+            get_manager().add_log(self._execution_id, message, level)
+
+    async def report_step(self, name: str):
+        if self._execution_id:
+            if self._current_step:
+                get_manager().update_step_status(self._execution_id, self._current_step, "completed")
+            self._current_step = name
+            get_manager().set_step(self._execution_id, name, "running")
+        await self.checkpoint(name)
 
     async def checkpoint(self, name: str):
         if self._cancel_requested:
@@ -74,11 +102,12 @@ class TaskPool:
         self._runners: dict[str, TaskRunner] = {}
 
     def start(self, task_name: str, params: dict | None = None) -> str:
-        task_id = str(uuid.uuid4())[:8]
-        runner = TaskRunner()
-        self._runners[task_id] = runner
-        asyncio.create_task(self._run(task_id, task_name, params or {}))
-        return task_id
+        mgr = get_manager()
+        exec_id = mgr.create(task_name, params)
+        runner = TaskRunner(execution_id=exec_id)
+        self._runners[exec_id] = runner
+        asyncio.create_task(self._run(exec_id, task_name, params or {}))
+        return exec_id
 
     async def _run(self, task_id: str, task_name: str, params: dict):
         await self._runners[task_id].run(task_name, params)
