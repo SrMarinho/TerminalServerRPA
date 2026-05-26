@@ -364,17 +364,6 @@ async function saveAndRun() {
 
 /* Init */
 try { _connectWS(); } catch(e) {}
-loadCredentials();
-var savedPanel = 'tasks';
-try { var p = sessionStorage.getItem('senior-rpa.panel'); if (p) savedPanel = p; } catch(e) {}
-switchPanel(savedPanel);
-var initWatch = setInterval(function() {
-  var cards = document.getElementById('taskCards');
-  if (cards && cards.children.length > 0) clearInterval(initWatch);
-  else loadTasks();
-}, 1000);
-setTimeout(function() { clearInterval(initWatch); }, 8000);
-setInterval(refreshRunning, 2000);
 
 function collectConfigParams() {
   var schema = document.querySelectorAll('#configFields .mb-4');
@@ -451,10 +440,9 @@ try {
 } catch(e) {}
 
 var _initPanel = 'tasks';
-try { _initPanel = localStorage.getItem(PANEL_KEY) || 'tasks'; } catch(e) {}
+try { _initPanel = sessionStorage.getItem(PANEL_KEY) || 'tasks'; } catch(e) {}
 loadCredentials();
 switchPanel(_initPanel);
-setInterval(refreshRunning, 1000);
 
 /* History */
 async function loadHistory() {
@@ -501,6 +489,10 @@ function _connectWS() {
   _ws.onmessage = function(e) {
     try {
       var data = JSON.parse(e.data);
+      if (data.type === 'pool:update') {
+        refreshRunning();
+        return;
+      }
       if (data.type && data.execution_id && _wsCallbacks[data.execution_id]) {
         _wsCallbacks[data.execution_id](data);
       }
@@ -607,10 +599,26 @@ async function openExecutionDetail(id) {
     _renderExecDetail(id, exec);
 
     if (!['completed', 'failed', 'cancelled'].includes(exec.status)) {
-      _stopCurrentWatch = _watchExec(id, function() {
-        api('GET', '/api/executions/' + id).then(function(updated) {
-          _renderExecDetail(id, updated);
-        });
+      _stopCurrentWatch = _watchExec(id, function(data) {
+        if (data.type === 'execution:log') {
+          var box = document.getElementById('execLogBox');
+          if (box) {
+            var lvlColor = { error: 'var(--danger)', warn: 'var(--warn)', info: 'var(--text-1)' };
+            var div = document.createElement('div');
+            div.style.paddingLeft = '8px';
+            div.innerHTML = '<span style="color:var(--text-3)">[' + (data.timestamp || '').slice(11, 19) + ']</span> '
+              + '<span style="color:' + (lvlColor[data.level] || 'var(--text-1)') + '">' + esc(data.message) + '</span>';
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+          }
+        } else {
+          api('GET', '/api/executions/' + id).then(function(updated) {
+            _renderExecDetail(id, updated);
+            if (['completed', 'failed', 'cancelled'].includes(updated.status)) {
+              if (_stopCurrentWatch) { _stopCurrentWatch(); _stopCurrentWatch = null; }
+            }
+          });
+        }
       });
     }
   } catch (e) { toast('Erro: ' + e.message, true); }

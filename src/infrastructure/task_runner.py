@@ -2,7 +2,7 @@ import asyncio
 import traceback
 from enum import StrEnum
 
-from src.infrastructure.execution_manager import get_manager
+from src.infrastructure.execution_manager import _broadcast_exec_event, get_manager
 from src.infrastructure.task_registry import TaskRegistry
 
 
@@ -85,11 +85,19 @@ class TaskRunner:
         if self._status == TaskStatus.RUNNING:
             self._status = TaskStatus.PAUSED
             self._pause_event.clear()
+            if self._execution_id:
+                _broadcast_exec_event(
+                    {"type": "execution:status", "execution_id": self._execution_id, "status": "paused"}
+                )
 
     def resume(self):
         if self._status == TaskStatus.PAUSED:
             self._status = TaskStatus.RUNNING
             self._pause_event.set()
+            if self._execution_id:
+                _broadcast_exec_event(
+                    {"type": "execution:status", "execution_id": self._execution_id, "status": "running"}
+                )
 
     def cancel(self):
         if self._status in (TaskStatus.RUNNING, TaskStatus.PAUSED):
@@ -106,11 +114,14 @@ class TaskPool:
         exec_id = mgr.create(task_name, params)
         runner = TaskRunner(execution_id=exec_id)
         self._runners[exec_id] = runner
+        _broadcast_exec_event({"type": "pool:update", "task_id": exec_id, "task_name": task_name, "status": "running"})
         asyncio.create_task(self._run(exec_id, task_name, params or {}))
         return exec_id
 
     async def _run(self, task_id: str, task_name: str, params: dict):
-        await self._runners[task_id].run(task_name, params)
+        runner = self._runners[task_id]
+        await runner.run(task_name, params)
+        _broadcast_exec_event({"type": "pool:update", "task_id": task_id, "status": runner.status.value})
 
     def get(self, task_id: str) -> TaskRunner | None:
         return self._runners.get(task_id)
