@@ -494,6 +494,7 @@ var _ws = null;
 var _wsCallbacks = {};
 
 function _connectWS() {
+  if (_ws && _ws.readyState !== WebSocket.CLOSED) _ws.close();
   var proto = location.protocol === "https:" ? "wss" : "ws";
   _ws = new WebSocket(proto + "://" + location.host + "/ws");
   _ws.onmessage = function(e) {
@@ -504,7 +505,7 @@ function _connectWS() {
       }
     } catch(x) {}
   };
-  _ws.onclose = function() { setTimeout(_connectWS, 3000); };
+  _ws.onclose = function() { setTimeout(_connectWS, 10000); };
 }
 
 function _watchExec(id, cb) {
