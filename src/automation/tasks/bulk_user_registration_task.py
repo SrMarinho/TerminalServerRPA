@@ -20,6 +20,10 @@ class BulkUserRegistrationTask:
         ]
 
     @staticmethod
+    def get_steps():
+        return ["login", "validar", "cadastrar", "concluido"]
+
+    @staticmethod
     def _resolve_creds(params: dict) -> dict:
         vault = Vault()
         raw = params.get("credentials", {})
