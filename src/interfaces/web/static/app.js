@@ -363,7 +363,7 @@ async function saveAndRun() {
 }
 
 /* Init */
-_connectWS();
+try { _connectWS(); } catch(e) {}
 loadCredentials();
 var savedPanel = 'tasks';
 try { var p = sessionStorage.getItem('senior-rpa.panel'); if (p) savedPanel = p; } catch(e) {}
