@@ -23,7 +23,9 @@ TEMPLATES_DIR = Path(__file__).parent / "templates"
 
 @router.get("/", response_class=HTMLResponse)
 async def index():
+    import time
     html = (TEMPLATES_DIR / "index.html").read_text(encoding="utf-8")
+    html = html.replace("?v=AUTO", f"?v={int(time.time())}")
     return HTMLResponse(html)
 
 
