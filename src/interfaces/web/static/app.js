@@ -363,6 +363,7 @@ async function saveAndRun() {
 }
 
 /* Init */
+_connectWS();
 loadCredentials();
 var savedPanel = 'tasks';
 try { var p = sessionStorage.getItem('senior-rpa.panel'); if (p) savedPanel = p; } catch(e) {}
@@ -488,25 +489,50 @@ async function loadHistory() {
   } catch (e) { toast('Falha ao carregar histórico', true); }
 }
 
-var _execPoll = null;
+/* WebSocket */
+var _ws = null;
+var _wsCallbacks = {};
 
-function _stopExecPoll() {
-  if (_execPoll) { clearInterval(_execPoll); _execPoll = null; }
+function _connectWS() {
+  var proto = location.protocol === "https:" ? "wss" : "ws";
+  _ws = new WebSocket(proto + "://" + location.host + "/ws");
+  _ws.onmessage = function(e) {
+    try {
+      var data = JSON.parse(e.data);
+      if (data.type && data.execution_id && _wsCallbacks[data.execution_id]) {
+        _wsCallbacks[data.execution_id](data);
+      }
+    } catch(x) {}
+  };
+  _ws.onclose = function() { setTimeout(_connectWS, 3000); };
+}
+
+function _watchExec(id, cb) {
+  _wsCallbacks[id] = cb;
+  return function() { delete _wsCallbacks[id]; };
+}
+
+var _stopCurrentWatch = null;
+
+function renderFlowChart(steps) {
+  if (!steps || !steps.length) return '<div class="text-xs" style="color:var(--text-3)">Nenhum passo registrado.</div>';
+  var cls = { completed: "c", running: "r", failed: "f" };
+  var tooltip = function(s) {
+    var t = s.timestamp ? s.timestamp.slice(11, 19) : "";
+    return t ? ' title="' + t + '"' : "";
+  };
+  var html = '<div class="flowchart" style="padding:8px 0">';
+  for (var i = 0; i < steps.length; i++) {
+    if (i > 0) html += '<div class="flow-arrow"></div>';
+    html += '<div class="flow-node ' + (cls[steps[i].status] || "p") + '"' + tooltip(steps[i]) + '>' + esc(steps[i].name) + '</div>';
+  }
+  html += '</div>';
+  return html;
 }
 
 function _renderExecDetail(id, exec) {
   var statusText = STATUS_PT[exec.status] || exec.status;
-  var stepIcons = { running: '●', completed: '✓', failed: '✗', cancelled: '✗', pending: '○' };
-  var stepColors = { running: 'var(--accent)', completed: 'var(--accent)', failed: 'var(--danger)', cancelled: 'var(--warn)', pending: 'var(--text-3)' };
-  var stepsHtml = exec.steps && exec.steps.length
-    ? exec.steps.map(function(s) {
-        return '<div class="flex items-center gap-2 text-xs py-1">'
-          + '<span style="color:' + (stepColors[s.status] || 'var(--text-3)') + '">' + (stepIcons[s.status] || '○') + '</span>'
-          + '<span style="color:var(--text-1)">' + esc(s.name) + '</span>'
-          + '<span class="ml-auto text-[10px] hist-time">' + (s.timestamp ? s.timestamp.slice(11, 19) : '') + '</span>'
-          + '</div>';
-      }).join('')
-    : '<div class="text-xs" style="color:var(--text-3)">Nenhum passo registrado.</div>';
+  var stepsHtml = renderFlowChart(exec.steps);
 
   var logsHtml = exec.logs && exec.logs.length
     ? '<div class="card p-6 mt-4"><div class="label" style="margin-bottom:8px">LOG</div>'
@@ -539,11 +565,9 @@ function _renderExecDetail(id, exec) {
 }
 
 async function openExecutionDetail(id) {
-  _stopExecPoll();
-  var _taskAtOpen = currentTask;
-  _backFn = _taskAtOpen ? function() { openTaskDetail(_taskAtOpen); } : null;
+  if (_stopCurrentWatch) { _stopCurrentWatch(); _stopCurrentWatch = null; }
 
-  document.getElementById('detailTaskName').textContent = '…';
+  document.getElementById('detailTaskName').textContent = '\u2026';
   document.getElementById('detailContent').innerHTML = '<div class="text-sm" style="color:var(--text-2)">Carregando...</div>';
   switchPanel('task-detail');
 
@@ -551,15 +575,12 @@ async function openExecutionDetail(id) {
     const exec = await api('GET', '/api/executions/' + id);
     _renderExecDetail(id, exec);
 
-    var terminal = ['completed', 'failed', 'cancelled'];
-    if (!terminal.includes(exec.status)) {
-      _execPoll = setInterval(async function() {
-        try {
-          var updated = await api('GET', '/api/executions/' + id);
+    if (!['completed', 'failed', 'cancelled'].includes(exec.status)) {
+      _stopCurrentWatch = _watchExec(id, function() {
+        api('GET', '/api/executions/' + id).then(function(updated) {
           _renderExecDetail(id, updated);
-          if (terminal.includes(updated.status)) _stopExecPoll();
-        } catch(e) { _stopExecPoll(); }
-      }, 1000);
+        });
+      });
     }
   } catch (e) { toast('Erro: ' + e.message, true); }
 }

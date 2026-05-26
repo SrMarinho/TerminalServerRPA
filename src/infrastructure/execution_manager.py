@@ -9,6 +9,14 @@ DB_PATH = DB_DIR / "executions.db"
 MAX_EXECUTIONS = 100
 
 
+def _broadcast_exec_event(event: dict):
+    try:
+        from src.interfaces.web.websocket import broadcast_event
+        broadcast_event(event)
+    except RuntimeError:
+        pass  # no event loop running (e.g., CLI mode)
+
+
 def _get_conn() -> sqlite3.Connection:
     DB_DIR.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(DB_PATH), check_same_thread=False)
@@ -72,6 +80,13 @@ class ExecutionManager:
             (execution_id, step_name, status, now),
         )
         self._conn.commit()
+        _broadcast_exec_event({
+            "type": "execution:step",
+            "execution_id": execution_id,
+            "name": step_name,
+            "status": status,
+            "timestamp": now,
+        })
 
     def complete(self, execution_id: str, result: dict | None = None):
         now = datetime.now(UTC).isoformat()
@@ -80,6 +95,12 @@ class ExecutionManager:
             (now, json.dumps(result), execution_id),
         )
         self._conn.commit()
+        _broadcast_exec_event({
+            "type": "execution:status",
+            "execution_id": execution_id,
+            "status": "completed",
+            "result": result,
+        })
 
     def fail(self, execution_id: str, error: str | None = None):
         now = datetime.now(UTC).isoformat()
@@ -88,6 +109,12 @@ class ExecutionManager:
             (now, json.dumps({"error": error}) if error else "{}", execution_id),
         )
         self._conn.commit()
+        _broadcast_exec_event({
+            "type": "execution:status",
+            "execution_id": execution_id,
+            "status": "failed",
+            "error": error,
+        })
 
     def cancel(self, execution_id: str):
         now = datetime.now(UTC).isoformat()
@@ -96,6 +123,11 @@ class ExecutionManager:
             (now, execution_id),
         )
         self._conn.commit()
+        _broadcast_exec_event({
+            "type": "execution:status",
+            "execution_id": execution_id,
+            "status": "cancelled",
+        })
 
     def add_log(self, execution_id: str, message: str, level: str = "info"):
         now = datetime.now(UTC).isoformat()
@@ -104,6 +136,13 @@ class ExecutionManager:
             (execution_id, message, level, now),
         )
         self._conn.commit()
+        _broadcast_exec_event({
+            "type": "execution:log",
+            "execution_id": execution_id,
+            "message": message,
+            "level": level,
+            "timestamp": now,
+        })
 
     def update_step_status(self, execution_id: str, name: str, status: str):
         self._conn.execute(
@@ -129,7 +168,7 @@ class ExecutionManager:
             ).fetchall()
         ]
         entry["logs"] = [
-            dict(l) for l in self._conn.execute(
+            dict(ln) for ln in self._conn.execute(
                 "SELECT message, level, timestamp FROM logs WHERE execution_id=? ORDER BY id",
                 (execution_id,),
             ).fetchall()
