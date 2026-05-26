@@ -33,7 +33,7 @@ const PERSIST_PANELS = ['tasks', 'credentials', 'history'];
 var _prevPanel = 'tasks';
 
 function switchPanel(name) {
-  if (name !== 'task-detail') _stopExecPoll();
+  if (name !== 'task-detail' && _stopCurrentWatch) { _stopCurrentWatch(); _stopCurrentWatch = null; }
   if (PERSIST_PANELS.includes(name)) _prevPanel = name;
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   var btn = document.querySelector('.nav-btn[data-panel="' + name + '"]');

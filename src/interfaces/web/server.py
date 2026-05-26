@@ -41,6 +41,19 @@ def _build_app(ws_queue: asyncio.Queue) -> FastAPI:
     return app
 
 
+def _uvicorn_log_config():
+    return {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "handlers": {"null": {"class": "logging.NullHandler"}},
+        "loggers": {
+            "uvicorn": {"handlers": ["null"], "propagate": False, "level": "ERROR"},
+            "uvicorn.access": {"handlers": ["null"], "propagate": False},
+            "uvicorn.error": {"handlers": ["null"], "propagate": False},
+        },
+    }
+
+
 def run_server(port: int = 8080, open_browser: bool = True, dev: bool = False):
     if not is_first_instance():
         log.info("instance.duplicate", action="focus_existing")
@@ -66,10 +79,10 @@ def run_server(port: int = 8080, open_browser: bool = True, dev: bool = False):
     if dev:
         log.info("server.dev_mode", reload_dirs="templates, static")
         uvicorn.run(app, host="127.0.0.1", port=actual_port,
-                    log_config=None, access_log=False,
+                    log_config=_uvicorn_log_config(), access_log=False,
                     reload=True,
                     reload_includes=["*.html", "*.css", "*.js"],
                     reload_dirs=[str(Path(__file__).parent / "templates"),
                                  str(STATIC_DIR)])
     else:
-        uvicorn.run(app, host="127.0.0.1", port=actual_port, log_config=None, access_log=False)
+        uvicorn.run(app, host="127.0.0.1", port=actual_port, log_config=_uvicorn_log_config(), access_log=False)
