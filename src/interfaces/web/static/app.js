@@ -479,9 +479,9 @@ async function loadHistory() {
             + '<span class="text-sm font-medium truncate" style="color:var(--text-0)">' + esc(e.task_name) + '</span>'
             + '<span class="text-[10px] px-2 py-0.5 rounded-sm font-semibold" style="' + statusBadge + '">' + statusText + '</span>'
             + '</div>'
-            + (dur ? '<span class="text-[10px] tabular-nums" style="color:var(--text-3)">' + start + ' (' + dur + ')</span>' : '<span class="text-[10px] tabular-nums" style="color:var(--text-3)">' + start + '</span>')
+            + (dur ? '<span class="text-[10px] tabular-nums hist-time">' + start + ' (' + dur + ')</span>' : '<span class="text-[10px] tabular-nums hist-time">' + start + '</span>')
             + '</div>'
-            + (e.finished_at ? '<div class="text-[10px]" style="color:var(--text-3)">fim: ' + end + '</div>' : '')
+            + (e.finished_at ? '<div class="text-[10px] hist-time">fim: ' + end + '</div>' : '')
             + '</div>';
         }).join('')
       : '<div class="card p-8 text-center" style="border-style:dashed"><div class="text-sm" style="color:var(--text-1)">Nenhuma execução ainda.</div></div>';

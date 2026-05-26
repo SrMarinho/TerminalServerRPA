@@ -1,4 +1,4 @@
-:root,[data-theme="dark"]{--bg-0:#000;--bg-1:#08090a;--bg-2:#111316;--bg-3:#1a1d22;--line:#2a2e36;--line-2:#3d4250;--text-0:#fff;--text-1:#c8ccd4;--text-2:#8b909c;--text-3:#5a5f6b;--accent:#4ade80;--accent-dim:#22c55e;--accent-glow:rgba(74,222,128,.25);--accent-on:#000;--warn:#fbbf24;--danger:#f87171;--info:#60a5fa;--grid-opacity:.4;--noise-opacity:.4;--noise-blend:overlay;--card-gradient:linear-gradient(180deg,var(--bg-2) 0%,var(--bg-1) 100%);--shadow-modal:0 24px 64px rgba(0,0,0,.6),0 0 0 1px rgba(74,222,128,.08);--shadow-toast:0 12px 32px rgba(0,0,0,.5)}
+:root,[data-theme="dark"]{--bg-0:#000;--bg-1:#08090a;--bg-2:#111316;--bg-3:#1a1d22;--line:#2a2e36;--line-2:#3d4250;--text-0:#fff;--text-1:#d4d8de;--text-2:#a3a8b5;--text-3:#5a5f6b;--accent:#4ade80;--accent-dim:#22c55e;--accent-glow:rgba(74,222,128,.25);--accent-on:#000;--warn:#fbbf24;--danger:#f87171;--info:#60a5fa;--grid-opacity:.4;--noise-opacity:.4;--noise-blend:overlay;--card-gradient:linear-gradient(180deg,var(--bg-2) 0%,var(--bg-1) 100%);--shadow-modal:0 24px 64px rgba(0,0,0,.6),0 0 0 1px rgba(74,222,128,.08);--shadow-toast:0 12px 32px rgba(0,0,0,.5)}
 [data-theme="light"]{--bg-0:#f5f5f4;--bg-1:#fff;--bg-2:#fafaf9;--bg-3:#f0efed;--line:#d6d3d0;--line-2:#a8a29e;--text-0:#0c0a09;--text-1:#292524;--text-2:#57534e;--text-3:#78716c;--accent:#15803d;--accent-dim:#166534;--accent-glow:rgba(21,128,61,.18);--accent-on:#fff;--warn:#b45309;--danger:#b91c1c;--info:#1d4ed8;--grid-opacity:.5;--noise-opacity:.25;--noise-blend:multiply;--card-gradient:linear-gradient(180deg,var(--bg-1) 0%,var(--bg-2) 100%);--shadow-modal:0 24px 64px rgba(0,0,0,.18),0 0 0 1px rgba(21,128,61,.1);--shadow-toast:0 12px 32px rgba(0,0,0,.15)}
 *{box-sizing:border-box}
 html,body{background:var(--bg-0);color:var(--text-0);font-family:'JetBrains Mono',ui-monospace,monospace;font-feature-settings:"ss02","ss03","cv11";-webkit-font-smoothing:antialiased;letter-spacing:-.005em;transition:background-color .25s ease,color .25s ease}
@@ -59,6 +59,7 @@ body::after{content:'';position:fixed;inset:0;background-image:url("data:image/s
 .hidden{display:none!important}
 .dot{width:6px;height:6px;border-radius:50%;display:inline-block}
 .dot-idle{background:var(--text-3)}
+.hist-time{color:#9ca3af}
 .dot-running{background:var(--accent);color:var(--accent)}
 .dot-paused{background:var(--warn);color:var(--warn)}
 .dot-completed{background:var(--accent);color:var(--accent)}
