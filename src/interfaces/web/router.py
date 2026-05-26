@@ -1,5 +1,4 @@
 import os
-import webbrowser
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
@@ -31,7 +30,6 @@ async def index():
 
 @router.get("/_focus")
 async def focus():
-    webbrowser.open("http://127.0.0.1:8080")
     return {"status": "focused"}
 
 
