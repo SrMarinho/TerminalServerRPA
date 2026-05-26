@@ -37,7 +37,7 @@ def read_port() -> int | None:
         return None
     try:
         return int(path.read_text(encoding="utf-8").strip())
-    except (ValueError, OSError):
+    except ValueError, OSError:
         return None
 
 
@@ -50,5 +50,5 @@ def focus_existing_instance():
             s.sendall(b"GET /_focus HTTP/1.0\r\nHost: 127.0.0.1\r\n\r\n")
             s.recv(1024)
         return True
-    except (TimeoutError, ConnectionRefusedError, OSError):
+    except TimeoutError, ConnectionRefusedError, OSError:
         return False

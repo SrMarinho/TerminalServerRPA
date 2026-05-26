@@ -78,11 +78,15 @@ def run_server(port: int = 8080, open_browser: bool = True, dev: bool = False):
 
     if dev:
         log.info("server.dev_mode", reload_dirs="templates, static")
-        uvicorn.run(app, host="127.0.0.1", port=actual_port,
-                    log_config=_uvicorn_log_config(), access_log=False,
-                    reload=True,
-                    reload_includes=["*.html", "*.css", "*.js"],
-                    reload_dirs=[str(Path(__file__).parent / "templates"),
-                                 str(STATIC_DIR)])
+        uvicorn.run(
+            app,
+            host="127.0.0.1",
+            port=actual_port,
+            log_config=_uvicorn_log_config(),
+            access_log=False,
+            reload=True,
+            reload_includes=["*.html", "*.css", "*.js"],
+            reload_dirs=[str(Path(__file__).parent / "templates"), str(STATIC_DIR)],
+        )
     else:
         uvicorn.run(app, host="127.0.0.1", port=actual_port, log_config=_uvicorn_log_config(), access_log=False)

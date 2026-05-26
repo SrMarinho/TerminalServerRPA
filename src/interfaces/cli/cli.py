@@ -54,6 +54,7 @@ def list():
 
 def run(task_name: str):
     from src.infrastructure.task_runner import TaskRunner
+
     typer.echo(f"Running task: {task_name}")
     runner = TaskRunner()
     asyncio.run(runner.run(task_name))
@@ -100,6 +101,7 @@ def shutdown():
     import httpx
 
     from src.infrastructure.single_instance import read_port
+
     port = read_port()
     if port is None:
         typer.echo("No running instance found.", err=True)

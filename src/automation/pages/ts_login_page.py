@@ -1,5 +1,6 @@
-from playwright.async_api import Page
 import asyncio
+
+from playwright.async_api import Page
 
 
 class TsLoginPage:
@@ -14,5 +15,5 @@ class TsLoginPage:
         await self._page.fill("#Editbox1", username)
         await self._page.fill("#Editbox2", password)
         await asyncio.sleep(0.4)  # Pequena pausa para garantir que os campos foram preenchidos
-        await self._page.get_by_text('Entrar').click(click_count=2, delay=100)
-        #await self._page.wait_for_selector("#dashboard", timeout=10000)
+        await self._page.get_by_text("Entrar").click(click_count=2, delay=100)
+        # await self._page.wait_for_selector("#dashboard", timeout=10000)

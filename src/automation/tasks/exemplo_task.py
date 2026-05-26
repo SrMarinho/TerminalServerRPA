@@ -30,7 +30,7 @@ class ExemploTask:
         for i in range(int(delay)):
             await asyncio.sleep(1)
             if self._runner:
-                await self._runner.checkpoint(f"aguardando... {i+1}s")
+                await self._runner.checkpoint(f"aguardando... {i + 1}s")
 
         if self._runner:
             await self._runner.report_step(f"mensagem: {msg}")

@@ -8,6 +8,7 @@ class TestConnectionManager:
     @pytest.mark.asyncio
     async def test_connect_accepts_and_adds(self):
         from src.interfaces.web.websocket import ConnectionManager
+
         mgr = ConnectionManager()
         ws = AsyncMock()
         await mgr.connect(ws)
@@ -17,6 +18,7 @@ class TestConnectionManager:
     @pytest.mark.asyncio
     async def test_disconnect_removes(self):
         from src.interfaces.web.websocket import ConnectionManager
+
         mgr = ConnectionManager()
         ws = AsyncMock()
         await mgr.connect(ws)
@@ -26,6 +28,7 @@ class TestConnectionManager:
     @pytest.mark.asyncio
     async def test_broadcast_sends_to_all(self):
         from src.interfaces.web.websocket import ConnectionManager
+
         mgr = ConnectionManager()
         ws1, ws2 = AsyncMock(), AsyncMock()
         await mgr.connect(ws1)
@@ -37,6 +40,7 @@ class TestConnectionManager:
     @pytest.mark.asyncio
     async def test_broadcast_removes_dead_connections(self):
         from src.interfaces.web.websocket import ConnectionManager
+
         mgr = ConnectionManager()
         ws1 = AsyncMock()
         ws2 = AsyncMock()
@@ -48,6 +52,7 @@ class TestConnectionManager:
 
     def test_active_count_starts_zero(self):
         from src.interfaces.web.websocket import ConnectionManager
+
         assert ConnectionManager().active_count == 0
 
 
@@ -55,6 +60,7 @@ class TestBroadcastFromQueue:
     @pytest.mark.asyncio
     async def test_drains_queue_and_broadcasts(self):
         from src.interfaces.web.websocket import broadcast_from_queue, manager
+
         q = asyncio.Queue()
         ws = AsyncMock()
         await manager.connect(ws)

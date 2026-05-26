@@ -22,16 +22,20 @@ def mock_vault():
 
 @pytest.fixture(autouse=True)
 def mock_config():
-    with patch("src.interfaces.web.router.load_config", return_value={}), \
-         patch("src.interfaces.web.router.save_config") as m:
+    with (
+        patch("src.interfaces.web.router.load_config", return_value={}),
+        patch("src.interfaces.web.router.save_config") as m,
+    ):
         yield m
 
 
 @pytest.fixture(autouse=True)
 def mock_registry():
-    with patch("src.interfaces.web.router.TaskRegistry.list", return_value=["bulk-register-users"]), \
-         patch("src.interfaces.web.router.TaskRegistry.auto_discover"), \
-         patch("src.interfaces.web.router.TaskRegistry.get_schema", return_value=[{"name": "x", "type": "string"}]):
+    with (
+        patch("src.interfaces.web.router.TaskRegistry.list", return_value=["bulk-register-users"]),
+        patch("src.interfaces.web.router.TaskRegistry.auto_discover"),
+        patch("src.interfaces.web.router.TaskRegistry.get_schema", return_value=[{"name": "x", "type": "string"}]),
+    ):
         yield
 
 
@@ -43,8 +47,7 @@ class TestIndex:
 
 
 class TestFocus:
-    @patch("src.interfaces.web.router.webbrowser")
-    def test_focus_opens_browser(self, mock_web):
+    def test_focus_returns_ok(self):
         resp = client.get("/_focus")
         assert resp.status_code == 200
         assert resp.json() == {"status": "focused"}

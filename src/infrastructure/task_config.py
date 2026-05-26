@@ -21,6 +21,4 @@ def load_config(task_name: str) -> dict:
 
 def save_config(task_name: str, params: dict):
     _ensure_dir()
-    _path(task_name).write_text(
-        json.dumps(params, indent=2, ensure_ascii=False), encoding="utf-8"
-    )
+    _path(task_name).write_text(json.dumps(params, indent=2, ensure_ascii=False), encoding="utf-8")

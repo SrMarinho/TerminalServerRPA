@@ -7,6 +7,7 @@ class TestLoginPage:
     @pytest.mark.asyncio
     async def test_navigate_calls_goto(self):
         from src.automation.pages.login_page import LoginPage
+
         page = AsyncMock()
         lp = LoginPage(page, base_url="http://test.com")
         await lp.navigate()
@@ -15,6 +16,7 @@ class TestLoginPage:
     @pytest.mark.asyncio
     async def test_login_fills_and_submits(self):
         from src.automation.pages.login_page import LoginPage
+
         page = AsyncMock()
         lp = LoginPage(page)
         await lp.login("admin", "secret")
@@ -28,6 +30,7 @@ class TestUserRegistrationPage:
     @pytest.mark.asyncio
     async def test_navigate_calls_goto(self):
         from src.automation.pages.user_registration_page import UserRegistrationPage
+
         page = AsyncMock()
         rp = UserRegistrationPage(page, base_url="http://test.com")
         await rp.navigate()
@@ -36,6 +39,7 @@ class TestUserRegistrationPage:
     @pytest.mark.asyncio
     async def test_register_fills_form(self):
         from src.automation.pages.user_registration_page import UserRegistrationPage
+
         page = AsyncMock()
         rp = UserRegistrationPage(page)
         await rp.register("user1", "pass", "u@t.com", "User One")
@@ -48,6 +52,7 @@ class TestUserRegistrationPage:
     @pytest.mark.asyncio
     async def test_is_success(self):
         from src.automation.pages.user_registration_page import UserRegistrationPage
+
         page = AsyncMock()
         page.is_visible.return_value = True
         rp = UserRegistrationPage(page)

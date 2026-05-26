@@ -8,9 +8,11 @@ from src.interfaces.cli.cli import vault_app
 
 runner = CliRunner()
 
+
 @pytest.fixture(autouse=True)
 def mock_vault():
     import src.interfaces.cli.cli as cli_mod
+
     cli_mod._vault = None
     m = MagicMock(spec=Vault)
     m.get_password.return_value = None
@@ -18,6 +20,7 @@ def mock_vault():
     m.list_credentials.return_value = []
     with patch("src.interfaces.cli.cli.Vault", return_value=m):
         yield m
+
 
 class TestCliSet:
     def test_set_password_prompts_for_secret(self, mock_vault):
@@ -28,6 +31,7 @@ class TestCliSet:
     def test_set_password_without_username(self, mock_vault):
         result = runner.invoke(vault_app, ["set", "svc"], input="secret123\n")
         assert result.exit_code != 0
+
 
 class TestCliGet:
     def test_get_password(self, mock_vault):
@@ -41,11 +45,13 @@ class TestCliGet:
         result = runner.invoke(vault_app, ["get", "svc", "-u", "usr"])
         assert result.exit_code == 1
 
+
 class TestCliDelete:
     def test_delete_credential(self, mock_vault):
         result = runner.invoke(vault_app, ["delete", "svc"])
         assert result.exit_code == 0
         mock_vault.delete_password.assert_called_once_with("svc")
+
 
 class TestCliList:
     def test_list_empty(self, mock_vault):
@@ -54,8 +60,8 @@ class TestCliList:
 
     def test_list_with_services(self, mock_vault):
         mock_vault.list_services.return_value = ["svc1", "svc2"]
-        mock_vault.list_credentials.side_effect = (
-            lambda s: [{"username": "usr1"}] if s == "svc1" else [{"username": "usr2"}]
+        mock_vault.list_credentials.side_effect = lambda s: (
+            [{"username": "usr1"}] if s == "svc1" else [{"username": "usr2"}]
         )
         result = runner.invoke(vault_app, ["list"])
         assert result.exit_code == 0

@@ -119,10 +119,7 @@ class TaskPool:
         return {tid: {"task_id": tid, "status": r.status.value} for tid, r in self._runners.items()}
 
     def cleanup_done(self):
-        done = [
-            tid for tid, r in self._runners.items()
-            if r.status not in (TaskStatus.RUNNING, TaskStatus.PAUSED)
-        ]
+        done = [tid for tid, r in self._runners.items() if r.status not in (TaskStatus.RUNNING, TaskStatus.PAUSED)]
         for tid in done:
             del self._runners[tid]
 

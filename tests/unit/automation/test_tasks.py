@@ -22,11 +22,13 @@ class TestBulkUserRegistrationTask:
         mock_async_pw.return_value.__aenter__.return_value = mock_p
 
         task = BulkUserRegistrationTask(runner=None)
-        result = await task.execute({
-            "credentials": {"username": "admin", "password": "pass"},
-            "users": [{"username": "u1", "password": "p1", "email": "e1", "full_name": "U1"}],
-            "base_url": "http://test.com",
-        })
+        result = await task.execute(
+            {
+                "credentials": {"username": "admin", "password": "pass"},
+                "users": [{"username": "u1", "password": "p1", "email": "e1", "full_name": "U1"}],
+                "base_url": "http://test.com",
+            }
+        )
         assert isinstance(result, dict)
         assert "registered" in result
         assert "errors" in result

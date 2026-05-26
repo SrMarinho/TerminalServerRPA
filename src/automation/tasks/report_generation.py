@@ -13,9 +13,9 @@ class GeracaoRelatorio:
     @staticmethod
     def get_schema():
         return [
-            {"name": "base_url",  "label": "URL Base",          "type": "string"},
-            {"name": "TS Credenciais", "label": "TS Credenciais",      "type": "credential"},
-            {"name": "Senior Credenciais", "label": "Senior Credenciais",      "type": "credential"},
+            {"name": "base_url", "label": "URL Base", "type": "string"},
+            {"name": "TS Credenciais", "label": "TS Credenciais", "type": "credential"},
+            {"name": "Senior Credenciais", "label": "Senior Credenciais", "type": "credential"},
         ]
 
     @staticmethod
@@ -58,7 +58,6 @@ class GeracaoRelatorio:
                 if self._runner:
                     await self._runner.report_step("aguardando")
                 await asyncio.sleep(10)
-
 
                 if self._runner:
                     await self._runner.report_step("concluido")

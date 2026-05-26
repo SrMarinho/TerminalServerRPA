@@ -15,13 +15,16 @@ def mock_keyring():
         mock.delete_password.side_effect = lambda s, u: store.pop((s, u), None)
         yield mock, store
 
+
 _VALID_KEY = "uVWUI9F8u2aRkt5hbgD_LaolVcVveOLZGNDKpajdI1k="
+
 
 @pytest.fixture
 def vault(mock_keyring):
     _, store = mock_keyring
     store[("senior-rpa", "_vault_key")] = _VALID_KEY
     return Vault()
+
 
 class TestVaultInit:
     def test_generates_key_on_first_access(self, mock_keyring):
@@ -36,6 +39,7 @@ class TestVaultInit:
         v2 = Vault()
         assert v2._key == k1
 
+
 class TestVaultSetPassword:
     def test_stores_encrypted_password(self, vault, mock_keyring):
         _, store = mock_keyring
@@ -48,6 +52,7 @@ class TestVaultSetPassword:
         vault.set_password("svc", "usr", "first")
         vault.set_password("svc", "usr", "second")
         assert vault.get_password("svc", "usr") == "second"
+
 
 class TestVaultGetPassword:
     def test_returns_password(self, vault):
@@ -62,6 +67,7 @@ class TestVaultGetPassword:
         store[("svc", "usr")] = "invalid-ciphertext"
         with pytest.raises(ValueError, match="decrypt"):
             vault.get_password("svc", "usr")
+
 
 class TestVaultDeletePassword:
     def test_deletes_credential(self, vault):
@@ -89,15 +95,18 @@ class TestVaultDeletePassword:
         vault.set_password("svc", "bad", "p2")
 
         original_delete = mock.delete_password.side_effect
+
         def delete_with_error(s, u):
             if u == "bad":
                 raise PasswordDeleteError("denied")
             return original_delete(s, u)
+
         mock.delete_password.side_effect = delete_with_error
 
         vault.delete_password("svc")
         assert vault.get_password("svc", "good") is None
         assert vault.list_services() == []
+
 
 class TestVaultListServices:
     def test_lists_all_services(self, vault):
@@ -110,6 +119,7 @@ class TestVaultListServices:
 
     def test_empty_when_no_credentials(self, vault):
         assert vault.list_services() == []
+
 
 class TestVaultListCredentials:
     def test_lists_credentials_for_service(self, vault):
