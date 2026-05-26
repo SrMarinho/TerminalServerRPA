@@ -31,6 +31,13 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
+def broadcast_event(event: dict):
+    loop = asyncio.get_event_loop()
+    loop.call_soon_threadsafe(
+        lambda: asyncio.create_task(manager.broadcast(event))
+    )
+
+
 async def broadcast_from_queue(queue: asyncio.Queue):
     while True:
         event = await queue.get()
