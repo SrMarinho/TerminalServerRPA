@@ -20,7 +20,11 @@ class GeracaoRelatorio:
 
     @staticmethod
     def get_steps():
-        return ["login", "aguardando", "concluido"]
+        return {
+            "Login": ["login TS", "login Senior"],
+            "Processamento": ["aguardando", "processando"],
+            "Finalização": ["concluido"],
+        }
 
     @staticmethod
     def _resolve_creds(params: dict, key: str = "credentials") -> dict:

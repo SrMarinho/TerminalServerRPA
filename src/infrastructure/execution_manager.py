@@ -1,6 +1,7 @@
 import json
 import sqlite3
 import uuid
+from contextlib import suppress
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -43,7 +44,8 @@ def _migrate(conn: sqlite3.Connection):
             execution_id TEXT NOT NULL REFERENCES executions(id) ON DELETE CASCADE,
             name TEXT NOT NULL,
             status TEXT NOT NULL DEFAULT 'pending',
-            timestamp TEXT NOT NULL
+            timestamp TEXT NOT NULL,
+            phase TEXT DEFAULT ''
         );
         CREATE TABLE IF NOT EXISTS logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -56,6 +58,8 @@ def _migrate(conn: sqlite3.Connection):
         CREATE INDEX IF NOT EXISTS idx_logs_exec ON logs(execution_id);
         CREATE INDEX IF NOT EXISTS idx_exec_started ON executions(started_at DESC);
     """)
+    with suppress(sqlite3.OperationalError):
+        conn.execute("ALTER TABLE steps ADD COLUMN phase TEXT DEFAULT ''")
 
 
 class ExecutionManager:
@@ -70,22 +74,27 @@ class ExecutionManager:
             (exec_id, task_name, json.dumps(params or {}), now),
         )
         steps = self._get_task_steps(task_name)
-        for step_name in steps:
+        for phase, step_name in steps:
             self._conn.execute(
-                "INSERT INTO steps (execution_id, name, status, timestamp) VALUES (?, ?, 'pending', ?)",
-                (exec_id, step_name, now),
+                "INSERT INTO steps (execution_id, name, phase, status, timestamp) VALUES (?, ?, ?, 'pending', ?)",
+                (exec_id, step_name, phase, now),
             )
         self._conn.commit()
         self._prune()
         return exec_id
 
     @staticmethod
-    def _get_task_steps(task_name: str) -> list[str]:
+    def _get_task_steps(task_name: str) -> list[tuple[str, str]]:
         from src.infrastructure.task_registry import TaskRegistry
         TaskRegistry.auto_discover()
         task_cls = TaskRegistry.get(task_name)
-        if task_cls and hasattr(task_cls, "get_steps"):
-            return task_cls.get_steps()
+        if not task_cls or not hasattr(task_cls, "get_steps"):
+            return []
+        steps = task_cls.get_steps()
+        if isinstance(steps, dict):
+            return [(phase, name) for phase, names in steps.items() for name in names]
+        if isinstance(steps, list):
+            return [("", name) for name in steps]
         return []
 
     def set_step(self, execution_id: str, step_name: str, status: str = "running"):
@@ -106,7 +115,14 @@ class ExecutionManager:
             "name": step_name,
             "status": status,
             "timestamp": now,
+            "phase": self._get_step_phase(execution_id, step_name),
         })
+
+    def _get_step_phase(self, execution_id: str, name: str) -> str:
+        row = self._conn.execute(
+            "SELECT phase FROM steps WHERE execution_id=? AND name=?", (execution_id, name)
+        ).fetchone()
+        return row["phase"] if row else ""
 
     def complete(self, execution_id: str, result: dict | None = None):
         now = datetime.now(UTC).isoformat()
@@ -183,7 +199,7 @@ class ExecutionManager:
         entry["result"] = json.loads(entry["result"]) if entry["result"] else None
         entry["steps"] = [
             dict(s) for s in self._conn.execute(
-                "SELECT name, status, timestamp FROM steps WHERE execution_id=? ORDER BY id",
+                "SELECT name, phase, status, timestamp FROM steps WHERE execution_id=? ORDER BY id",
                 (execution_id,),
             ).fetchall()
         ]
