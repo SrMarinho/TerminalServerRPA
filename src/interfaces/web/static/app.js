@@ -475,14 +475,15 @@ async function loadHistory() {
             dur = (sec >= 60 ? Math.floor(sec / 60) + 'm ' : '') + (sec % 60) + 's';
           }
           return '<div class="card p-4" onclick="openExecutionDetail(\'' + e.id + '\')" style="cursor:pointer;border-left:3px solid ' + borderColor + '">'
-            + '<div class="flex items-center justify-between mb-2">'
-            + '<div class="flex items-center gap-2 min-w-0">'
-            + '<span class="text-sm font-medium truncate" style="color:var(--text-0)">' + esc(e.task_name) + '</span>'
-            + '<span class="text-[10px] px-2 py-0.5 rounded-sm font-semibold" style="' + statusBadge + '">' + statusText + '</span>'
+            + '<div class="flex items-start justify-between mb-3">'
+            + '<span class="text-sm font-medium" style="color:var(--text-0)">' + esc(e.task_name) + '</span>'
+            + '<span class="text-[10px] px-2 py-0.5 rounded-sm font-semibold ml-2 shrink-0" style="' + statusBadge + '">' + statusText + '</span>'
             + '</div>'
-            + (dur ? '<span class="text-[10px] tabular-nums hist-time">' + start + ' (' + dur + ')</span>' : '<span class="text-[10px] tabular-nums hist-time">' + start + '</span>')
+            + '<div class="flex items-center gap-3 text-[10px] tabular-nums hist-time">'
+            + '<span>início: ' + start + '</span>'
+            + (e.finished_at ? '<span>fim: ' + end + '</span>' : '')
+            + (dur ? '<span>duração: ' + dur + '</span>' : '')
             + '</div>'
-            + (e.finished_at ? '<div class="text-[10px] hist-time">fim: ' + end + '</div>' : '')
             + '</div>';
         }).join('')
       : '<div class="card p-8 text-center" style="border-style:dashed"><div class="text-sm" style="color:var(--text-1)">Nenhuma execução ainda.</div></div>';
