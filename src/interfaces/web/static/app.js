@@ -244,7 +244,7 @@ function renderTaskDetail(name, schema, config, creds, executions) {
           + '<div class="min-w-0"><div class="text-sm" style="color:var(--text-0)">' + esc(e.task_name) + '</div>'
           + '<div class="text-[11px]" style="color:var(--text-2)">' + sl + (dur ? ' · ' + dur : '') + '</div></div>'
           + '</div>'
-          + '<span class="text-[10px] tabular-nums" style="color:var(--text-3)">' + st + '</span>'
+          + '<span class="text-[10px] tabular-nums hist-time">' + st + '</span>'
           + '</div>';
       }).join('')
     : '<div class="text-xs" style="color:var(--text-3)">Nenhuma execução anterior.</div>';
@@ -503,7 +503,7 @@ function _renderExecDetail(id, exec) {
         return '<div class="flex items-center gap-2 text-xs py-1">'
           + '<span style="color:' + (stepColors[s.status] || 'var(--text-3)') + '">' + (stepIcons[s.status] || '○') + '</span>'
           + '<span style="color:var(--text-1)">' + esc(s.name) + '</span>'
-          + '<span class="ml-auto text-[10px]" style="color:var(--text-3)">' + (s.timestamp ? s.timestamp.slice(11, 19) : '') + '</span>'
+          + '<span class="ml-auto text-[10px] hist-time">' + (s.timestamp ? s.timestamp.slice(11, 19) : '') + '</span>'
           + '</div>';
       }).join('')
     : '<div class="text-xs" style="color:var(--text-3)">Nenhum passo registrado.</div>';
