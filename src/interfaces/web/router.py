@@ -23,6 +23,7 @@ TEMPLATES_DIR = Path(__file__).parent / "templates"
 @router.get("/", response_class=HTMLResponse)
 async def index():
     import time
+
     html = (TEMPLATES_DIR / "index.html").read_text(encoding="utf-8")
     html = html.replace("?v=AUTO", f"?v={int(time.time())}")
     return HTMLResponse(html)
@@ -124,6 +125,8 @@ async def get_execution(execution_id: str):
     if exec_data is None:
         raise HTTPException(404, "execution not found")
     return exec_data
+
+
 @router.get("/api/tasks/{task_name}/config")
 async def get_task_config(task_name: str):
     return load_config(task_name)

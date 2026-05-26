@@ -34,6 +34,7 @@ class TestTaskConfig:
 
     def test_invalid_json_raises(self, isolated_dir):
         from src.infrastructure.task_config import TASKS_DIR
+
         bad = TASKS_DIR / "bad.json"
         bad.parent.mkdir(parents=True, exist_ok=True)
         bad.write_text("not json", encoding="utf-8")

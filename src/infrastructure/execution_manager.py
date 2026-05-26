@@ -13,6 +13,7 @@ MAX_EXECUTIONS = 100
 def _broadcast_exec_event(event: dict):
     try:
         from src.interfaces.web.websocket import broadcast_event
+
         broadcast_event(event)
     except RuntimeError:
         pass  # no event loop running (e.g., CLI mode)
@@ -86,6 +87,7 @@ class ExecutionManager:
     @staticmethod
     def _get_task_steps(task_name: str) -> list[tuple[str, str]]:
         from src.infrastructure.task_registry import TaskRegistry
+
         TaskRegistry.auto_discover()
         task_cls = TaskRegistry.get(task_name)
         if not task_cls or not hasattr(task_cls, "get_steps"):
@@ -109,14 +111,16 @@ class ExecutionManager:
                 (execution_id, step_name, status, now),
             )
         self._conn.commit()
-        _broadcast_exec_event({
-            "type": "execution:step",
-            "execution_id": execution_id,
-            "name": step_name,
-            "status": status,
-            "timestamp": now,
-            "phase": self._get_step_phase(execution_id, step_name),
-        })
+        _broadcast_exec_event(
+            {
+                "type": "execution:step",
+                "execution_id": execution_id,
+                "name": step_name,
+                "status": status,
+                "timestamp": now,
+                "phase": self._get_step_phase(execution_id, step_name),
+            }
+        )
 
     def _get_step_phase(self, execution_id: str, name: str) -> str:
         row = self._conn.execute(
@@ -131,12 +135,14 @@ class ExecutionManager:
             (now, json.dumps(result), execution_id),
         )
         self._conn.commit()
-        _broadcast_exec_event({
-            "type": "execution:status",
-            "execution_id": execution_id,
-            "status": "completed",
-            "result": result,
-        })
+        _broadcast_exec_event(
+            {
+                "type": "execution:status",
+                "execution_id": execution_id,
+                "status": "completed",
+                "result": result,
+            }
+        )
 
     def fail(self, execution_id: str, error: str | None = None):
         now = datetime.now(UTC).isoformat()
@@ -145,12 +151,14 @@ class ExecutionManager:
             (now, json.dumps({"error": error}) if error else "{}", execution_id),
         )
         self._conn.commit()
-        _broadcast_exec_event({
-            "type": "execution:status",
-            "execution_id": execution_id,
-            "status": "failed",
-            "error": error,
-        })
+        _broadcast_exec_event(
+            {
+                "type": "execution:status",
+                "execution_id": execution_id,
+                "status": "failed",
+                "error": error,
+            }
+        )
 
     def cancel(self, execution_id: str):
         now = datetime.now(UTC).isoformat()
@@ -159,11 +167,13 @@ class ExecutionManager:
             (now, execution_id),
         )
         self._conn.commit()
-        _broadcast_exec_event({
-            "type": "execution:status",
-            "execution_id": execution_id,
-            "status": "cancelled",
-        })
+        _broadcast_exec_event(
+            {
+                "type": "execution:status",
+                "execution_id": execution_id,
+                "status": "cancelled",
+            }
+        )
 
     def add_log(self, execution_id: str, message: str, level: str = "info"):
         now = datetime.now(UTC).isoformat()
@@ -172,13 +182,15 @@ class ExecutionManager:
             (execution_id, message, level, now),
         )
         self._conn.commit()
-        _broadcast_exec_event({
-            "type": "execution:log",
-            "execution_id": execution_id,
-            "message": message,
-            "level": level,
-            "timestamp": now,
-        })
+        _broadcast_exec_event(
+            {
+                "type": "execution:log",
+                "execution_id": execution_id,
+                "message": message,
+                "level": level,
+                "timestamp": now,
+            }
+        )
 
     def update_step_status(self, execution_id: str, name: str, status: str):
         self._conn.execute(
@@ -198,13 +210,15 @@ class ExecutionManager:
         entry["params"] = json.loads(entry["params"]) if entry["params"] else {}
         entry["result"] = json.loads(entry["result"]) if entry["result"] else None
         entry["steps"] = [
-            dict(s) for s in self._conn.execute(
+            dict(s)
+            for s in self._conn.execute(
                 "SELECT name, phase, status, timestamp FROM steps WHERE execution_id=? ORDER BY id",
                 (execution_id,),
             ).fetchall()
         ]
         entry["logs"] = [
-            dict(ln) for ln in self._conn.execute(
+            dict(ln)
+            for ln in self._conn.execute(
                 "SELECT message, level, timestamp FROM logs WHERE execution_id=? ORDER BY id",
                 (execution_id,),
             ).fetchall()

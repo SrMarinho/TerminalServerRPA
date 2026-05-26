@@ -6,10 +6,12 @@ from src.infrastructure.vault import Vault
 
 runner = CliRunner()
 
+
 class TestE2EVault:
     @patch("src.interfaces.cli.cli.Vault", wraps=Vault)
     def test_cli_set_get_delete_flow(self, mock_vault_cls):
         import src.interfaces.cli.cli as cli_mod
+
         cli_mod._vault = None
         v = Vault()
         mock_vault_cls.return_value = v

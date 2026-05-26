@@ -14,9 +14,9 @@ class BulkUserRegistrationTask:
     @staticmethod
     def get_schema():
         return [
-            {"name": "base_url",  "label": "URL Base",          "type": "string"},
-            {"name": "credentials", "label": "Credencial",      "type": "credential"},
-            {"name": "users",     "label": "Usuários (JSON)",   "type": "json"},
+            {"name": "base_url", "label": "URL Base", "type": "string"},
+            {"name": "credentials", "label": "Credencial", "type": "credential"},
+            {"name": "users", "label": "Usuários (JSON)", "type": "json"},
         ]
 
     @staticmethod

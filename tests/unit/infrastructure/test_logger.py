@@ -10,6 +10,7 @@ def cleanup_logger():
     handlers = root.handlers[:]
     root.handlers.clear()
     import src.infrastructure.logger as logger_mod
+
     logger_mod._configured = False
     yield
     root.handlers.clear()
@@ -19,6 +20,7 @@ def cleanup_logger():
 class TestConfigureLogger:
     def test_adds_file_and_console_handlers(self, cleanup_logger):
         from src.infrastructure.logger import configure_logger
+
         configure_logger()
         root = logging.getLogger()
         handler_types = [type(h).__name__ for h in root.handlers]
@@ -27,12 +29,14 @@ class TestConfigureLogger:
 
     def test_respects_custom_level(self, cleanup_logger):
         from src.infrastructure.logger import configure_logger
+
         configure_logger(level=logging.WARNING)
         root = logging.getLogger()
         assert root.level == logging.WARNING
 
     def test_is_idempotent(self, cleanup_logger):
         from src.infrastructure.logger import configure_logger
+
         configure_logger()
         root = logging.getLogger()
         count = len(root.handlers)
@@ -43,6 +47,7 @@ class TestConfigureLogger:
 class TestWsQueue:
     def test_set_queue(self):
         import src.infrastructure.logger as logger_mod
+
         q = asyncio.Queue()
         logger_mod.set_ws_queue(q)
         assert logger_mod._ws_queue is q
@@ -50,6 +55,7 @@ class TestWsQueue:
 
     def test_processor_puts_event(self):
         import src.infrastructure.logger as logger_mod
+
         q = asyncio.Queue()
         logger_mod.set_ws_queue(q)
         logger_mod._ws_processor(None, "info", {"event": "test"})
@@ -59,6 +65,7 @@ class TestWsQueue:
 
     def test_processor_skips_when_no_queue(self):
         import src.infrastructure.logger as logger_mod
+
         logger_mod.set_ws_queue(None)
         result = logger_mod._ws_processor(None, "info", {"event": "test"})
         assert result == {"event": "test"}
@@ -67,6 +74,7 @@ class TestWsQueue:
 class TestGetLogger:
     def test_returns_logger_with_standard_methods(self):
         from src.infrastructure.logger import get_logger
+
         log = get_logger("test-module")
         assert hasattr(log, "info")
         assert hasattr(log, "error")

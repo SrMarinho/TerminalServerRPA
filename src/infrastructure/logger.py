@@ -16,14 +16,17 @@ LOG_DIR.mkdir(parents=True, exist_ok=True)
 _ws_queue: asyncio.Queue | None = None
 _configured = False
 
+
 def set_ws_queue(queue: asyncio.Queue):
     global _ws_queue
     _ws_queue = queue
+
 
 def _ws_processor(logger, method_name, event_dict):
     if _ws_queue is not None:
         _ws_queue.put_nowait(event_dict)
     return event_dict
+
 
 def configure_logger(level=logging.INFO):
     global _configured
@@ -41,9 +44,7 @@ def configure_logger(level=logging.INFO):
         structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
     ]
 
-    file_handler = RotatingFileHandler(
-        LOG_FILE, maxBytes=10 * 1024 * 1024, backupCount=5, encoding="utf-8"
-    )
+    file_handler = RotatingFileHandler(LOG_FILE, maxBytes=10 * 1024 * 1024, backupCount=5, encoding="utf-8")
     file_handler.setLevel(level)
     file_fmt = structlog.stdlib.ProcessorFormatter(
         processors=[
@@ -94,6 +95,7 @@ def configure_logger(level=logging.INFO):
         logger_factory=structlog.stdlib.LoggerFactory(),
         cache_logger_on_first_use=True,
     )
+
 
 def get_logger(name: str):
     return structlog.get_logger(name)

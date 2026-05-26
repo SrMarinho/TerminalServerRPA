@@ -14,6 +14,7 @@ class TaskRegistry:
             task_name = name or task_cls.__name__.replace("Task", "").lower()
             cls._tasks[task_name] = task_cls
             return task_cls
+
         return decorator
 
     @classmethod
@@ -30,6 +31,7 @@ class TaskRegistry:
         import pkgutil
 
         import src.automation.tasks as pkg
+
         count = 0
         for _importer, modname, _ispkg in pkgutil.iter_modules(pkg.__path__):
             importlib.import_module(f"src.automation.tasks.{modname}")

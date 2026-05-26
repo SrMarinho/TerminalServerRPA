@@ -7,6 +7,7 @@ from src.infrastructure.vault import Vault
 def vault():
     return Vault()
 
+
 class TestVaultIntegration:
     def test_roundtrip(self, vault):
         vault.set_password("test-svc", "test-usr", "secret-value")

@@ -75,9 +75,11 @@ class TestRun:
     @pytest.mark.asyncio
     async def test_run_cancelled_via_checkpoint(self, runner):
         original_checkpoint = runner.checkpoint
+
         async def cancel_on_first_checkpoint(name):
             runner._cancel_requested = True
             return await original_checkpoint(name)
+
         runner.checkpoint = cancel_on_first_checkpoint
         await runner.run("noop-task")
         assert runner.status == TaskStatus.CANCELLED
@@ -86,6 +88,7 @@ class TestRun:
     async def test_run_fails_on_exception(self, runner):
         async def raise_error(*a, **kw):
             raise ValueError("simulated failure")
+
         runner._execute = raise_error
         await runner.run("noop-task")
         assert runner.status == TaskStatus.FAILED
@@ -94,6 +97,7 @@ class TestRun:
 class TestGetPool:
     def test_get_pool_returns_singleton(self):
         from src.infrastructure.task_runner import get_pool
+
         p1 = get_pool()
         p2 = get_pool()
         assert p1 is p2
