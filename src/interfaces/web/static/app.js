@@ -518,15 +518,44 @@ var _stopCurrentWatch = null;
 
 function renderFlowChart(steps) {
   if (!steps || !steps.length) return '<div class="text-xs" style="color:var(--text-3)">Nenhum passo registrado.</div>';
-  var cls = { completed: "c", running: "r", failed: "f" };
-  var tooltip = function(s) {
-    var t = s.timestamp ? s.timestamp.slice(11, 19) : "";
-    return t ? ' title="' + t + '"' : "";
-  };
-  var html = '<div class="flowchart" style="padding:8px 0">';
+
+  var phases = {};
   for (var i = 0; i < steps.length; i++) {
-    if (i > 0) html += '<div class="flow-arrow"></div>';
-    html += '<div class="flow-node ' + (cls[steps[i].status] || "p") + '"' + tooltip(steps[i]) + '>' + esc(steps[i].name) + '</div>';
+    var ph = steps[i].phase || "";
+    if (!phases[ph]) phases[ph] = [];
+    phases[ph].push(steps[i]);
+  }
+
+  var hasPhases = Object.keys(phases).some(function(k) { return k !== ""; });
+  var cls = { completed: "c", running: "r", failed: "f" };
+  var tooltip = function(s) { var t = s.timestamp ? s.timestamp.slice(11, 19) : ""; return t ? ' title="' + t + '"' : ""; };
+  var phaseStatus = function(steps) {
+    var done = steps.filter(function(s) { return s.status === "completed"; }).length;
+    return done + "/" + steps.length;
+  };
+
+  var html = '<div class="flowchart">';
+  if (!hasPhases) {
+    for (var i = 0; i < steps.length; i++) {
+      if (i > 0) html += '<div class="flow-arrow"></div>';
+      html += '<div class="flow-node ' + (cls[steps[i].status] || "p") + '"' + tooltip(steps[i]) + '>' + esc(steps[i].name) + '</div>';
+    }
+  } else {
+    var phNames = Object.keys(phases);
+    for (var pi = 0; pi < phNames.length; pi++) {
+      var phaseName = phNames[pi];
+      var phaseSteps = phases[phaseName];
+      var completedSteps = phaseSteps.filter(function(s) { return s.status === "completed"; }).length;
+      if (pi > 0) html += '<div class="phase-gap"></div>';
+      html += '<div class="phase-group">';
+      html += '<div class="phase-header" onclick="var el=this.nextElementSibling;el.style.display=el.style.display===\'none\'?\'\':\'none\'"><span class="phase-title">' + esc(phaseName || "Geral") + '</span><span class="phase-count">' + completedSteps + '/' + phaseSteps.length + '</span></div>';
+      html += '<div class="phase-body">';
+      for (var j = 0; j < phaseSteps.length; j++) {
+        if (j > 0) html += '<div class="flow-arrow"></div>';
+        html += '<div class="flow-node ' + (cls[phaseSteps[j].status] || "p") + '"' + tooltip(phaseSteps[j]) + '>' + esc(phaseSteps[j].name) + '</div>';
+      }
+      html += '</div></div>';
+    }
   }
   html += '</div>';
   return html;

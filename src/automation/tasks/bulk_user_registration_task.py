@@ -21,7 +21,7 @@ class BulkUserRegistrationTask:
 
     @staticmethod
     def get_steps():
-        return ["login", "validar", "cadastrar", "concluido"]
+        return {"Autenticação": ["login"], "Cadastro": ["validar", "registrar"], "Finalização": ["concluido"]}
 
     @staticmethod
     def _resolve_creds(params: dict) -> dict:

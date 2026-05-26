@@ -78,4 +78,11 @@ body::after{content:'';position:fixed;inset:0;background-image:url("data:image/s
 .flow-node.p{color:var(--text-3);border-color:var(--line)}
 .flow-node.p::before{content:'○';color:var(--text-3)}
 .flow-arrow{width:2px;height:10px;background:var(--line);margin-left:24px}
+.phase-gap{height:12px}
+.phase-group{margin-bottom:4px}
+.phase-header{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;font-size:11px;background:var(--bg-2);border:1px solid var(--line);cursor:pointer;user-select:none}
+.phase-header:hover{border-color:var(--accent-dim)}
+.phase-title{color:var(--text-1);font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+.phase-count{color:var(--accent);font-weight:600;font-size:10px}
+.phase-body{padding:4px 0 4px 8px}
 @keyframes pulse-node{0%,100%{opacity:1}50%{opacity:.45}}
