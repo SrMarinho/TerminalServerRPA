@@ -43,7 +43,7 @@ function switchPanel(name) {
   if (name === 'tasks') loadTasks();
   if (name === 'credentials') loadCredentials();
   if (name === 'history') loadHistory();
-  if (PERSIST_PANELS.includes(name)) try { localStorage.setItem(PANEL_KEY, name); } catch(e) {}
+  if (PERSIST_PANELS.includes(name)) try { sessionStorage.setItem(PANEL_KEY, name); } catch(e) {}
 }
 
 var _backFn = null;
@@ -361,6 +361,19 @@ async function saveAndRun() {
     openExecutionDetail(res.task_id);
   } catch (e) { toast('Erro: ' + e.message, true); }
 }
+
+/* Init */
+loadCredentials();
+var savedPanel = 'tasks';
+try { var p = sessionStorage.getItem('senior-rpa.panel'); if (p) savedPanel = p; } catch(e) {}
+switchPanel(savedPanel);
+var initWatch = setInterval(function() {
+  var cards = document.getElementById('taskCards');
+  if (cards && cards.children.length > 0) clearInterval(initWatch);
+  else loadTasks();
+}, 1000);
+setTimeout(function() { clearInterval(initWatch); }, 8000);
+setInterval(refreshRunning, 2000);
 
 function collectConfigParams() {
   var schema = document.querySelectorAll('#configFields .mb-4');
