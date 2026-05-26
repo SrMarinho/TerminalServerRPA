@@ -59,7 +59,7 @@ body::after{content:'';position:fixed;inset:0;background-image:url("data:image/s
 .hidden{display:none!important}
 .dot{width:6px;height:6px;border-radius:50%;display:inline-block}
 .dot-idle{background:var(--text-3)}
-.hist-time{color:#9ca3af}
+.hist-time{color:#d1d5db;font-weight:500}
 .dot-running{background:var(--accent);color:var(--accent)}
 .dot-paused{background:var(--warn);color:var(--warn)}
 .dot-completed{background:var(--accent);color:var(--accent)}

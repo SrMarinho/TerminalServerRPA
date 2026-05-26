@@ -20,7 +20,7 @@
   }
 })();
 </script>
-<link rel="stylesheet" href="/static/styles.css">
+<link rel="stylesheet" href="/static/styles.css?v=2">
 </head>
 <body class="flex h-screen overflow-hidden relative">
 
@@ -143,10 +143,10 @@
           </div>
           <div class="text-[10px] flex items-center gap-1.5" style="color:var(--text-3)"><span class="w-1.5 h-1.5 rounded-full" style="background:var(--accent)"></span>CRIPTOGRAFADO</div>
         </div>
-        <form id="credForm" class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div><label class="label">Serviço</label><input id="service" name="service" placeholder="ex: erp-sistema" required class="input"></div>
-          <div><label class="label">Usuário</label><input id="username" name="username" placeholder="admin" class="input"></div>
-          <div><label class="label">Senha</label><input id="password" type="password" name="password" placeholder="••••••••" class="input"></div>
+        <form id="credForm" class="grid grid-cols-1 md:grid-cols-3 gap-4" autocomplete="off">
+          <div><label class="label">Serviço</label><input id="service" name="service" placeholder="ex: erp-sistema" required class="input" autocomplete="off"></div>
+          <div><label class="label">Usuário</label><input id="username" name="username" placeholder="admin" class="input" autocomplete="off"></div>
+          <div><label class="label">Senha</label><input id="password" type="password" name="password" placeholder="••••••••" class="input" autocomplete="new-password"></div>
           <div class="md:col-span-3 flex justify-end pt-2"><button type="submit" class="btn btn-primary"><svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>salvar credencial</button></div>
         </form>
       </div>
