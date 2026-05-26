@@ -45,7 +45,7 @@ class BulkUserRegistrationTask:
         users = [User(**u) for u in users_data]
 
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=True)
+            browser = await p.chromium.launch(headless=False, args=["--start-maximized"])
             page = await browser.new_page()
             try:
                 if self._runner:

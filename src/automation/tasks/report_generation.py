@@ -46,7 +46,7 @@ class GeracaoRelatorio:
         base_url = params.get("base_url", "")
 
         async with async_playwright() as p:
-            browser = await p.chromium.launch(headless=False)
+            browser = await p.chromium.launch(headless=False, args=["--start-maximized"])
             page = await browser.new_page()
             try:
                 if self._runner:
