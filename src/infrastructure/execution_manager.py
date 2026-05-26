@@ -69,16 +69,36 @@ class ExecutionManager:
             "INSERT INTO executions (id, task_name, status, params, started_at) VALUES (?, ?, 'running', ?, ?)",
             (exec_id, task_name, json.dumps(params or {}), now),
         )
+        steps = self._get_task_steps(task_name)
+        for step_name in steps:
+            self._conn.execute(
+                "INSERT INTO steps (execution_id, name, status, timestamp) VALUES (?, ?, 'pending', ?)",
+                (exec_id, step_name, now),
+            )
         self._conn.commit()
         self._prune()
         return exec_id
 
+    @staticmethod
+    def _get_task_steps(task_name: str) -> list[str]:
+        from src.infrastructure.task_registry import TaskRegistry
+        TaskRegistry.auto_discover()
+        task_cls = TaskRegistry.get(task_name)
+        if task_cls and hasattr(task_cls, "get_steps"):
+            return task_cls.get_steps()
+        return []
+
     def set_step(self, execution_id: str, step_name: str, status: str = "running"):
         now = datetime.now(UTC).isoformat()
-        self._conn.execute(
-            "INSERT INTO steps (execution_id, name, status, timestamp) VALUES (?, ?, ?, ?)",
-            (execution_id, step_name, status, now),
-        )
+        updated = self._conn.execute(
+            "UPDATE steps SET status=?, timestamp=? WHERE execution_id=? AND name=?",
+            (status, now, execution_id, step_name),
+        ).rowcount
+        if updated == 0:
+            self._conn.execute(
+                "INSERT INTO steps (execution_id, name, status, timestamp) VALUES (?, ?, ?, ?)",
+                (execution_id, step_name, status, now),
+            )
         self._conn.commit()
         _broadcast_exec_event({
             "type": "execution:step",
