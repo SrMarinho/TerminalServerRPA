@@ -465,12 +465,23 @@ async function loadHistory() {
           var statusText = STATUS_PT[e.status] || e.status;
           var start = e.started_at ? e.started_at.slice(11, 19) : '--:--:--';
           var end = e.finished_at ? e.finished_at.slice(11, 19) : '—';
-          return '<div class="card p-4" onclick="openExecutionDetail(\'' + e.id + '\')" style="cursor:pointer">'
+          var borderColor = e.status === 'completed' ? 'var(--accent)' : e.status === 'failed' ? 'var(--danger)' : e.status === 'cancelled' ? 'var(--warn)' : 'var(--line)';
+          var statusBadge = e.status === 'completed' ? 'background:var(--accent);color:var(--accent-on)' : e.status === 'failed' ? 'background:var(--danger);color:#fff' : e.status === 'cancelled' ? 'background:var(--warn);color:#000' : 'background:var(--accent-glow);color:var(--accent)';
+          var dur = '';
+          if (e.started_at && e.finished_at) {
+            var diff = new Date(e.finished_at) - new Date(e.started_at);
+            var sec = Math.floor(diff / 1000);
+            dur = (sec >= 60 ? Math.floor(sec / 60) + 'm ' : '') + (sec % 60) + 's';
+          }
+          return '<div class="card p-4" onclick="openExecutionDetail(\'' + e.id + '\')" style="cursor:pointer;border-left:3px solid ' + borderColor + '">'
             + '<div class="flex items-center justify-between mb-2">'
-            + '<div class="flex items-center gap-2"><span class="dot ' + statusClass + '"></span><span class="text-sm font-medium" style="color:var(--text-0)">' + esc(e.task_name) + '</span></div>'
-            + '<span class="text-[10px]" style="color:var(--text-3)">' + start + ' — ' + end + '</span>'
+            + '<div class="flex items-center gap-2 min-w-0">'
+            + '<span class="text-sm font-medium truncate" style="color:var(--text-0)">' + esc(e.task_name) + '</span>'
+            + '<span class="text-[10px] px-2 py-0.5 rounded-sm font-semibold" style="' + statusBadge + '">' + statusText + '</span>'
             + '</div>'
-            + '<div class="text-[11px]" style="color:var(--text-3)">status: ' + statusText + '</div>'
+            + (dur ? '<span class="text-[10px] tabular-nums" style="color:var(--text-3)">' + start + ' (' + dur + ')</span>' : '<span class="text-[10px] tabular-nums" style="color:var(--text-3)">' + start + '</span>')
+            + '</div>'
+            + (e.finished_at ? '<div class="text-[10px]" style="color:var(--text-3)">fim: ' + end + '</div>' : '')
             + '</div>';
         }).join('')
       : '<div class="card p-8 text-center" style="border-style:dashed"><div class="text-sm" style="color:var(--text-1)">Nenhuma execução ainda.</div></div>';
