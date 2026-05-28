@@ -21,6 +21,9 @@
 })();
 </script>
 <link rel="stylesheet" href="/static/styles.css?v=AUTO">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
 </head>
 <body class="flex h-screen overflow-hidden relative">
 
@@ -189,6 +192,38 @@
 <!-- Toast -->
 <div id="toast" class="fixed bottom-6 right-6 toast translate-y-32 opacity-0 transition-all duration-300 z-50 pointer-events-none"></div>
 
-<script src="/static/app.js?v=AUTO"></script>
+<!-- Dev Tools -->
+<div id="devBtn" style="display:none;position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:40">
+  <button onclick="toggleDevPanel()" style="background:transparent;color:var(--text-3);border:1px solid var(--line);padding:4px 12px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:500;cursor:pointer;letter-spacing:.1em;transition:all .15s" onmouseover="this.style.color='var(--warn)';this.style.borderColor='var(--warn)'" onmouseout="this.style.color='var(--text-3)';this.style.borderColor='var(--line)'" title="Dev Tools">dev</button>
+</div>
+<div id="devPanel" class="hidden" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:40;width:900px;max-height:calc(100vh - 60px);overflow-y:auto;background:var(--bg-1);border:1px solid var(--warn);box-shadow:0 8px 32px rgba(0,0,0,.5),0 0 0 1px rgba(251,191,36,.15)">
+  <div style="padding:10px 14px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between">
+    <span style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--warn);letter-spacing:.1em;font-weight:700">DEV TOOLS</span>
+    <button onclick="_closeDevPanel()" style="background:none;border:none;color:var(--text-2);cursor:pointer;font-size:14px;line-height:1">×</button>
+  </div>
+  <div style="padding:14px">
+    <div style="margin-bottom:10px;display:flex;gap-8px;align-items:center;gap:8px">
+      <label style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-3);letter-spacing:.08em;white-space:nowrap">EXECUÇÃO</label>
+      <select id="devExecSelect" class="input" style="font-size:11px;padding:6px 10px" onchange="onDevExecChange()">
+        <option value="">— selecione —</option>
+      </select>
+    </div>
+    <textarea id="devSnippetCode" class="input" rows="6" style="font-family:'JetBrains Mono',monospace;resize:vertical;margin-bottom:8px" placeholder="async def main():&#10;    title = await page.title()&#10;    print(title)"></textarea>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <span id="devSnippetStatus" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-2)"></span>
+      <button class="btn btn-primary" style="font-size:11px;padding:6px 14px" onclick="runDevSnippet()">executar</button>
+    </div>
+    <pre id="devSnippetOutput" class="text-xs" style="white-space:pre-wrap;color:var(--text-1);max-height:160px;overflow-y:auto;margin:0;background:var(--bg-0);border:1px solid var(--line);padding:8px 12px;font-family:'JetBrains Mono',monospace"></pre>
+  </div>
+</div>
+
+<script src="/static/js/utils.js?v=AUTO"></script>
+<script src="/static/js/panel.js?v=AUTO"></script>
+<script src="/static/js/credentials.js?v=AUTO"></script>
+<script src="/static/js/tasks.js?v=AUTO"></script>
+<script src="/static/js/flow.js?v=AUTO"></script>
+<script src="/static/js/executions.js?v=AUTO"></script>
+<script src="/static/js/devtools.js?v=AUTO"></script>
+<script src="/static/js/app.js?v=AUTO"></script>
 </body>
 </html>

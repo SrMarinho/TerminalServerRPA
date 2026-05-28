@@ -77,6 +77,8 @@ body::after{content:'';position:fixed;inset:0;background-image:url("data:image/s
 .flow-node.f::before{content:'✗';color:var(--danger)}
 .flow-node.p{color:var(--text-3);border-color:var(--line)}
 .flow-node.p::before{content:'○';color:var(--text-3)}
+.flow-node.bp{box-shadow:0 0 0 2px var(--danger);border-color:var(--danger)}
+.flow-node.bp::after{content:'⬤';position:absolute;right:8px;top:50%;transform:translateY(-50%);color:var(--danger);font-size:8px}
 .flow-arrow{width:2px;height:10px;background:var(--line);margin-left:24px}
 .phase-gap{height:12px}
 .phase-group{margin-bottom:4px}
@@ -85,4 +87,24 @@ body::after{content:'';position:fixed;inset:0;background-image:url("data:image/s
 .phase-title{color:var(--text-1);font-weight:600;letter-spacing:.04em;text-transform:uppercase}
 .phase-count{color:var(--accent);font-weight:600;font-size:10px}
 .phase-body{padding:4px 0 4px 8px}
+.snake-grid{display:grid;grid-template-columns:repeat(var(--cols,4),minmax(120px,1fr));gap:24px 14px;position:relative}
+.snake-grid .flow-node{margin-left:0;min-width:0;position:relative;z-index:1}
+.snake-phase-header{display:flex;align-items:center;justify-content:space-between;padding:5px 10px;font-size:11px;background:var(--bg-2);border:1px solid var(--line);margin-top:6px;margin-bottom:2px}
 @keyframes pulse-node{0%,100%{opacity:1}50%{opacity:.45}}
+.CodeMirror{background:var(--bg-0)!important;color:var(--text-0)!important;font-family:'JetBrains Mono',monospace!important;font-size:13px!important;border:1px solid var(--line)!important;line-height:1.65!important;height:auto!important}
+.CodeMirror-scroll{background:var(--bg-0)!important;min-height:200px}
+.CodeMirror-gutters{background:var(--bg-1)!important;border-right:1px solid var(--line)!important}
+.CodeMirror-linenumber{color:var(--text-3)!important}
+.CodeMirror-cursor{border-left:2px solid var(--accent)!important}
+.CodeMirror-selected,.CodeMirror-focused .CodeMirror-selected{background:var(--accent-glow)!important}
+.CodeMirror-activeline-background{background:var(--bg-2)!important}
+.cm-keyword{color:var(--info)!important;font-weight:600}
+.cm-def{color:var(--accent)!important}
+.cm-string,.cm-string-2{color:var(--warn)!important}
+.cm-number{color:var(--accent-dim)!important}
+.cm-comment{color:var(--text-3)!important;font-style:italic}
+.cm-builtin{color:var(--danger)!important}
+.cm-operator{color:var(--text-2)!important}
+.cm-variable{color:var(--text-0)!important}
+.cm-atom{color:var(--accent-dim)!important}
+.cm-punctuation{color:var(--text-2)!important}

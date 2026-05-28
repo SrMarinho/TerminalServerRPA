@@ -1,24 +1,28 @@
 import json
+import sqlite3
 from pathlib import Path
 
-TASKS_DIR = Path(".local") / "tasks"
+_DB_PATH = Path(".local") / "executions.db"
 
 
-def _ensure_dir():
-    TASKS_DIR.mkdir(parents=True, exist_ok=True)
-
-
-def _path(task_name: str) -> Path:
-    return TASKS_DIR / f"{task_name}.json"
+def _conn() -> sqlite3.Connection:
+    _DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(_DB_PATH))
+    conn.execute("CREATE TABLE IF NOT EXISTS task_configs (task_name TEXT PRIMARY KEY, params TEXT NOT NULL)")
+    conn.commit()
+    return conn
 
 
 def load_config(task_name: str) -> dict:
-    p = _path(task_name)
-    if not p.exists():
-        return {}
-    return json.loads(p.read_text(encoding="utf-8"))
+    with _conn() as conn:
+        row = conn.execute("SELECT params FROM task_configs WHERE task_name = ?", (task_name,)).fetchone()
+    return json.loads(row[0]) if row else {}
 
 
 def save_config(task_name: str, params: dict):
-    _ensure_dir()
-    _path(task_name).write_text(json.dumps(params, indent=2, ensure_ascii=False), encoding="utf-8")
+    with _conn() as conn:
+        conn.execute(
+            "INSERT INTO task_configs (task_name, params) VALUES (?, ?)"
+            " ON CONFLICT(task_name) DO UPDATE SET params = excluded.params",
+            (task_name, json.dumps(params, ensure_ascii=False)),
+        )

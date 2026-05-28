@@ -2,8 +2,12 @@ import asyncio
 import traceback
 from enum import StrEnum
 
-from src.infrastructure.execution_manager import _broadcast_exec_event, get_manager
+from src.infrastructure.execution_manager import _broadcast_exec_event, get_manager, has_breakpoint
 from src.infrastructure.task_registry import TaskRegistry
+
+
+class SkipStep(Exception):  # noqa: N818
+    pass
 
 
 class TaskStatus(StrEnum):
@@ -22,8 +26,11 @@ class TaskRunner:
         self._pause_event = asyncio.Event()
         self._pause_event.set()
         self._cancel_requested = False
+        self._skip_current = False
         self._status = TaskStatus.IDLE
         self._result = None
+        self._task: asyncio.Task | None = None
+        self._page: object | None = None
 
     @property
     def status(self) -> TaskStatus:
@@ -74,9 +81,16 @@ class TaskRunner:
                 get_manager().update_step_status(self._execution_id, self._current_step, "completed")
             self._current_step = name
             get_manager().set_step(self._execution_id, name, "running")
+            if has_breakpoint(self._execution_id, name):
+                self.pause()
         await self.checkpoint(name)
+        if self._skip_current:
+            self._skip_current = False
+            if self._execution_id:
+                get_manager().update_step_status(self._execution_id, name, "completed")
+            raise SkipStep(name)
 
-    async def checkpoint(self, name: str):
+    async def checkpoint(self, name: str = ""):
         if self._cancel_requested:
             raise asyncio.CancelledError()
         await self._pause_event.wait()
@@ -86,6 +100,7 @@ class TaskRunner:
             self._status = TaskStatus.PAUSED
             self._pause_event.clear()
             if self._execution_id:
+                get_manager().set_status(self._execution_id, "paused")
                 _broadcast_exec_event(
                     {"type": "execution:status", "execution_id": self._execution_id, "status": "paused"}
                 )
@@ -95,14 +110,22 @@ class TaskRunner:
             self._status = TaskStatus.RUNNING
             self._pause_event.set()
             if self._execution_id:
+                get_manager().set_status(self._execution_id, "running")
                 _broadcast_exec_event(
                     {"type": "execution:status", "execution_id": self._execution_id, "status": "running"}
                 )
+
+    def skip_step(self):
+        if self._status == TaskStatus.PAUSED:
+            self._skip_current = True
+            self.resume()
 
     def cancel(self):
         if self._status in (TaskStatus.RUNNING, TaskStatus.PAUSED):
             self._cancel_requested = True
             self._pause_event.set()
+            if self._task and not self._task.done():
+                self._task.cancel()
 
 
 class TaskPool:
@@ -115,7 +138,8 @@ class TaskPool:
         runner = TaskRunner(execution_id=exec_id)
         self._runners[exec_id] = runner
         _broadcast_exec_event({"type": "pool:update", "task_id": exec_id, "task_name": task_name, "status": "running"})
-        asyncio.create_task(self._run(exec_id, task_name, params or {}))
+        task = asyncio.create_task(self._run(exec_id, task_name, params or {}))
+        runner._task = task
         return exec_id
 
     async def _run(self, task_id: str, task_name: str, params: dict):

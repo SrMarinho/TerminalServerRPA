@@ -14,6 +14,5 @@ class TsLoginPage:
     async def login(self, username: str, password: str):
         await self._page.fill("#Editbox1", username)
         await self._page.fill("#Editbox2", password)
-        await asyncio.sleep(0.4)  # Pequena pausa para garantir que os campos foram preenchidos
+        await asyncio.sleep(0.4)
         await self._page.get_by_text("Entrar").click(click_count=2, delay=100)
-        # await self._page.wait_for_selector("#dashboard", timeout=10000)
