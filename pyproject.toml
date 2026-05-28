@@ -15,6 +15,9 @@ dependencies = [
     "playwright>=1.59.0",
     "pyautogui>=0.9.54",
     "websockets>=16.0",
+    "pillow>=12.2.0",
+    "opencv-python>=4.13.0.92",
+    "pytesseract>=0.3.13",
 ]
 
 [tool.pytest.ini_options]

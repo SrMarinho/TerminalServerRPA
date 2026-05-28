@@ -2,7 +2,7 @@ import json
 import sqlite3
 import uuid
 from contextlib import suppress
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 DB_DIR = Path(".local")
@@ -175,6 +175,10 @@ class ExecutionManager:
             }
         )
 
+    def set_status(self, execution_id: str, status: str):
+        self._conn.execute("UPDATE executions SET status=? WHERE id=?", (status, execution_id))
+        self._conn.commit()
+
     def add_log(self, execution_id: str, message: str, level: str = "info"):
         now = datetime.now(UTC).isoformat()
         self._conn.execute(
@@ -193,11 +197,22 @@ class ExecutionManager:
         )
 
     def update_step_status(self, execution_id: str, name: str, status: str):
+        now = datetime.now(UTC).isoformat()
         self._conn.execute(
-            "UPDATE steps SET status=? WHERE execution_id=? AND name=? AND status='running'",
-            (status, execution_id, name),
+            "UPDATE steps SET status=?, timestamp=? WHERE execution_id=? AND name=? AND status='running'",
+            (status, now, execution_id, name),
         )
         self._conn.commit()
+        _broadcast_exec_event(
+            {
+                "type": "execution:step",
+                "execution_id": execution_id,
+                "name": name,
+                "status": status,
+                "timestamp": now,
+                "phase": self._get_step_phase(execution_id, name),
+            }
+        )
 
     def get(self, execution_id: str) -> dict | None:
         row = self._conn.execute(
@@ -238,13 +253,43 @@ class ExecutionManager:
             (MAX_EXECUTIONS,),
         )
         self._conn.commit()
+        _prune_diag()
+
+
+_DIAG_DIR = Path("logs/diag")
+_DIAG_MAX_DAYS = 7
+
+
+def _prune_diag() -> None:
+    if not _DIAG_DIR.exists():
+        return
+    cutoff = datetime.now(UTC) - timedelta(days=_DIAG_MAX_DAYS)
+    for f in _DIAG_DIR.iterdir():
+        if f.is_file() and datetime.fromtimestamp(f.stat().st_mtime, UTC) < cutoff:
+            f.unlink(missing_ok=True)
 
     def close(self):
         self._conn.close()
 
 
 _manager = ExecutionManager()
+_breakpoints: dict[str, set[str]] = {}  # execution_id -> set of step names
 
 
 def get_manager() -> ExecutionManager:
     return _manager
+
+
+def set_breakpoint(execution_id: str, step: str, enabled: bool) -> None:
+    if enabled:
+        _breakpoints.setdefault(execution_id, set()).add(step)
+    else:
+        _breakpoints.get(execution_id, set()).discard(step)
+
+
+def has_breakpoint(execution_id: str, step: str) -> bool:
+    return step in _breakpoints.get(execution_id, set())
+
+
+def get_breakpoints(execution_id: str) -> list[str]:
+    return list(_breakpoints.get(execution_id, set()))
