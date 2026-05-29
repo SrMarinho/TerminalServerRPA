@@ -16,6 +16,9 @@ build/
 # Agent instructions
 AGENTS.md
 
+# Hermes Agent plans
+.hermes/
+
 # Local data
 .local/
 

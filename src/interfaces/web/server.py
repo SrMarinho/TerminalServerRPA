@@ -10,10 +10,10 @@ from fastapi.staticfiles import StaticFiles
 
 from src.infrastructure.logger import configure_logger, get_logger, set_ws_queue
 from src.infrastructure.single_instance import focus_existing_instance, is_first_instance, save_port
-from src.interfaces.web.router import router
+from src.interfaces.web.router import api_router, router
 from src.interfaces.web.websocket import broadcast_from_queue
 
-log = get_logger("senior-rpa.server")
+log = get_logger("TerminalServerRPA.server")
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -34,10 +34,11 @@ def _build_app(ws_queue: asyncio.Queue) -> FastAPI:
         yield
         bg.cancel()
 
-    app = FastAPI(title="senior-rpa", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(title="TerminalServerRPA", version="0.1.0", lifespan=lifespan)
     if STATIC_DIR.exists():
         app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
     app.include_router(router)
+    app.include_router(api_router)
     return app
 
 

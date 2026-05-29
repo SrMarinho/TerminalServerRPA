@@ -53,18 +53,26 @@ def list():
 
 
 def run(task_name: str):
+    from src.infrastructure.execution_manager import get_manager
+    from src.infrastructure.task_config import load_config
+    from src.infrastructure.task_registry import TaskRegistry
     from src.infrastructure.task_runner import TaskRunner
 
-    typer.echo(f"Running task: {task_name}")
-    runner = TaskRunner()
-    asyncio.run(runner.run(task_name))
+    TaskRegistry.auto_discover()
+    params = load_config(task_name)
+    mgr = get_manager()
+    exec_id = mgr.create(task_name, params)
+
+    typer.echo(f"Running task: {task_name} (execution: {exec_id})")
+    runner = TaskRunner(execution_id=exec_id)
+    asyncio.run(runner.run(task_name, params))
     typer.echo(f"Task finished: {runner.status.value}")
 
 
 def logs(level: str = "info", since: str = "", task: str = "", json: bool = False):
     import json as json_mod
 
-    log_file = Path("logs") / "senior-rpa.jsonl"
+    log_file = Path("logs") / "TerminalServerRPA.jsonl"
     if not log_file.exists():
         typer.echo("No log file found.", err=True)
         raise typer.Exit(code=1)

@@ -5,9 +5,9 @@ import keyring
 from cryptography.fernet import Fernet
 from keyring.errors import PasswordDeleteError
 
-_INDEX_SERVICE = "senior-rpa-index"
+_INDEX_SERVICE = "TerminalServerRPA-index"
 _INDEX_USER = "_service_index"
-_KEY_SERVICE = "senior-rpa"
+_KEY_SERVICE = "TerminalServerRPA"
 _KEY_USER = "_vault_key"
 
 

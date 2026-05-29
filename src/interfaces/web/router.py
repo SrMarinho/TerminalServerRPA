@@ -1,11 +1,12 @@
 import os
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 
 from src.infrastructure.execution_manager import get_manager
 from src.infrastructure.logger import get_logger
+from src.infrastructure.single_instance import get_or_create_token
 from src.infrastructure.task_config import load_config, save_config
 from src.infrastructure.task_registry import TaskRegistry
 from src.infrastructure.task_runner import get_pool
@@ -15,17 +16,36 @@ from src.interfaces.web.websocket import manager
 router = APIRouter()
 _vault = Vault()
 _pool = get_pool()
-_log = get_logger("senior-rpa.router")
+_log = get_logger("TerminalServerRPA.router")
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
+
+
+def verify_token(authorization: str = "", token: str = ""):
+    """Validate Bearer token from Authorization header or ?token= query param."""
+    extracted = authorization.removeprefix("Bearer ")
+    if not extracted:
+        extracted = token
+    actual = get_or_create_token()
+    if not extracted or extracted != actual:
+        raise HTTPException(401, "Unauthorized — invalid or missing API token")
+
+
+# Separate router for /api/* routes with auth protection
+api_router = APIRouter(prefix="", dependencies=[Depends(verify_token)])
 
 
 @router.get("/", response_class=HTMLResponse)
 async def index():
     import time
 
+    token = get_or_create_token()
     html = (TEMPLATES_DIR / "index.html").read_text(encoding="utf-8")
     html = html.replace("?v=AUTO", f"?v={int(time.time())}")
+    html = html.replace(
+        "</head>",
+        f'<meta name="api-token" content="{token}">\n</head>',
+    )
     return HTMLResponse(html)
 
 
@@ -36,6 +56,10 @@ async def focus():
 
 @router.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
+    token = ws.query_params.get("token", "")
+    if not token or token != get_or_create_token():
+        await ws.close(code=1008)  # policy violation
+        return
     await manager.connect(ws)
     try:
         while True:
@@ -50,7 +74,7 @@ async def websocket_endpoint(ws: WebSocket):
         manager.disconnect(ws)
 
 
-@router.get("/api/credentials")
+@api_router.get("/api/credentials")
 async def list_credentials():
     services = _vault.list_services()
     result = []
@@ -60,7 +84,7 @@ async def list_credentials():
     return result
 
 
-@router.post("/api/credentials")
+@api_router.post("/api/credentials")
 async def save_credential(data: dict):
     service: str = data.get("service") or ""
     username: str = data.get("username") or ""
@@ -73,7 +97,7 @@ async def save_credential(data: dict):
     return {"status": "ok"}
 
 
-@router.get("/api/credentials/{service}")
+@api_router.get("/api/credentials/{service}")
 async def get_credential(service: str, username: str = ""):
     if not username:
         raise HTTPException(400, "username query param required")
@@ -83,43 +107,52 @@ async def get_credential(service: str, username: str = ""):
     return {"service": service, "username": username, "password": password}
 
 
-@router.delete("/api/credentials/{service}")
+@api_router.delete("/api/credentials/{service}")
 async def delete_credential(service: str):
     _vault.delete_password(service)
     return {"status": "deleted"}
 
 
-@router.get("/api/tasks")
+@api_router.get("/api/tasks")
 async def list_tasks():
     TaskRegistry.auto_discover()
     return {"available": TaskRegistry.list()}
 
 
-@router.get("/api/tasks/running")
+@api_router.get("/api/tasks/running")
 async def list_running():
     return _pool.list_all()
 
 
-@router.delete("/api/tasks/running")
+@api_router.delete("/api/tasks/running")
 async def cleanup_running():
     _pool.cleanup_done()
     return {"status": "cleaned"}
 
 
-@router.post("/api/run/{task_name}")
+@api_router.post("/api/run/{task_name}")
 async def run_task(task_name: str, data: dict | None = None):
-    if data:
-        save_config(task_name, data)
-    task_id = _pool.start(task_name, data or None)
+
+    bps: list[str] = []
+    params: dict | None = data
+    if isinstance(data, dict) and "_breakpoints" in data:
+        bps = data.pop("_breakpoints") or []
+        params = data
+    if params:
+        save_config(task_name, params)
+    try:
+        task_id = _pool.start(task_name, params or None, bps)
+    except RuntimeError as e:
+        raise HTTPException(409, str(e))
     return {"status": "started", "task": task_name, "task_id": task_id}
 
 
-@router.get("/api/executions")
+@api_router.get("/api/executions")
 async def list_executions():
     return get_manager().list_all()
 
 
-@router.get("/api/executions/{execution_id}")
+@api_router.get("/api/executions/{execution_id}")
 async def get_execution(execution_id: str):
     exec_data = get_manager().get(execution_id)
     if exec_data is None:
@@ -127,24 +160,24 @@ async def get_execution(execution_id: str):
     return exec_data
 
 
-@router.get("/api/tasks/{task_name}/config")
+@api_router.get("/api/tasks/{task_name}/config")
 async def get_task_config(task_name: str):
     return load_config(task_name)
 
 
-@router.get("/api/tasks/{task_name}/schema")
+@api_router.get("/api/tasks/{task_name}/schema")
 async def get_task_schema(task_name: str):
     TaskRegistry.auto_discover()
     return TaskRegistry.get_schema(task_name)
 
 
-@router.post("/api/tasks/{task_name}/config")
+@api_router.post("/api/tasks/{task_name}/config")
 async def save_task_config(task_name: str, data: dict):
     save_config(task_name, data)
     return {"status": "saved"}
 
 
-@router.post("/api/tasks/{task_id}/pause")
+@api_router.post("/api/tasks/{task_id}/pause")
 async def pause_task(task_id: str):
     runner = _pool.get(task_id)
     if not runner:
@@ -153,7 +186,7 @@ async def pause_task(task_id: str):
     return {"status": "paused"}
 
 
-@router.post("/api/tasks/{task_id}/resume")
+@api_router.post("/api/tasks/{task_id}/resume")
 async def resume_task(task_id: str):
     runner = _pool.get(task_id)
     if not runner:
@@ -162,7 +195,7 @@ async def resume_task(task_id: str):
     return {"status": "resumed"}
 
 
-@router.post("/api/tasks/{task_id}/skip")
+@api_router.post("/api/tasks/{task_id}/skip")
 async def skip_task_step(task_id: str):
     runner = _pool.get(task_id)
     if not runner:
@@ -171,7 +204,7 @@ async def skip_task_step(task_id: str):
     return {"status": "skipped"}
 
 
-@router.post("/api/executions/{exec_id}/breakpoint")
+@api_router.post("/api/executions/{exec_id}/breakpoint")
 async def set_exec_breakpoint(exec_id: str, data: dict):
     from src.infrastructure.execution_manager import get_breakpoints, set_breakpoint
 
@@ -179,7 +212,7 @@ async def set_exec_breakpoint(exec_id: str, data: dict):
     return {"breakpoints": get_breakpoints(exec_id)}
 
 
-@router.post("/api/tasks/{task_id}/cancel")
+@api_router.post("/api/tasks/{task_id}/cancel")
 async def cancel_task(task_id: str):
     runner = _pool.get(task_id)
     if not runner:
@@ -188,20 +221,20 @@ async def cancel_task(task_id: str):
     return {"status": "cancelling"}
 
 
-@router.post("/api/shutdown")
+@api_router.post("/api/shutdown")
 async def shutdown():
     _log.info("server.shutdown.requested")
     os._exit(0)
 
 
-@router.get("/api/dev")
+@api_router.get("/api/dev")
 async def dev_mode():
     from src.config.settings import DEV_MODE
 
     return {"dev": DEV_MODE}
 
 
-@router.post("/api/executions/{exec_id}/snippet")
+@api_router.post("/api/executions/{exec_id}/snippet")
 async def run_snippet(exec_id: str, data: dict):
     import asyncio as _asyncio
     import traceback

@@ -22,7 +22,7 @@ _VALID_KEY = "uVWUI9F8u2aRkt5hbgD_LaolVcVveOLZGNDKpajdI1k="
 @pytest.fixture
 def vault(mock_keyring):
     _, store = mock_keyring
-    store[("senior-rpa", "_vault_key")] = _VALID_KEY
+    store[("TerminalServerRPA", "_vault_key")] = _VALID_KEY
     return Vault()
 
 
@@ -32,7 +32,7 @@ class TestVaultInit:
         store.clear()
         v = Vault()
         assert v._key is not None
-        assert store[("senior-rpa", "_vault_key")] is not None
+        assert store[("TerminalServerRPA", "_vault_key")] is not None
 
     def test_reuses_existing_key(self, vault):
         k1 = vault._key

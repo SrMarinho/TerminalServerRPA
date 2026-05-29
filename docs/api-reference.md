@@ -1,16 +1,23 @@
-# API reference
+# Referência da API
 
-All endpoints are served by the local FastAPI server at `http://127.0.0.1:{port}`.
+Todos os endpoints são servidos pelo servidor FastAPI local em `http://127.0.0.1:{porta}`.
 
-## Credentials
+## Autenticação
 
-### List all services
+Um token de API por processo é gerado na inicialização e injetado na página servida como `<meta name="api-token">`.
+
+- **REST:** toda rota `/api/*` exige o token, via cabeçalho `Authorization: Bearer <token>` ou parâmetro de query `?token=<token>`. Sem token válido → `401`.
+- **WebSocket:** o token é validado no handshake a partir do parâmetro `?token=<token>`. Token inválido/ausente → conexão fechada com código `1008` antes de ser aceita.
+
+## Credenciais
+
+### Listar todos os serviços
 
 ```
 GET /api/credentials
 ```
 
-Returns an array of services with their usernames:
+Retorna um array de serviços com seus usuários:
 
 ```json
 [
@@ -18,7 +25,7 @@ Returns an array of services with their usernames:
 ]
 ```
 
-### Save a credential
+### Salvar uma credencial
 
 ```
 POST /api/credentials
@@ -27,119 +34,133 @@ Content-Type: application/json
 {"service": "erp-system", "username": "admin", "password": "secret123"}
 ```
 
-Returns `{"status": "ok"}` on success.
+Retorna `{"status": "ok"}` em caso de sucesso. Retorna `400` se faltar `service`, `username` ou `password`.
 
-Returns `400` if `service`, `username`, or `password` is missing.
-
-### Get a credential
+### Obter uma credencial
 
 ```
 GET /api/credentials/{service}?username={username}
 ```
 
-Returns:
+Retorna `{"service": ..., "username": ..., "password": ...}`. Retorna `404` se não encontrada; `400` se faltar o parâmetro `username`.
 
-```json
-{"service": "erp-system", "username": "admin", "password": "secret123"}
-```
-
-Returns `404` if credential not found.
-Returns `400` if `username` query param is missing.
-
-### Delete a credential
+### Excluir uma credencial
 
 ```
 DELETE /api/credentials/{service}
 ```
 
-Deletes all credentials for the given service. Returns `{"status": "deleted"}`.
+Exclui todas as credenciais do serviço informado. Retorna `{"status": "deleted"}`.
 
-## Tasks
+## Tarefas
 
-### List available tasks
+### Listar tarefas disponíveis
 
 ```
 GET /api/tasks
 ```
 
-```json
-{"available": ["bulk-register-users"], "current_status": "idle"}
+Retorna a lista de tarefas registradas (descobertas automaticamente).
+
+### Schema e configuração de uma tarefa
+
+```
+GET  /api/tasks/{task_name}/schema      # campos do formulário da tarefa
+GET  /api/tasks/{task_name}/config      # parâmetros salvos
+POST /api/tasks/{task_name}/config      # salva parâmetros
 ```
 
-Status values: `idle`, `running`, `paused`, `completed`, `failed`, `cancelled`.
-
-### Run a task
+### Executar uma tarefa
 
 ```
 POST /api/run/{task_name}
+Content-Type: application/json
+
+{ ...parâmetros opcionais... }
 ```
 
-Starts the task asynchronously. Returns `{"status": "started", "task": "bulk-register-users"}`.
+Inicia a tarefa de forma assíncrona e retorna o `execution_id` criado.
 
-Returns `409` if a task is already running.
-
-### Pause task
+### Tarefas em execução
 
 ```
-POST /api/tasks/pause
+GET    /api/tasks/running               # lista execuções ativas
+DELETE /api/tasks/running               # remove da memória as execuções finalizadas
 ```
 
-Pauses the currently running task. No-op if no task is running.
-
-### Resume task
+### Controle de execução
 
 ```
-POST /api/tasks/resume
+POST /api/tasks/{task_id}/pause         # pausa a tarefa
+POST /api/tasks/{task_id}/resume        # retoma a tarefa
+POST /api/tasks/{task_id}/skip          # pula o passo atual
+POST /api/tasks/{task_id}/cancel        # cancela a tarefa
+POST /api/executions/{exec_id}/breakpoint   # define um breakpoint em um passo
 ```
 
-Resumes a paused task. No-op if task is not paused.
-
-### Cancel task
+## Execuções
 
 ```
-POST /api/tasks/cancel
+GET /api/executions                     # histórico de execuções
+GET /api/executions/{execution_id}      # detalhe de uma execução (passos, logs)
 ```
 
-Requests cancellation of the running or paused task.
+## Sistema
 
-## System
+### Modo de desenvolvimento
 
-### Focus existing instance
+```
+GET /api/dev
+```
+
+Retorna `{"dev": true|false}`. Habilita recursos de desenvolvimento na UI.
+
+### Encerrar o servidor
+
+```
+POST /api/shutdown
+```
+
+Encerra o processo do servidor.
+
+### Focar instância existente
 
 ```
 GET /_focus
 ```
 
-Brings the existing instance's browser tab to front. Used by the single-instance mutex protocol.
+Traz a aba do navegador da instância existente para frente. Usado pelo protocolo de mutex de instância única.
 
-### Web interface
+### Interface web
 
 ```
 GET /
 ```
 
-Serves the Tailwind CSS web UI (`index.html`).
+Serve a UI web (`index.html`) com o token de API injetado.
+
+> **Dev-only:** `POST /api/executions/{exec_id}/snippet` executa código Python arbitrário contra a página Playwright ativa. Disponível apenas quando `DEV_MODE` está ligado. Veja [security.md](security.md).
 
 ## WebSocket
 
 ```
-ws://127.0.0.1:{port}/ws
+ws://127.0.0.1:{porta}/ws?token=<token>
 ```
 
-### Server → Client events
+### Eventos Servidor → Cliente
 
-All events are JSON with a `type` field:
+Todos os eventos são JSON com um campo `type`:
 
-| Type | Payload | Description |
-|------|---------|-------------|
-| `log` | `{event, level, msg, timestamp}` | Structured log line |
-| `status` | `{task_id, status, progress}` | Task state change |
+| Type | Descrição |
+|------|-----------|
+| `pool:update` | Mudança no conjunto de tarefas em execução |
+| `execution:step` | Mudança de status de um passo (running→completed, etc.) |
+| `execution:log` | Nova linha de log de uma execução |
+| `execution:screenshot` | Novo screenshot de uma execução |
 
-### Client → Server commands
+### Comandos Cliente → Servidor
 
-| Type | Payload | Action |
-|------|---------|--------|
-| `pause` | `{}` | Pause running task |
-| `resume` | `{}` | Resume paused task |
-| `cancel` | `{}` | Cancel task |
-| `run` | `{task_name}` | Start a task |
+| Type | Payload | Ação |
+|------|---------|------|
+| `run` | `{task_name}` | Inicia uma tarefa |
+| `screenshot:subscribe` | `{execution_id}` | Assina o stream de screenshots de uma execução |

@@ -26,7 +26,7 @@ exe = EXE(
     a.zipfiles,
     a.datas,
     [],
-    name="senior-rpa-updater",
+    name="TerminalServerRPA-updater",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

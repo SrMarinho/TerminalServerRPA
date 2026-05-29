@@ -1,10 +1,11 @@
 import ctypes
 import ctypes.wintypes
 import os
+import secrets
 import socket
 from pathlib import Path
 
-_MUTEX_NAME = "SeniorRPA-{}".format(
+_MUTEX_NAME = "TerminalServerRPA-{}".format(
     str(Path(__file__).resolve().parent.parent.parent).replace("\\", "_").replace(":", "")
 )
 
@@ -21,8 +22,16 @@ def is_first_instance() -> bool:
     return last_error != 0xDE  # ERROR_ALREADY_EXISTS
 
 
+def _get_app_dir() -> Path:
+    return Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local")) / "TerminalServerRPA"
+
+
 def _get_port_path() -> Path:
-    return Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local")) / "senior-rpa" / "port.txt"
+    return _get_app_dir() / "port.txt"
+
+
+def _get_token_path() -> Path:
+    return _get_app_dir() / "token.txt"
 
 
 def save_port(port: int):
@@ -52,3 +61,14 @@ def focus_existing_instance():
         return True
     except TimeoutError, ConnectionRefusedError, OSError:
         return False
+
+
+def get_or_create_token() -> str:
+    """Return existing API token or generate a new one."""
+    path = _get_token_path()
+    if path.exists():
+        return path.read_text(encoding="utf-8").strip()
+    token = secrets.token_hex(32)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(token, encoding="utf-8")
+    return token

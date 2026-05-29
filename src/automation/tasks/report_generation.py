@@ -1,10 +1,13 @@
 import asyncio
 import ctypes  # GetSystemMetrics for viewport sizing
 
+from src.automation.pages.contas_receber.reports import REPORTS, REPORTS_BY_CODE
+from src.automation.pages.contas_receber.selecao_modelos_para_execucao_page import SelecaoModelosParaExecucaoPage
 from src.automation.pages.home_page import HomePage
 from src.automation.pages.senior_login_page import SeniorLoginPage
 from src.automation.pages.ts_applications_page import TsApplicationsPage
 from src.automation.pages.ts_login_page import TsLoginPage
+from src.automation.pages.valores_entrada_modelo_page import ValoresEntradaModeloPage
 from src.config.settings import ASSETS_DIR
 from src.infrastructure.task_registry import TaskRegistry
 from src.infrastructure.task_runner import SkipStep
@@ -44,60 +47,9 @@ class GeracaoRelatorio:
                 "name": "relatorio",
                 "label": "Relatório",
                 "type": "select",
-                "options": ["703 | Rot.Conciliação - Tít.não baixados - Proc. Baixa"],
+                "options": [{"value": r.code, "label": r.label} for r in REPORTS],
             },
-            {
-                "name": "empresa",
-                "label": "Empresa",
-                "type": "string",
-                "when": {"relatorio": "703 | Rot.Conciliação - Tít.não baixados - Proc. Baixa"},
-            },
-            {
-                "name": "filial",
-                "label": "Filial",
-                "type": "string",
-                "when": {"relatorio": "703 | Rot.Conciliação - Tít.não baixados - Proc. Baixa"},
-            },
-            {
-                "name": "cliente",
-                "label": "Cliente (Adquirente)",
-                "type": "string",
-                "when": {"relatorio": "703 | Rot.Conciliação - Tít.não baixados - Proc. Baixa"},
-            },
-            {
-                "name": "titulo",
-                "label": "Título",
-                "type": "string",
-                "when": {"relatorio": "703 | Rot.Conciliação - Tít.não baixados - Proc. Baixa"},
-            },
-            {
-                "name": "data_emissao",
-                "label": "Data Emissão",
-                "type": "string",
-                "when": {"relatorio": "703 | Rot.Conciliação - Tít.não baixados - Proc. Baixa"},
-            },
-            {
-                "name": "data_movimento",
-                "label": "Data Movimento",
-                "type": "string",
-                "when": {"relatorio": "703 | Rot.Conciliação - Tít.não baixados - Proc. Baixa"},
-            },
-            {
-                "name": "opcao",
-                "label": "Opção",
-                "type": "select",
-                "default": "V",
-                "options": ["V"],
-                "when": {"relatorio": "703 | Rot.Conciliação - Tít.não baixados - Proc. Baixa"},
-            },
-            {
-                "name": "analitico_sintetico",
-                "label": "Analítico/Sintético",
-                "type": "select",
-                "default": "A",
-                "options": ["A", "S"],
-                "when": {"relatorio": "703 | Rot.Conciliação - Tít.não baixados - Proc. Baixa"},
-            },
+            *[{**field, "when": {"relatorio": r.code}} for r in REPORTS for field in r.get_fields()],
         ]
 
     @staticmethod
@@ -115,7 +67,7 @@ class GeracaoRelatorio:
                 "Maximizando Relatório",
                 "Digitando Relatório",
                 "Maximizando Valores",
-                "processando",
+                "Preenchendo Campos",
             ],
             "Finalização": ["Concluido"],
         }
@@ -297,6 +249,7 @@ class GeracaoRelatorio:
                         await maximize_window(
                             remote_page, self._runner.log if self._runner else None, title_img=_REPORT_TITLE_IMG
                         )
+                        await asyncio.sleep(1)
                 except SkipStep:
                     pass
 
@@ -304,18 +257,14 @@ class GeracaoRelatorio:
                     if self._runner:
                         await self._runner.report_step("Digitando Relatório")
                     if remote_page:
-                        col_img = (
-                            ASSETS_DIR / "Senior" / "pages" / "selecao_modelos_para_execucao" / "coluna_numero.png"
-                        )
-                        screenshot = await remote_page.screenshot()
-                        col_match = find_template(screenshot, col_img, 0.8)
-                        if col_match:
-                            cx, cy = col_match[0]
-                            await remote_page.mouse.click(cx, cy)
-                            await asyncio.sleep(0.5)
-                        relatorio_raw = params.get("relatorio", "")
-                        relatorio_num = relatorio_raw.split("|")[0].strip()
-                        await remote_page.keyboard.type(relatorio_num, delay=100)
+                        relatorio_code = params.get("relatorio", "")
+                        report = REPORTS_BY_CODE.get(relatorio_code)
+                        if report:
+                            selecao = SelecaoModelosParaExecucaoPage(
+                                remote_page,
+                                log=self._runner.log if self._runner else None,
+                            )
+                            await selecao.open_report(report)
                 except SkipStep:
                     pass
 
@@ -323,25 +272,26 @@ class GeracaoRelatorio:
                     if self._runner:
                         await self._runner.report_step("Maximizando Valores")
                     if remote_page:
-                        valores_title = (
-                            ASSETS_DIR
-                            / "Senior"
-                            / "pages"
-                            / "selecao_modelos_para_execucao"
-                            / "valores_entrada_modelo"
-                            / "index.png"
+                        valores = ValoresEntradaModeloPage(
+                            remote_page,
+                            log=self._runner.log if self._runner else None,
                         )
-                        maximizar_img = ASSETS_DIR / "Senior" / "components" / "context_menu" / "maximizar.png"
-                        screenshot = await remote_page.screenshot()
-                        t_match = find_template(screenshot, valores_title, 0.8)
-                        if t_match:
-                            cx, cy = t_match[0]
-                            await remote_page.mouse.click(cx, cy, button="right")
-                            await asyncio.sleep(0.8)
-                            screenshot = await remote_page.screenshot()
-                            m_match = find_template(screenshot, maximizar_img, 0.8)
-                            if m_match:
-                                await remote_page.mouse.click(m_match[0][0], m_match[0][1])
+                        await valores.maximize()
+                except SkipStep:
+                    pass
+
+                try:
+                    if self._runner:
+                        await self._runner.report_step("Preenchendo Campos")
+                    if remote_page:
+                        relatorio_code = params.get("relatorio", "")
+                        report = REPORTS_BY_CODE.get(relatorio_code)
+                        if report:
+                            valores = ValoresEntradaModeloPage(
+                                remote_page,
+                                log=self._runner.log if self._runner else None,
+                            )
+                            await valores.fill(report, params)
                 except SkipStep:
                     pass
 

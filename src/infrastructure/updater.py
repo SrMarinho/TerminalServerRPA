@@ -5,10 +5,10 @@ import httpx
 
 from src.infrastructure.logger import get_logger
 
-log = get_logger("senior-rpa.updater")
+log = get_logger("TerminalServerRPA.updater")
 
-REPO = "senior-rpa"
-OWNER = "user"
+REPO = "TerminalServerRPA"
+OWNER = "SrMarinho"
 
 
 @dataclass

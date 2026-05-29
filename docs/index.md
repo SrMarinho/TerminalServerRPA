@@ -1,20 +1,23 @@
-# senior-rpa documentation
+# Documentação do TerminalServerRPA
 
-RPA application with local web UI, encrypted credential vault, task runner with pause/resume/cancel, and auto-update via GitHub Releases.
+Aplicação RPA com interface web local, cofre de credenciais criptografado, executor de tarefas com pausar/retomar/cancelar e auto-atualização via GitHub Releases.
 
-## For users
+## Para usuários
 
-| Document | What it covers |
-|----------|----------------|
-| [Installation](installation.md) | Installing from source or portable .exe |
-| [User guide](user-guide.md) | Web UI walkthrough, password management, running tasks |
-| [CLI reference](cli-reference.md) | All command-line subcommands and options |
+| Documento | O que cobre |
+|-----------|-------------|
+| [Instalação](installation.md) | Instalar a partir do código-fonte ou do .exe portátil |
+| [Guia do usuário](user-guide.md) | Passo a passo da interface web, gerenciamento de senhas, execução de tarefas |
+| [Referência da CLI](cli-reference.md) | Todos os subcomandos e opções de linha de comando |
 
-## For developers
+## Para desenvolvedores
 
-| Document | What it covers |
-|----------|----------------|
-| [Architecture](architecture.md) | System design, module responsibilities, data flow |
-| [Development](development.md) | Setup, conventions, testing, building |
-| [API reference](api-reference.md) | REST endpoints and WebSocket protocol |
-| [Roadmap](roadmap.md) | Implementation plan and future work |
+| Documento | O que cobre |
+|-----------|-------------|
+| [Arquitetura](architecture.md) | Design do sistema, responsabilidades dos módulos, fluxo de dados |
+| [Desenvolvimento](development.md) | Setup, convenções, testes, build |
+| [Referência da API](api-reference.md) | Endpoints REST e protocolo WebSocket |
+| [Segurança](security.md) | Modelo de ameaça, controles, limitações conhecidas |
+| [Decisões (ADRs)](decisions/) | Registros de decisões arquiteturais |
+| [Roadmap](roadmap.md) | Plano de implementação e trabalho futuro |
+| [Changelog](../CHANGELOG.md) | Histórico de versões |

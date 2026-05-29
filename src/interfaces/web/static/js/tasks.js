@@ -34,7 +34,7 @@ function renderTaskList(tasks) {
 async function openTaskDetail(name) {
   currentTask = name;
   _backFn = null;
-  try { sessionStorage.setItem('senior-rpa.task', name); } catch(e) {}
+  try { sessionStorage.setItem('TerminalServerRPA.task', name); } catch(e) {}
   document.getElementById('detailTaskName').textContent = name;
   document.getElementById('detailContent').innerHTML = '<div class="text-sm" style="color:var(--text-2)">Carregando...</div>';
   switchPanel('task-detail');
@@ -88,8 +88,11 @@ function _buildFormFields(schema, config, creds, wrapClass) {
       html += wrapOpen + '<label class="label" style="margin-bottom:6px">' + esc(f.label) + '</label><select id="' + fieldId + '" data-field-type="select" class="input">';
       var opts = f.options || [];
       for (var oi = 0; oi < opts.length; oi++) {
-        var osel = curVal === opts[oi] ? ' selected' : '';
-        html += '<option value="' + esc(opts[oi]) + '"' + osel + '>' + esc(opts[oi]) + '</option>';
+        var opt = opts[oi];
+        var optVal = (typeof opt === 'object') ? opt.value : opt;
+        var optLabel = (typeof opt === 'object') ? opt.label : opt;
+        var osel = curVal === optVal ? ' selected' : '';
+        html += '<option value="' + esc(optVal) + '"' + osel + '>' + esc(optLabel) + '</option>';
       }
       html += '</select></div>';
     } else if (f.type === 'json') {
@@ -194,7 +197,9 @@ async function rerunExec(execId) {
   var entry = _execParamsCache[execId];
   if (!entry) { toast('Params não encontrados', true); return; }
   try {
-    var res = await api('POST', '/api/run/' + encodeURIComponent(entry.taskName), entry.params);
+    var bps = Object.keys(_execBreakpoints).filter(function(k) { return _execBreakpoints[k]; });
+    var payload = Object.assign({}, entry.params, { _breakpoints: bps });
+    var res = await api('POST', '/api/run/' + encodeURIComponent(entry.taskName), payload);
     toast('Re-executando');
     openExecutionDetail(res.task_id);
   } catch (e) { toast('Erro: ' + e.message, true); }

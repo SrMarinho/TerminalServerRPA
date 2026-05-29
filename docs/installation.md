@@ -1,42 +1,42 @@
-# Installation
+# Instalação
 
-## From source
+## A partir do código-fonte
 
-### Prerequisites
+### Pré-requisitos
 
-- Python 3.10+ (developed on 3.14)
-- [uv](https://docs.astral.sh/uv/) package manager
+- Python 3.10+ (desenvolvido em 3.14)
+- Gerenciador de pacotes [uv](https://docs.astral.sh/uv/)
 
-### Steps
+### Passos
 
 ```bash
-# Clone the repository
+# Clonar o repositório
 git clone <repo-url>
-cd senior-rpa
+cd TerminalServerRPA
 
-# Create virtual environment and install dependencies
+# Criar o ambiente virtual e instalar dependências
 uv sync
 
-# Install Playwright browser (required for RPA tasks)
+# Instalar o navegador do Playwright (necessário para tarefas RPA)
 uv run playwright install chromium
 
-# Run the application
+# Rodar a aplicação
 uv run python main.py web
 ```
 
-## Portable .exe
+## .exe portátil
 
-Download the latest `senior-rpa.exe` from [GitHub Releases](https://github.com/user/senior-rpa/releases). No installation required — double-click to run.
+Baixe o `TerminalServerRPA.exe` mais recente em [GitHub Releases](https://github.com/SrMarinho/TerminalServerRPA/releases). Não requer instalação — dê duplo clique para executar.
 
-The executable is self-contained (bundles Python + dependencies + Chromium via Playwright).
+O executável é autocontido (empacota Python + dependências + Chromium via Playwright).
 
-### First run
+### Primeira execução
 
-1. Launch `senior-rpa.exe`
-2. Your default browser opens to `http://127.0.0.1:8080`
-3. If port 8080 is busy, the app auto-selects the next available port
-4. If the app is already running, the existing instance gets focus
+1. Inicie o `TerminalServerRPA.exe`
+2. Seu navegador padrão abre em `http://127.0.0.1:8080`
+3. Se a porta 8080 estiver ocupada, a aplicação seleciona automaticamente a próxima porta livre
+4. Se a aplicação já estiver rodando, a instância existente recebe foco
 
-### Updating
+### Atualização
 
-On startup, the app checks GitHub for newer releases. If an update is available, it downloads the new `.exe` to a temporary directory and prompts to apply it on next restart.
+Na inicialização, a aplicação verifica no GitHub se há releases mais recentes. Se houver atualização, ela baixa o novo `.exe` para um diretório temporário e propõe aplicá-la no próximo reinício.

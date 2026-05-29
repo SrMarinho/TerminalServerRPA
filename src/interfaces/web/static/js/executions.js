@@ -1,11 +1,83 @@
 var _ws = null;
 var _wsCallbacks = {};
 var _stopCurrentWatch = null;
+var _screenshotSubExecId = null;
+
+function toggleScreenModal() {
+  var modal = document.getElementById('screenModal');
+  var btn = document.getElementById('screenDrawerBtn');
+  if (!modal || !btn) return;
+  var execId = btn.dataset.execId;
+  if (modal.classList.contains('hidden')) {
+    modal.classList.remove('hidden');
+    btn.textContent = 'fechar tela';
+    if (_ws && _ws.readyState === WebSocket.OPEN && execId) {
+      _ws.send(JSON.stringify({ type: 'screenshot:subscribe', execution_id: execId }));
+      _screenshotSubExecId = execId;
+    }
+    _renderScreenFlow(execId);
+  } else {
+    modal.classList.add('hidden');
+    btn.textContent = 'visualizar tela';
+    _unsubscribeScreenshot();
+  }
+}
+
+function _renderScreenFlow(execId) {
+  var container = document.getElementById('screenFlow');
+  if (!container) return;
+  api('GET', '/api/executions/' + execId).then(function(exec) {
+    if (!exec.steps || !exec.steps.length) return;
+    var cls = { completed: 'c', running: 'r', failed: 'f' };
+    var html = '';
+    var steps = exec.steps;
+    for (var i = 0; i < steps.length; i++) {
+      var s = steps[i];
+      var t = s.timestamp ? s.timestamp.slice(11, 19) : '';
+      html += '<div class="flow-node ' + (cls[s.status] || 'p') + '" data-step="' + esc(s.name) + '"'
+        + ' title="' + esc(t || s.name) + '"'
+        + ' style="display:flex;align-items:center;gap:6px;flex-shrink:0;white-space:nowrap">'
+        + '<span style="font-size:11px;font-weight:700;color:var(--text-3);flex-shrink:0">' + (i + 1) + '</span>'
+        + '<span>' + esc(s.name) + '</span></div>';
+      if (i < steps.length - 1) {
+        html += '<div style="flex-shrink:0;padding:0 4px;color:var(--line-2)">→</div>';
+      }
+    }
+    container.innerHTML = html;
+    _scrollToActiveStep();
+  }).catch(function() {});
+}
+
+function _scrollToActiveStep() {
+  var container = document.getElementById('screenFlow');
+  var scroll = document.getElementById('screenFlowScroll');
+  if (!container || !scroll) return;
+  var active = container.querySelector('.flow-node.r');
+  if (!active) active = container.querySelector('.flow-node.c:last-of-type');
+  if (active) {
+    var nodeLeft = active.offsetLeft;
+    var nodeWidth = active.offsetWidth;
+    var scrollWidth = scroll.offsetWidth;
+    scroll.scrollLeft = nodeLeft - (scrollWidth / 2) + (nodeWidth / 2);
+  }
+}
+
+function _unsubscribeScreenshot() {
+  if (_ws && _ws.readyState === WebSocket.OPEN && _screenshotSubExecId) {
+    _ws.send(JSON.stringify({ type: 'screenshot:unsubscribe', execution_id: _screenshotSubExecId }));
+    _screenshotSubExecId = null;
+  }
+  var modal = document.getElementById('screenModal');
+  var btn = document.getElementById('screenDrawerBtn');
+  if (modal) modal.classList.add('hidden');
+  if (btn) btn.textContent = 'visualizar tela';
+}
 
 function _connectWS() {
   if (_ws && _ws.readyState !== WebSocket.CLOSED) _ws.close();
   var proto = location.protocol === "https:" ? "wss" : "ws";
-  _ws = new WebSocket(proto + "://" + location.host + "/ws");
+  var token = _getToken();
+  _ws = new WebSocket(proto + "://" + location.host + "/ws?token=" + encodeURIComponent(token));
   _ws.onmessage = function(e) {
     try {
       var data = JSON.parse(e.data);
@@ -106,6 +178,12 @@ function _renderExecDetail(id, exec) {
     + resultHtml
     + '';
 
+  var drawerBtn = document.getElementById('screenDrawerBtn');
+  if (drawerBtn) {
+    if (isActive) { drawerBtn.classList.remove('hidden'); drawerBtn.dataset.execId = id; }
+    else { drawerBtn.classList.add('hidden'); }
+  }
+
   var logBox = document.getElementById('execLogBox');
   if (logBox) logBox.scrollTop = logBox.scrollHeight;
   setTimeout(function() { _drawSnakeArrows(); _reapplyBreakpoints(); }, 0);
@@ -113,7 +191,8 @@ function _renderExecDetail(id, exec) {
 
 async function openExecutionDetail(id) {
   if (_stopCurrentWatch) { _stopCurrentWatch(); _stopCurrentWatch = null; }
-  try { sessionStorage.setItem('senior-rpa.exec', id); sessionStorage.removeItem('senior-rpa.task'); } catch(e) {}
+  _unsubscribeScreenshot();
+  try { sessionStorage.setItem('TerminalServerRPA.exec', id); sessionStorage.removeItem('TerminalServerRPA.task'); } catch(e) {}
 
   document.getElementById('detailTaskName').textContent = '…';
   document.getElementById('detailContent').innerHTML = '<div class="text-sm" style="color:var(--text-2)">Carregando...</div>';
@@ -126,7 +205,10 @@ async function openExecutionDetail(id) {
 
     if (!['completed', 'failed', 'cancelled'].includes(exec.status)) {
       _stopCurrentWatch = _watchExec(id, function(data) {
-        if (data.type === 'execution:log') {
+        if (data.type === 'execution:screenshot') {
+          var img = document.getElementById('execScreenshot');
+          if (img) img.src = 'data:' + (data.mime || 'image/png') + ';base64,' + data.data;
+        } else if (data.type === 'execution:log') {
           var box = document.getElementById('execLogBox');
           if (box) {
             var lvlColor = { error: 'var(--danger)', warn: 'var(--warn)', info: 'var(--text-1)' };
@@ -152,6 +234,17 @@ async function openExecutionDetail(id) {
             found.className = 'flow-node ' + (nodeCls[data.status] || 'p') + bpClass;
             if (data.timestamp) found.title = data.timestamp.slice(11, 19);
             _drawSnakeArrows();
+          }
+          var modal = document.getElementById('screenModal');
+          if (modal && !modal.classList.contains('hidden')) {
+            var sfNode = document.getElementById('screenFlow');
+            if (sfNode) {
+              var sfFound = sfNode.querySelector('[data-step="' + data.name.replace(/"/g, '\\"') + '"]');
+              if (sfFound) {
+                sfFound.className = 'flow-node ' + (nodeCls[data.status] || 'p');
+                _scrollToActiveStep();
+              }
+            }
           }
         } else {
           api('GET', '/api/executions/' + id).then(function(updated) {

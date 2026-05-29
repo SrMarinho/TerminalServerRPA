@@ -95,9 +95,9 @@ function renderFlowChart(steps, execId) {
       html += '<div class="flow-node ' + (cls[s.status] || 'p') + '"'
         + ' data-step="' + esc(s.name) + '"'
         + ' title="' + esc(t || s.name) + '"'
-        + ' style="' + gridStyle + '"'
+        + ' style="' + gridStyle + ';display:flex;align-items:center;gap:6px"'
         + (execId ? ' onclick="toggleBreakpoint(\'' + execId + '\',\'' + s.name.replace(/'/g, "\\'") + '\',this)"' : '')
-        + '><span style="font-size:11px;font-weight:700;color:var(--text-3);margin-right:6px">' + stepNum + '</span>' + esc(s.name) + '</div>';
+        + '><span style="font-size:11px;font-weight:700;color:var(--text-3);flex-shrink:0;line-height:1.4">' + stepNum + '</span><span style="line-height:1.4">' + esc(s.name) + '</span></div>';
     }
   }
 
