@@ -1,114 +1,115 @@
-# Development
+# Desenvolvimento
 
 ## Setup
 
 ```bash
-# Clone and install
+# Clonar e instalar
 git clone <repo-url>
-cd senior-rpa
+cd TerminalServerRPA
 uv sync
 
-# Install Playwright browser for RPA tasks
+# Instalar o navegador do Playwright para tarefas RPA
 uv run playwright install chromium
 ```
 
-## Toolchain
+## Ferramental
 
-| Tool | Command | Description |
-|------|---------|-------------|
-| uv | `uv add <pkg>` | Add production dependency |
-|     | `uv add --dev <pkg>` | Add dev dependency |
-|     | `uv sync` | Install all dependencies |
-|     | `uv run <cmd>` | Run command in venv |
+| Ferramenta | Comando | Descrição |
+|------------|---------|-----------|
+| uv | `uv add <pkg>` | Adicionar dependência de produção |
+|    | `uv add --dev <pkg>` | Adicionar dependência de dev |
+|    | `uv sync` | Instalar todas as dependências |
+|    | `uv run <cmd>` | Rodar comando no venv |
 | ruff | `uv run ruff check` | Lint |
-|      | `uv run ruff check --fix` | Auto-fix |
-|      | `uv run ruff format` | Format code |
-| pyright | `uv run pyright src` | Type check |
-| pytest | `uv run pytest` | Run all tests |
-|        | `uv run pytest tests/unit/password_vault/test_vault.py -v` | Single test file |
-|        | `uv run pytest -k "test_login"` | Filter by name |
-|        | `uv run pytest --cov=src` | With coverage |
-| pyinstaller | `uv run pyinstaller main.spec` | Build .exe |
+|      | `uv run ruff check --fix` | Auto-correção |
+|      | `uv run ruff format` | Formatar código |
+| pyright | `uv run pyright src` | Checagem de tipos |
+| pytest | `uv run pytest` | Rodar todos os testes |
+|        | `uv run pytest tests/unit/infrastructure/test_vault.py -v` | Arquivo de teste único |
+|        | `uv run pytest -k "test_login"` | Filtrar por nome |
+|        | `uv run pytest --cov=src` | Com cobertura |
+| pyinstaller | `uv run pyinstaller main.spec` | Gerar .exe |
 
-## Project conventions
+## Convenções do projeto
 
-### Layer rules
+### Regras de camadas
 
 ```
+interfaces → infrastructure → automation
 use_cases → entities
 tasks → pages
-utils, config → leaf modules (imported by any)
-No circular imports. No layer skipping.
+utils, config → módulos folha (importados por qualquer um)
+Sem imports circulares. Sem pular camadas.
 ```
 
-### Code style
+### Estilo de código
 
-- Target Python 3.14 (`.python-version`)
-- Ruff with selected rules: E, F, I, W, N, UP, B, SIM
-- Double quotes for strings
-- Line length: 120
-- Type annotations on all public functions
-- Use `X | None` instead of `Optional[X]` (UP045)
+- Alvo Python 3.14 (`.python-version`)
+- Ruff com as regras selecionadas: E, F, I, W, N, UP, B, SIM
+- Aspas duplas para strings
+- Comprimento de linha: 120
+- Anotações de tipo em todas as funções públicas
+- Usar `X | None` em vez de `Optional[X]` (UP045)
 
-### Naming
+### Nomenclatura
 
 ```
-Files: snake_case.py
+Arquivos: snake_case.py
 Classes: PascalCase
-Functions: snake_case
-Constants: UPPER_SNAKE
-Private: _leading_underscore
+Funções: snake_case
+Constantes: UPPER_SNAKE
+Privados: _prefixo_underscore
 ```
 
-### Test structure
+### Estrutura de testes
 
 ```
 tests/
-├── unit/                    # Pure unit tests (mocked dependencies)
-│   ├── password_vault/
-│   ├── automation/
-│   └── core/
-├── integration/             # Integration tests (real keyring backend)
-│   └── password_vault/
-└── e2e/                     # End-to-end (CLI + vault)
+├── unit/                    # Testes unitários (dependências mockadas)
+│   ├── infrastructure/      # vault, task_runner, logger, updater, ...
+│   ├── interfaces/          # web (router, server, websocket), cli
+│   ├── automation/          # pages, tasks
+│   └── core/                # entities, use_cases
+├── integration/             # Testes de integração (keyring real)
+│   └── infrastructure/
+└── e2e/                     # Ponta a ponta (CLI + cofre)
     └── test_vault_flow.py
 ```
 
-- Every module in `src/` must have a corresponding test file
-- Use `@pytest.mark.asyncio` for async tests
-- Mock external dependencies (keyring, playwright, network)
-- Aim for 100% line coverage on core modules
+- Mockar dependências externas (keyring, playwright, rede)
+- Usar `@pytest.mark.asyncio` para testes assíncronos (`asyncio_mode = "auto"` já configurado)
+- Priorizar cobertura dos caminhos de produção e de segurança
 
-## Testing Playwright-based tasks
+## Testando tarefas baseadas em Playwright
 
-The `_bulk_register_users` method in `task_runner.py` launches a real Chromium browser. In tests:
+As tarefas em `src/automation/tasks/` abrem um Chromium real. Em testes:
 
-- **Unit tests**: mock `Page` with `AsyncMock` (see `tests/unit/automation/test_pages.py`)
-- **Playwright dispatch**: task runner tests use `"noop-task"` to avoid hitting Playwright imports
+- **Testes unitários:** mockar `Page` com `AsyncMock` (veja `tests/unit/automation/test_pages.py`)
+- Mockar os Page Objects para validar a sequência de passos sem subir o navegador
 
-## Building
+## Build
 
 ```bash
-# Main executable
+# Executável principal
 uv run pyinstaller main.spec
 
-# Updater executable (small, standalone)
+# Executável do atualizador (pequeno, standalone)
 uv run pyinstaller updater.spec
 ```
 
-The `.spec` files are tracked in git. The `*.spec` pattern is in `.gitignore`, so force-add with `git add -f main.spec` when modifying.
+Os arquivos `.spec` são versionados no git. O padrão `*.spec` está no `.gitignore`, então force a adição com `git add -f main.spec` ao modificá-los.
 
-### Previous build steps
+### Passos de release
 
-1. Update version in `pyproject.toml`
-2. Run tests: `uv run pytest`
+1. Atualizar a versão em `pyproject.toml`
+2. Rodar os testes: `uv run pytest`
 3. Build: `uv run pyinstaller main.spec`
-4. Test the `.exe`: `dist/senior-rpa.exe web`
+4. Testar o `.exe`: `dist/TerminalServerRPA.exe web`
 
 ## CI
 
-GitHub Actions workflow (`.github/workflows/ci.yml`):
+Workflow do GitHub Actions (`.github/workflows/ci.yml`):
 
-- Matrix: Python 3.10–3.13
-- Steps: ruff check → pyright → pytest with coverage
-- Playwright Chromium installed for test suite
+- Matriz: Python 3.10–3.13
+- Passos: ruff check → pyright → pytest com cobertura
+- Chromium do Playwright instalado para a suíte de testes

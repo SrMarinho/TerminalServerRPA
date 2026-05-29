@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>senior-rpa</title>
+<title>TerminalServerRPA</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
@@ -11,10 +11,10 @@
 <script>
 (function(){
   try {
-    var stored = localStorage.getItem('senior-rpa.theme');
+    var stored = localStorage.getItem('TerminalServerRPA.theme');
     var theme = stored || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
     document.documentElement.setAttribute('data-theme', theme);
-    if (!stored) { try { localStorage.setItem('senior-rpa.theme', theme); } catch(e) {} }
+    if (!stored) { try { localStorage.setItem('TerminalServerRPA.theme', theme); } catch(e) {} }
   } catch(e) {
     document.documentElement.setAttribute('data-theme', 'light');
   }
@@ -103,13 +103,33 @@
 
     <!-- Task Detail Panel -->
     <section id="panel-task-detail" class="panel hidden">
-      <div class="section-head">
+      <div class="section-head" style="display:flex;align-items:center;gap:12px">
         <span class="crumb" onclick="goBack()" style="cursor:pointer">← VOLTAR</span><span class="arrow">/</span><span class="title" id="detailTaskName">Tarefa</span>
+        <button id="screenDrawerBtn" class="btn btn-ghost hidden" style="margin-left:auto;padding:5px 12px;font-size:11px" onclick="toggleScreenModal()">visualizar tela</button>
       </div>
       <div id="detailContent" class="space-y-6">
         <div class="text-sm" style="color:var(--text-2)">Carregando...</div>
       </div>
     </section>
+
+    <!-- Screen + Flow Modal -->
+    <div id="screenModal" class="hidden" style="position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;background:var(--bg-0)">
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--line);flex-shrink:0">
+        <span class="label" style="margin:0">TELA AO VIVO</span>
+        <button class="btn btn-ghost" style="margin-left:auto;padding:5px 12px;font-size:11px" onclick="toggleScreenModal()">fechar</button>
+      </div>
+      <div style="flex:1;overflow:hidden;display:flex;flex-direction:column;min-height:0">
+        <div style="flex:1;overflow:auto;padding:16px;background:var(--bg-0);display:flex;align-items:center;justify-content:center;min-height:0">
+          <img id="execScreenshot" style="max-width:100%;max-height:100%;border:1px solid var(--line);display:block;object-fit:contain" src="" alt="aguardando...">
+        </div>
+        <div style="flex-shrink:0;border-top:1px solid var(--line);padding:12px 20px;background:var(--bg-1)">
+          <div class="label" style="margin-bottom:8px">FLUXO</div>
+          <div id="screenFlowScroll" style="overflow-x:auto;overflow-y:hidden;padding-bottom:8px">
+            <div id="screenFlow" style="display:flex;gap:0;align-items:center;min-width:max-content"></div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Histórico Panel -->
     <section id="panel-history" class="panel hidden">

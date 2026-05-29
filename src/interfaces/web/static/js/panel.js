@@ -1,4 +1,4 @@
-const PANEL_KEY = 'senior-rpa.panel';
+const PANEL_KEY = 'TerminalServerRPA.panel';
 const PERSIST_PANELS = ['tasks', 'credentials', 'history'];
 var _prevPanel = 'tasks';
 var _backFn = null;
@@ -7,7 +7,7 @@ const STATUS_PT = { idle: 'ocioso', running: 'executando', paused: 'pausado', co
 
 function switchPanel(name) {
   if (name !== 'task-detail' && _stopCurrentWatch) { _stopCurrentWatch(); _stopCurrentWatch = null; }
-  if (name !== 'task-detail') try { sessionStorage.removeItem('senior-rpa.task'); sessionStorage.removeItem('senior-rpa.exec'); } catch(e) {}
+  if (name !== 'task-detail') try { sessionStorage.removeItem('TerminalServerRPA.task'); sessionStorage.removeItem('TerminalServerRPA.exec'); } catch(e) {}
   if (PERSIST_PANELS.includes(name)) _prevPanel = name;
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
   var btn = document.querySelector('.nav-btn[data-panel="' + name + '"]');
@@ -105,7 +105,7 @@ setInterval(function() {
 }, 1000);
 
 /* Theme */
-const THEME_KEY = 'senior-rpa.theme';
+const THEME_KEY = 'TerminalServerRPA.theme';
 function setTheme(theme) {
   document.documentElement.setAttribute('data-theme', theme);
   try { localStorage.setItem(THEME_KEY, theme); } catch(e) {}

@@ -1,69 +1,69 @@
-# CLI reference
+# Referência da CLI
 
-The application entrypoint is a single Typer command:
+O entrypoint da aplicação é um único comando Typer:
 
 ```
-python main.py <command> [options]
+python main.py <comando> [opções]
 ```
 
-## Global options
+## Opções globais
 
-None. Each subcommand has its own options.
+Nenhuma. Cada subcomando tem suas próprias opções.
 
-## Commands
+## Comandos
 
 ### `web`
 
-Start the web UI server.
+Inicia o servidor da interface web.
 
 ```
-python main.py web [--port PORT] [--no-browser]
+python main.py web [--port PORTA] [--no-browser]
 ```
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `--port` | int | 8080 | Port to bind (falls back on next free port) |
-| `--browser` / `--no-browser` | bool | True | Auto-open browser on start |
+| Opção | Tipo | Padrão | Descrição |
+|-------|------|--------|-----------|
+| `--port` | int | 8080 | Porta para vincular (faz fallback para a próxima livre) |
+| `--browser` / `--no-browser` | bool | True | Abrir o navegador automaticamente ao iniciar |
 
 ### `vault`
 
-Credential management subcommands.
+Subcomandos de gerenciamento de credenciais.
 
 ```
-python main.py vault <subcommand> [options]
+python main.py vault <subcomando> [opções]
 ```
 
 #### `vault set`
 
-Save or update a credential.
+Salva ou atualiza uma credencial.
 
 ```
-python main.py vault set <service> -u <username>
+python main.py vault set <servico> -u <usuario>
 ```
 
-Prompts for password (hidden input).
+Solicita a senha (entrada oculta).
 
 #### `vault get`
 
-Retrieve a credential.
+Recupera uma credencial.
 
 ```
-python main.py vault get <service> -u <username>
+python main.py vault get <servico> -u <usuario>
 ```
 
-Exits with code 1 if credential not found.
+Encerra com código 1 se a credencial não for encontrada.
 
 #### `vault delete`
 
-Delete all credentials for a service.
+Exclui todas as credenciais de um serviço.
 
 ```
-python main.py vault delete <service>
+python main.py vault delete <servico>
 ```
 
 #### `vault list`
 
-List all stored services and their usernames.
+Lista todos os serviços armazenados e seus usuários.
 
 ```
 python main.py vault list
@@ -71,27 +71,35 @@ python main.py vault list
 
 ### `run`
 
-Execute an RPA task.
+Executa uma tarefa RPA.
 
 ```
-python main.py run <task_name>
+python main.py run <nome_da_tarefa>
 ```
 
-| Argument | Description |
-|----------|-------------|
-| `task_name` | Name of the registered task (e.g. `bulk-register-users`) |
+| Argumento | Descrição |
+|-----------|-----------|
+| `nome_da_tarefa` | Nome da tarefa registrada (ex.: `Relatório Contas Receber`) |
 
 ### `logs`
 
-View application logs.
+Visualiza os logs da aplicação.
 
 ```
-python main.py logs [--level LEVEL] [--since SINCE] [--task TASK] [--json]
+python main.py logs [--level NÍVEL] [--since DESDE] [--task TAREFA] [--json]
 ```
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `--level` | str | `info` | Minimum log level (`debug`, `info`, `warning`, `error`) |
-| `--since` | str | `""` | Show logs since duration (e.g. `1h`, `30m`) |
-| `--task` | str | `""` | Filter by task name |
-| `--json` | bool | False | Output raw JSON lines instead of formatted |
+| Opção | Tipo | Padrão | Descrição |
+|-------|------|--------|-----------|
+| `--level` | str | `info` | Nível mínimo de log (`debug`, `info`, `warning`, `error`) |
+| `--since` | str | `""` | Mostrar logs desde uma duração (ex.: `1h`, `30m`) |
+| `--task` | str | `""` | Filtrar por nome da tarefa |
+| `--json` | bool | False | Saída em linhas JSON cruas em vez de formatada |
+
+### `shutdown`
+
+Encerra o servidor em execução (envia POST para `/api/shutdown` na instância ativa).
+
+```
+python main.py shutdown
+```

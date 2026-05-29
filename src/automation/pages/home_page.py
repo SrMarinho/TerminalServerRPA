@@ -9,6 +9,8 @@ from src.utils.image_match import find_template
 from src.utils.window_utils import maximize_window
 
 _DIAG_DIR = Path("logs/diag")
+_TITLE_IMG = ASSETS_DIR / "Senior" / "components" / "title_bar" / "title.png"
+_MAXIMIZAR_IMG = ASSETS_DIR / "Senior" / "components" / "context_menu" / "maximizar.png"
 
 
 class HomePage:
@@ -19,14 +21,14 @@ class HomePage:
         self._log = log or (lambda _: None)
 
     async def maximize(self) -> None:
-        await maximize_window(self._page, self._log)
+        await maximize_window(self._page, self._log, title_img=_TITLE_IMG, maximizar_img=_MAXIMIZAR_IMG)
 
     async def click_sidebar_item(self, img_name: str, timeout_s: float = 60) -> None:
         img_path = self._ASSETS / "sidebar" / img_name
+        _DIAG_DIR.mkdir(parents=True, exist_ok=True)
         deadline = asyncio.get_event_loop().time() + timeout_s
         while True:
             screenshot = await self._page.screenshot()
-            _DIAG_DIR.mkdir(parents=True, exist_ok=True)
             match = find_template(screenshot, img_path, 0.8)
             if match:
                 cx, cy = match[0]

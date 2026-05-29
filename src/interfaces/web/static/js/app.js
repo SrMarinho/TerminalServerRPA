@@ -11,8 +11,8 @@ var _initTask = null;
 var _initExec = null;
 try {
   _initPanel = sessionStorage.getItem(PANEL_KEY) || 'tasks';
-  _initTask = sessionStorage.getItem('senior-rpa.task');
-  _initExec = sessionStorage.getItem('senior-rpa.exec');
+  _initTask = sessionStorage.getItem('TerminalServerRPA.task');
+  _initExec = sessionStorage.getItem('TerminalServerRPA.exec');
 } catch(e) {}
 
 loadCredentials();

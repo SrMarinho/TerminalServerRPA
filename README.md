@@ -1,71 +1,101 @@
-# senior-rpa
+# TerminalServerRPA
 
-RPA application with local web UI, encrypted credential vault, task runner, and auto-update.
+[![CI](https://github.com/SrMarinho/TerminalServerRPA/actions/workflows/ci.yml/badge.svg)](https://github.com/SrMarinho/TerminalServerRPA/actions/workflows/ci.yml)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
+[![Lint: ruff](https://img.shields.io/badge/lint-ruff-orange.svg)](https://github.com/astral-sh/ruff)
 
-## Features
+Aplicação RPA que automatiza o ERP Senior (via Terminal Server) — interface web local, cofre de credenciais criptografado, executor de tarefas com progresso ao vivo e auto-atualização. Nativa de Windows, processo único, servida via FastAPI.
 
-- **Password vault** — AES-encrypted credentials via Windows Credential Manager (keyring + Fernet)
-- **Web UI** — Tailwind CSS frontend served by FastAPI (localhost)
-- **CLI** — Typer-based interface for vault management and task execution
-- **Task runner** — State machine with pause/resume/cancel, WebSocket live log streaming
-- **Single instance** — Windows mutex prevents duplicate processes; focus existing on re-launch
-- **Auto-update** — GitHub release check + download
-- **Port fallback** — auto-selects next available port if 8080 is busy
+## Funcionalidades
 
-## Quick start
+- **Cofre de senhas** — credenciais criptografadas com Fernet, armazenadas no Gerenciador de Credenciais do Windows (keyring)
+- **Interface web** — frontend Tailwind CSS servido pelo FastAPI (somente localhost)
+- **CLI** — interface de linha de comando (Typer) para gerenciar o cofre e executar tarefas
+- **Executor de tarefas** — máquina de estados com pausar/retomar/cancelar/pular e streaming de log ao vivo via WebSocket
+- **Instância única** — mutex do Windows impede processos duplicados; foca a instância existente ao reabrir
+- **Auto-atualização** — verifica e baixa releases do GitHub
+- **Fallback de porta** — seleciona automaticamente a próxima porta livre se a 8080 estiver ocupada
+
+## Início rápido
 
 ```bash
-# Install dependencies
+# Instalar dependências
 uv sync
 
-# Run web UI
+# Rodar a interface web
 uv run python main.py web
 
-# Manage credentials (CLI)
-uv run python main.py vault set my-service -u my-user
-uv run python main.py vault get my-service
+# Gerenciar credenciais (CLI)
+uv run python main.py vault set meu-servico -u meu-usuario
+uv run python main.py vault get meu-servico
 uv run python main.py vault list
 
-# View logs
+# Ver logs
 uv run python main.py logs --level error
 
-# Run RPA task
-uv run python main.py run bulk-register-users
+# Executar uma tarefa RPA
+uv run python main.py run "Relatório Contas Receber"
 ```
 
-## Development
+## Desenvolvimento
 
 ```bash
-# Tests
+# Testes
 uv run pytest
 
 # Lint
 uv run ruff check
 
-# Type check
+# Checagem de tipos
 uv run pyright src
 
-# Format
+# Formatação
 uv run ruff format
 
-# Build executable
+# Gerar executável
 uv run pyinstaller main.spec
 ```
 
-## Architecture
+## Arquitetura
+
+Camadas de Clean Architecture dentro de um único processo. A interface web e a CLI são adaptadores sobre a mesma camada de infraestrutura e o mesmo motor de automação.
 
 ```
-main.py — Typer entrypoint (web | vault | run | logs)
+main.py                      Entrypoint Typer (web | vault | run | logs | shutdown)
 src/
-  password_vault/   Web server, vault, CLI, task runner, updater
-  automation/       Playwright Page Objects and RPA tasks
-  core/             Domain entities and use cases
-  config/           Runtime configuration
-  utils/            Shared helpers
+  interfaces/
+    web/                     Router FastAPI, WebSocket, servidor, UI estática (JS)
+    cli/                     Subcomandos Typer
+  infrastructure/            vault, task_runner, execution_manager, logger,
+                             single_instance, updater, task_registry
+  automation/
+    pages/                   Page Objects do Playwright (telas do ERP Senior)
+    tasks/                   Tarefas RPA (ex.: geração de relatório)
+  core/                      Entidades de domínio e casos de uso
+  config/                    Configuração de runtime
+  utils/                     Auxiliares compartilhados (image matching, window utils)
 ```
 
-## Project status
+Veja [docs/architecture.md](docs/architecture.md) para o mapa completo de módulos e fluxo de dados.
 
-Implemented: vault, CLI, web UI, task runner, single instance, auto-updater, structured logging, port fallback, CI (GitHub Actions), type checking (pyright), linting (ruff), Playwright RPA tasks.
+## Segurança
 
-Next: release workflow, Playwright-based end-to-end tests, type coverage improvements.
+- Interface web local vinculada apenas a `127.0.0.1`; nunca exposta à rede.
+- Todos os endpoints REST **e** o WebSocket exigem um token Bearer por processo (gerado automaticamente e injetado na página).
+- Credenciais são armazenadas criptografadas (Fernet) no Gerenciador de Credenciais do Windows (keyring) — nunca em texto puro no disco.
+
+Modelo de ameaça completo e riscos aceitos: [docs/security.md](docs/security.md).
+
+## Documentação
+
+| Público | Comece por |
+|---------|-----------|
+| Usuários | [Instalação](docs/installation.md) · [Guia do usuário](docs/user-guide.md) · [Referência da CLI](docs/cli-reference.md) |
+| Desenvolvedores | [Arquitetura](docs/architecture.md) · [Desenvolvimento](docs/development.md) · [Referência da API](docs/api-reference.md) · [Segurança](docs/security.md) |
+| Decisões | [ADRs](docs/decisions/) · [Roadmap](docs/roadmap.md) · [Changelog](CHANGELOG.md) |
+
+## Status do projeto
+
+Implementado: cofre criptografado, CLI, interface web, executor de tarefas (pausar/retomar/cancelar/pular), coordenação de instância única, auto-atualização, logging estruturado, fallback de porta, CI (GitHub Actions, Python 3.10–3.13), checagem de tipos (pyright), lint (ruff), automação RPA com Playwright.
+
+Em andamento: hardening de segurança (auth do WebSocket concluída, shutdown gracioso), validação de requisições com Pydantic, injeção de dependências no lugar de singletons globais, cobertura de testes para a tarefa de relatório em produção. Veja o [Roadmap](docs/roadmap.md).

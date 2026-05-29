@@ -2,7 +2,7 @@ import json
 import sqlite3
 import uuid
 from contextlib import suppress
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 
 DB_DIR = Path(".local")
@@ -58,6 +58,11 @@ def _migrate(conn: sqlite3.Connection):
         CREATE INDEX IF NOT EXISTS idx_steps_exec ON steps(execution_id);
         CREATE INDEX IF NOT EXISTS idx_logs_exec ON logs(execution_id);
         CREATE INDEX IF NOT EXISTS idx_exec_started ON executions(started_at DESC);
+        CREATE TABLE IF NOT EXISTS breakpoints (
+            execution_id TEXT NOT NULL REFERENCES executions(id) ON DELETE CASCADE,
+            step TEXT NOT NULL,
+            PRIMARY KEY (execution_id, step)
+        );
     """)
     with suppress(sqlite3.OperationalError):
         conn.execute("ALTER TABLE steps ADD COLUMN phase TEXT DEFAULT ''")
@@ -69,7 +74,7 @@ class ExecutionManager:
 
     def create(self, task_name: str, params: dict | None = None) -> str:
         exec_id = str(uuid.uuid4())[:8]
-        now = datetime.now(UTC).isoformat()
+        now = datetime.now().isoformat()
         self._conn.execute(
             "INSERT INTO executions (id, task_name, status, params, started_at) VALUES (?, ?, 'running', ?, ?)",
             (exec_id, task_name, json.dumps(params or {}), now),
@@ -100,7 +105,7 @@ class ExecutionManager:
         return []
 
     def set_step(self, execution_id: str, step_name: str, status: str = "running"):
-        now = datetime.now(UTC).isoformat()
+        now = datetime.now().isoformat()
         updated = self._conn.execute(
             "UPDATE steps SET status=?, timestamp=? WHERE execution_id=? AND name=?",
             (status, now, execution_id, step_name),
@@ -129,7 +134,7 @@ class ExecutionManager:
         return row["phase"] if row else ""
 
     def complete(self, execution_id: str, result: dict | None = None):
-        now = datetime.now(UTC).isoformat()
+        now = datetime.now().isoformat()
         self._conn.execute(
             "UPDATE executions SET status='completed', finished_at=?, result=? WHERE id=?",
             (now, json.dumps(result), execution_id),
@@ -145,7 +150,7 @@ class ExecutionManager:
         )
 
     def fail(self, execution_id: str, error: str | None = None):
-        now = datetime.now(UTC).isoformat()
+        now = datetime.now().isoformat()
         self._conn.execute(
             "UPDATE executions SET status='failed', finished_at=?, result=? WHERE id=?",
             (now, json.dumps({"error": error}) if error else "{}", execution_id),
@@ -161,7 +166,7 @@ class ExecutionManager:
         )
 
     def cancel(self, execution_id: str):
-        now = datetime.now(UTC).isoformat()
+        now = datetime.now().isoformat()
         self._conn.execute(
             "UPDATE executions SET status='cancelled', finished_at=? WHERE id=?",
             (now, execution_id),
@@ -180,7 +185,7 @@ class ExecutionManager:
         self._conn.commit()
 
     def add_log(self, execution_id: str, message: str, level: str = "info"):
-        now = datetime.now(UTC).isoformat()
+        now = datetime.now().isoformat()
         self._conn.execute(
             "INSERT INTO logs (execution_id, message, level, timestamp) VALUES (?, ?, ?, ?)",
             (execution_id, message, level, now),
@@ -197,7 +202,7 @@ class ExecutionManager:
         )
 
     def update_step_status(self, execution_id: str, name: str, status: str):
-        now = datetime.now(UTC).isoformat()
+        now = datetime.now().isoformat()
         self._conn.execute(
             "UPDATE steps SET status=?, timestamp=? WHERE execution_id=? AND name=? AND status='running'",
             (status, now, execution_id, name),
@@ -248,11 +253,17 @@ class ExecutionManager:
         return [dict(r) for r in rows]
 
     def _prune(self):
-        self._conn.execute(
+        deleted = self._conn.execute(
             "DELETE FROM executions WHERE id NOT IN (SELECT id FROM executions ORDER BY started_at DESC LIMIT ?)",
             (MAX_EXECUTIONS,),
-        )
+        ).rowcount
         self._conn.commit()
+        if deleted:
+            # sync breakpoint cache after cascade deletions
+            surviving = {row[0] for row in self._conn.execute("SELECT id FROM executions").fetchall()}
+            stale = [eid for eid in _breakpoints if eid not in surviving]
+            for eid in stale:
+                del _breakpoints[eid]
         _prune_diag()
 
 
@@ -263,9 +274,9 @@ _DIAG_MAX_DAYS = 7
 def _prune_diag() -> None:
     if not _DIAG_DIR.exists():
         return
-    cutoff = datetime.now(UTC) - timedelta(days=_DIAG_MAX_DAYS)
+    cutoff = datetime.now() - timedelta(days=_DIAG_MAX_DAYS)
     for f in _DIAG_DIR.iterdir():
-        if f.is_file() and datetime.fromtimestamp(f.stat().st_mtime, UTC) < cutoff:
+        if f.is_file() and datetime.fromtimestamp(f.stat().st_mtime) < cutoff:
             f.unlink(missing_ok=True)
 
     def close(self):
@@ -273,7 +284,15 @@ def _prune_diag() -> None:
 
 
 _manager = ExecutionManager()
-_breakpoints: dict[str, set[str]] = {}  # execution_id -> set of step names
+_breakpoints: dict[str, set[str]] = {}  # execution_id -> set of step names (cache)
+
+
+def _load_breakpoints():
+    """Populate breakpoint cache from DB on startup."""
+    conn = _get_conn()
+    rows = conn.execute("SELECT execution_id, step FROM breakpoints").fetchall()
+    for exec_id, step in rows:
+        _breakpoints.setdefault(exec_id, set()).add(step)
 
 
 def get_manager() -> ExecutionManager:
@@ -281,10 +300,20 @@ def get_manager() -> ExecutionManager:
 
 
 def set_breakpoint(execution_id: str, step: str, enabled: bool) -> None:
+    conn = _get_conn()
     if enabled:
         _breakpoints.setdefault(execution_id, set()).add(step)
+        conn.execute(
+            "INSERT OR IGNORE INTO breakpoints (execution_id, step) VALUES (?, ?)",
+            (execution_id, step),
+        )
     else:
         _breakpoints.get(execution_id, set()).discard(step)
+        conn.execute(
+            "DELETE FROM breakpoints WHERE execution_id = ? AND step = ?",
+            (execution_id, step),
+        )
+    conn.commit()
 
 
 def has_breakpoint(execution_id: str, step: str) -> bool:
@@ -293,3 +322,6 @@ def has_breakpoint(execution_id: str, step: str) -> bool:
 
 def get_breakpoints(execution_id: str) -> list[str]:
     return list(_breakpoints.get(execution_id, set()))
+
+
+_load_breakpoints()

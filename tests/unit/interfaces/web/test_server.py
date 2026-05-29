@@ -45,7 +45,7 @@ class TestBuildApp:
 
         app = _build_app(asyncio.Queue())
         assert isinstance(app, FastAPI)
-        assert app.title == "senior-rpa"
+        assert app.title == "TerminalServerRPA"
 
     def test_includes_router(self):
         from src.interfaces.web.server import _build_app

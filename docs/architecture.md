@@ -1,117 +1,123 @@
-# Architecture
+# Arquitetura
 
-## Overview
+## Visão geral
 
-senior-rpa is a Windows-native RPA application with a local web UI, encrypted credential storage, and an automation engine. The architecture follows clean architecture layers within a single process, served via FastAPI.
-
-```
-User (browser) ←→ FastAPI (localhost) ←→ Task Runner ←→ Playwright (Chromium)
-                     ↕                            ↕
-                 Keyring vault              structlog → JSON file / WS
-```
-
-## Module map
+O TerminalServerRPA é uma aplicação RPA nativa de Windows com interface web local, armazenamento de credenciais criptografado e um motor de automação. A arquitetura segue camadas de Clean Architecture dentro de um único processo, servida via FastAPI.
 
 ```
-main.py                                 Typer entrypoint
-├── web                                 Start FastAPI server (uvicorn)
-├── vault                               Delegate to CLI vault commands
-├── run                                 Execute an RPA task
-└── logs                                Read filtered log file
+Usuário (navegador) ←→ FastAPI (localhost) ←→ Task Runner ←→ Playwright (Chromium)
+                          ↕                          ↕
+                    Cofre (keyring)         structlog → arquivo JSON / WS
+```
 
-src/password_vault/                     Backend core
-├── server.py                           FastAPI app factory + uvicorn runner
-│   ├── find_free_port()                Socket-based port discovery
-│   ├── is_first_instance()             Windows mutex check
-│   ├── save_port() / read_port()       Port persistence for IPC
-│   └── focus_existing_instance()       HTTP request to running instance
-├── router.py                           FastAPI router: credentials, tasks, WS, /_focus
-├── vault.py                            Encrypted credential store
-│   ├── keyring                         Windows Credential Manager (backend-agnostic)
-│   ├── Fernet (cryptography)           AES-128-CBC encryption
-│   └── encrypted index                 Tracks service→username mappings
-├── cli.py                              Typer vault commands + log reader
-├── task_runner.py                      Async state machine
+## Mapa de módulos
+
+```
+main.py                                 Entrypoint Typer
+├── web                                 Inicia o servidor FastAPI (uvicorn)
+├── vault                               Delega aos comandos de cofre da CLI
+├── run                                 Executa uma tarefa RPA
+├── logs                                Lê o arquivo de log filtrado
+└── shutdown                            Encerra o servidor em execução
+
+src/interfaces/web/                     Adaptador da interface web
+├── server.py                           Fábrica do app FastAPI + runner uvicorn
+│   ├── find_free_port()                Descoberta de porta via socket
+│   ├── lifespan                        Inicia o consumidor de broadcast do WebSocket
+│   └── run_server()                    Checagem de instância única + start
+├── router.py                           Rotas FastAPI: credenciais, tarefas, execuções, WS
+│   └── verify_token()                  Autenticação por token (Bearer/query) nas rotas /api/*
+├── websocket.py                        ConnectionManager + broadcast fila→WS
+├── static/js/                          UI single-page (Tailwind CSS) em JS vanilla
+└── templates/index.html               Casca HTML da UI
+
+src/interfaces/cli/                     Adaptador da CLI
+└── cli.py                              Comandos de cofre, run, logs, shutdown
+
+src/infrastructure/                     Infraestrutura
+├── vault.py                            Cofre de credenciais criptografado
+│   ├── keyring                         Gerenciador de Credenciais do Windows
+│   ├── Fernet (cryptography)           Criptografia simétrica
+│   └── índice criptografado            Mapeia serviço→usuários
+├── task_runner.py                      Máquina de estados assíncrona
 │   ├── TaskStatus                      idle→running↔paused→completed|failed|cancelled
-│   ├── checkpoint()                    Yields control for pause/cancel
-│   └── _execute()                      Dispatches to registered task handlers
-├── websocket.py                        ConnectionManager + async queue→WS broadcast
-├── logger.py                           structlog configuration
-│   ├── JSON file handler               Rotating file (10MB, 5 backups)
-│   ├── console handler                 Colorized dev output
-│   └── async queue processor           Pushes events to WebSocket broadcast
-├── single_instance.py                  Windows mutex + socket-based focus IPC
-├── updater.py                          GitHub Releases check + asset download
-└── templates/index.html                Tailwind CSS single-page UI
+│   ├── report_step()                   Reporta passo, checa breakpoints/skip
+│   └── TaskPool                        Gerencia execuções concorrentes
+├── execution_manager.py               Persistência de execuções e passos (SQLite) + eventos
+├── task_registry.py                    Registro de tarefas + auto-descoberta
+├── task_config.py                      Persistência de parâmetros das tarefas
+├── logger.py                           Configuração do structlog
+│   ├── RotatingFileHandler             Arquivo rotativo (JSON)
+│   ├── handler de console              Saída colorida para dev
+│   └── ponte para fila assíncrona      Empurra eventos para broadcast no WebSocket
+├── single_instance.py                  Mutex do Windows + foco via socket + token de API
+└── updater.py                          Verificação e download de releases do GitHub
 
-src/core/entities/                      Domain models
-└── user.py                             User dataclass with validation
+src/automation/pages/                   Page Objects do Playwright (telas do ERP Senior)
+├── ts_login_page.py                    Login no Terminal Server
+├── senior_login_page.py               Login no ERP Senior (template matching + OCR)
+├── home_page.py                        Navegação na sidebar (template matching)
+└── ...                                 Demais telas (seleção de modelos, valores de entrada)
 
-src/core/use_cases/                     Business logic
-└── register_users_use_case.py          User registration pipeline + duplicate detection
+src/automation/tasks/                   Fluxos orquestrados
+└── report_generation.py               Tarefa "Relatório Contas Receber"
 
-src/automation/pages/                   Playwright Page Objects
-├── login_page.py                       Login form interaction
-└── user_registration_page.py           Registration form interaction
-
-src/automation/tasks/                   Orchestrated workflows
-└── bulk_user_registration_task.py      Login → validate → register each user
+src/core/entities/  +  src/core/use_cases/   Camada de domínio (entidades e casos de uso)
+src/config/settings.py                  Configuração de runtime (ASSETS_DIR, DEV_MODE)
+src/utils/                              Auxiliares (image_match, window_utils)
 ```
 
-## Data flow (task execution)
+## Fluxo de dados (execução de tarefa)
 
 ```
-1. User clicks "Run" in browser
-2. POST /api/run/bulk-register-users → router.py
-3. router calls asyncio.create_task(runner.run("bulk-register-users"))
-4. TaskRunner.run() sets status=RUNNING, calls _execute()
-5. _execute dispatches to _bulk_register_users()
-6. Playwright launches headless Chromium
-7. LoginPage.navigate() → LoginPage.login()
-8. UseCase validates users
-9. For each valid user: UserRegistrationPage.register()
-10. On complete: status=COMPLETED
-11. All checkpoints yield to event loop for pause/cancel
+1. Usuário clica em "Executar" no navegador
+2. POST /api/run/{task_name} → router.py
+3. router chama TaskPool.start(task_name, params) → cria execução + Task assíncrona
+4. TaskRunner.run() define status=RUNNING e chama o handler da tarefa
+5. A tarefa abre o Chromium via Playwright e percorre os Page Objects
+6. A cada passo: report_step() persiste o status e checa pausa/cancelamento/skip
+7. Eventos (passo, log, screenshot) são transmitidos por WebSocket aos clientes
+8. Ao concluir: status=COMPLETED (ou FAILED/CANCELLED); o navegador é fechado no finally
 ```
 
-## Port fallback
+## Fallback de porta
 
 ```
 run_server(port=8080)
   → find_free_port(8080)
     → socket.connect_ex(("127.0.0.1", 8080))
-      → 0 (busy) → try 8081 → ... → find free port
-    → returns actual_port
-  → save_port(actual_port) to %LOCALAPPDATA%/senior-rpa/port.txt
+      → 0 (ocupada) → tenta 8081 → ... → encontra porta livre
+    → retorna actual_port
+  → save_port(actual_port) em %LOCALAPPDATA%/TerminalServerRPA/port.txt
   → webbrowser.open(f"http://127.0.0.1:{actual_port}")
   → uvicorn.run(port=actual_port)
 ```
 
-## Single instance protocol
+## Protocolo de instância única
 
 ```
-First instance:
-  → CreateMutex("SeniorRPA-{dirhash}") succeeds
-  → Start server, save port
-  → Listen for HTTP requests on /_focus
+Primeira instância:
+  → CreateMutex("TerminalServerRPA-{dirhash}") tem sucesso
+  → Inicia o servidor, salva a porta
+  → Escuta requisições HTTP em /_focus
 
-Second instance:
-  → CreateMutex fails (ERROR_ALREADY_EXISTS)
-  → Read port from %LOCALAPPDATA%/senior-rpa/port.txt
+Segunda instância:
+  → CreateMutex falha (ERROR_ALREADY_EXISTS)
+  → Lê a porta de %LOCALAPPDATA%/TerminalServerRPA/port.txt
   → GET http://127.0.0.1:{port}/_focus
-  → Exit
+  → Encerra
 
-Existing instance:
-  → /_focus calls webbrowser.open(url) to bring tab to front
+Instância existente:
+  → /_focus traz a aba do navegador para frente
 ```
 
-## Log system
+## Sistema de logs
 
 ```
-Application code → structlog (sync)
-                    ├── RotatingFileHandler → logs/senior-rpa.jsonl
-                    ├── StreamHandler → stderr (dev console)
-                    └── Async queue → WebSocket broadcast
+Código da aplicação → structlog (síncrono)
+                       ├── RotatingFileHandler → logs/TerminalServerRPA.jsonl
+                       ├── StreamHandler → stderr (console de dev)
+                       └── fila assíncrona → broadcast no WebSocket
 ```
 
-The async queue bridge in `logger.py` (`_ws_processor`) pushes every log event into an `asyncio.Queue`. The `websocket.py` `broadcast_from_queue` coroutine drains this queue and broadcasts to all connected WebSocket clients.
+A ponte de fila assíncrona em `logger.py` (`_ws_processor`) empurra cada evento de log para uma `asyncio.Queue`. A corrotina `broadcast_from_queue` em `websocket.py` drena essa fila e transmite a todos os clientes WebSocket conectados.

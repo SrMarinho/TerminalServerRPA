@@ -9,7 +9,7 @@ import structlog.processors
 from structlog.processors import JSONRenderer, TimeStamper
 
 LOG_DIR = Path("logs")
-LOG_FILE = LOG_DIR / "senior-rpa.jsonl"
+LOG_FILE = LOG_DIR / "TerminalServerRPA.jsonl"
 
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -33,7 +33,7 @@ def configure_logger(level=logging.INFO):
     if _configured:
         return
     _configured = True
-    timestamper = TimeStamper(fmt="iso", utc=True)
+    timestamper = TimeStamper(fmt="iso", utc=False)
 
     shared_processors = [
         structlog.stdlib.add_log_level,

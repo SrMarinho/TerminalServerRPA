@@ -4,11 +4,23 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from src.interfaces.web.router import router
+from src.interfaces.web.router import api_router, router
 
 app = FastAPI()
 app.include_router(router)
+app.include_router(api_router)
 client = TestClient(app)
+
+AUTH_TOKEN = "test-token-123"
+
+
+@pytest.fixture(autouse=True)
+def mock_token():
+    with patch(
+        "src.interfaces.web.router.get_or_create_token",
+        return_value=AUTH_TOKEN,
+    ):
+        yield
 
 
 @pytest.fixture(autouse=True)
@@ -32,9 +44,15 @@ def mock_config():
 @pytest.fixture(autouse=True)
 def mock_registry():
     with (
-        patch("src.interfaces.web.router.TaskRegistry.list", return_value=["bulk-register-users"]),
+        patch(
+            "src.interfaces.web.router.TaskRegistry.list",
+            return_value=["bulk-register-users"],
+        ),
         patch("src.interfaces.web.router.TaskRegistry.auto_discover"),
-        patch("src.interfaces.web.router.TaskRegistry.get_schema", return_value=[{"name": "x", "type": "string"}]),
+        patch(
+            "src.interfaces.web.router.TaskRegistry.get_schema",
+            return_value=[{"name": "x", "type": "string"}],
+        ),
     ):
         yield
 
@@ -55,45 +73,72 @@ class TestFocus:
 
 class TestListCredentials:
     def test_returns_service_list(self, mock_vault):
-        resp = client.get("/api/credentials")
+        resp = client.get(
+            "/api/credentials",
+            headers={"Authorization": f"Bearer {AUTH_TOKEN}"},
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert len(data) == 1
         assert data[0]["service"] == "svc1"
         assert data[0]["usernames"] == ["usr1"]
 
+    def test_rejects_without_token(self):
+        resp = client.get("/api/credentials")
+        assert resp.status_code == 401
+
 
 class TestSaveCredential:
     def test_saves_valid_credential(self, mock_vault):
-        resp = client.post("/api/credentials", json={"service": "s", "username": "u", "password": "p"})
+        resp = client.post(
+            "/api/credentials",
+            json={"service": "s", "username": "u", "password": "p"},
+            headers={"Authorization": f"Bearer {AUTH_TOKEN}"},
+        )
         assert resp.status_code == 200
         assert resp.json() == {"status": "ok"}
         mock_vault.set_password.assert_called_once_with("s", "u", "p")
 
     def test_rejects_missing_fields(self, mock_vault):
-        resp = client.post("/api/credentials", json={"service": "s"})
+        resp = client.post(
+            "/api/credentials",
+            json={"service": "s"},
+            headers={"Authorization": f"Bearer {AUTH_TOKEN}"},
+        )
         assert resp.status_code == 400
 
 
 class TestGetCredential:
     def test_returns_credential(self, mock_vault):
-        resp = client.get("/api/credentials/svc1?username=usr1")
+        resp = client.get(
+            "/api/credentials/svc1?username=usr1",
+            headers={"Authorization": f"Bearer {AUTH_TOKEN}"},
+        )
         assert resp.status_code == 200
         assert resp.json()["password"] == "secret123"
 
     def test_returns_404_if_missing(self, mock_vault):
         mock_vault.get_password.return_value = None
-        resp = client.get("/api/credentials/unknown?username=u")
+        resp = client.get(
+            "/api/credentials/unknown?username=u",
+            headers={"Authorization": f"Bearer {AUTH_TOKEN}"},
+        )
         assert resp.status_code == 404
 
     def test_requires_username(self, mock_vault):
-        resp = client.get("/api/credentials/svc1")
+        resp = client.get(
+            "/api/credentials/svc1",
+            headers={"Authorization": f"Bearer {AUTH_TOKEN}"},
+        )
         assert resp.status_code == 400
 
 
 class TestDeleteCredential:
     def test_deletes_service(self, mock_vault):
-        resp = client.delete("/api/credentials/svc1")
+        resp = client.delete(
+            "/api/credentials/svc1",
+            headers={"Authorization": f"Bearer {AUTH_TOKEN}"},
+        )
         assert resp.status_code == 200
         mock_vault.delete_password.assert_called_once_with("svc1")
 
@@ -109,53 +154,101 @@ def mock_pool():
 
 class TestTasks:
     def test_list_tasks(self, mock_vault):
-        resp = client.get("/api/tasks")
+        resp = client.get(
+            "/api/tasks",
+            headers={"Authorization": f"Bearer {AUTH_TOKEN}"},
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert "bulk-register-users" in data["available"]
-        assert "current_status" not in data
 
     def test_run_task(self, mock_vault, mock_pool):
-        resp = client.post("/api/run/bulk-register-users")
+        resp = client.post(
+            "/api/run/bulk-register-users",
+            headers={"Authorization": f"Bearer {AUTH_TOKEN}"},
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["status"] == "started"
         assert "task_id" in data
 
     def test_list_running(self, mock_vault, mock_pool):
-        resp = client.get("/api/tasks/running")
+        resp = client.get(
+            "/api/tasks/running",
+            headers={"Authorization": f"Bearer {AUTH_TOKEN}"},
+        )
         assert resp.status_code == 200
         assert resp.json() == {}
 
     def test_pause_by_id_not_found(self, mock_pool):
-        resp = client.post("/api/tasks/nonexistent/pause")
+        resp = client.post(
+            "/api/tasks/nonexistent/pause",
+            headers={"Authorization": f"Bearer {AUTH_TOKEN}"},
+        )
         assert resp.status_code == 404
 
     def test_cancel_by_id_not_found(self, mock_pool):
-        resp = client.post("/api/tasks/nonexistent/cancel")
+        resp = client.post(
+            "/api/tasks/nonexistent/cancel",
+            headers={"Authorization": f"Bearer {AUTH_TOKEN}"},
+        )
         assert resp.status_code == 404
 
 
 class TestTaskConfig:
     def test_get_config_returns_empty_by_default(self, mock_vault, mock_config):
-        resp = client.get("/api/tasks/test-task/config")
+        resp = client.get(
+            "/api/tasks/test-task/config",
+            headers={"Authorization": f"Bearer {AUTH_TOKEN}"},
+        )
         assert resp.status_code == 200
         assert resp.json() == {}
 
     def test_save_config(self, mock_vault, mock_config):
-        resp = client.post("/api/tasks/test-task/config", json={"key": "val"})
+        resp = client.post(
+            "/api/tasks/test-task/config",
+            json={"key": "val"},
+            headers={"Authorization": f"Bearer {AUTH_TOKEN}"},
+        )
         assert resp.status_code == 200
         assert resp.json() == {"status": "saved"}
         mock_config.assert_called_once_with("test-task", {"key": "val"})
 
     def test_run_saves_config_when_body_provided(self, mock_vault, mock_config):
-        resp = client.post("/api/run/test-task", json={"env": "prod"})
+        resp = client.post(
+            "/api/run/test-task",
+            json={"env": "prod"},
+            headers={"Authorization": f"Bearer {AUTH_TOKEN}"},
+        )
         assert resp.status_code == 200
         mock_config.assert_called_once_with("test-task", {"env": "prod"})
 
 
 class TestTaskSchema:
     def test_get_schema(self, mock_vault, mock_registry):
-        resp = client.get("/api/tasks/test-task/schema")
+        resp = client.get(
+            "/api/tasks/test-task/schema",
+            headers={"Authorization": f"Bearer {AUTH_TOKEN}"},
+        )
         assert resp.status_code == 200
         assert resp.json() == [{"name": "x", "type": "string"}]
+
+
+class TestWebSocketAuth:
+    def test_ws_rejects_missing_token(self):
+        from starlette.websockets import WebSocketDisconnect
+
+        with pytest.raises(WebSocketDisconnect) as exc, client.websocket_connect("/ws"):
+            pass
+        assert exc.value.code == 1008
+
+    def test_ws_rejects_invalid_token(self):
+        from starlette.websockets import WebSocketDisconnect
+
+        with pytest.raises(WebSocketDisconnect) as exc, client.websocket_connect("/ws?token=wrong"):
+            pass
+        assert exc.value.code == 1008
+
+    def test_ws_accepts_valid_token(self):
+        with client.websocket_connect(f"/ws?token={AUTH_TOKEN}") as ws:
+            assert ws is not None

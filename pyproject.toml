@@ -1,5 +1,5 @@
 [project]
-name = "senior-rpa"
+name = "terminalserverrpa"
 version = "0.1.0"
 description = "RPA application with encrypted credential vault"
 readme = "README.md"
