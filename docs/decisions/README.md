@@ -8,3 +8,4 @@ Formato: `ADR-NNNN-slug-curto.md` com as seções **Status**, **Contexto**, **De
 |-----|--------|--------|
 | [0001](ADR-0001-websocket-token-auth.md) | Autenticar o WebSocket com o token de API | Aceito |
 | [0002](ADR-0002-project-rename.md) | Renomear o projeto para TerminalServerRPA | Aceito |
+| [0003](ADR-0003-remove-orphan-core-layer.md) | Remover a camada `core` órfã | Aceito |

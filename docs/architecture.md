@@ -62,7 +62,6 @@ src/automation/pages/                   Page Objects do Playwright (telas do ERP
 src/automation/tasks/                   Fluxos orquestrados
 └── report_generation.py               Tarefa "Relatório Contas Receber"
 
-src/core/entities/  +  src/core/use_cases/   Camada de domínio (entidades e casos de uso)
 src/config/settings.py                  Configuração de runtime (ASSETS_DIR, DEV_MODE)
 src/utils/                              Auxiliares (image_match, window_utils)
 ```
