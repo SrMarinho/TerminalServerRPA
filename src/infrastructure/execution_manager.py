@@ -307,24 +307,35 @@ def _prune_diag() -> None:
             f.unlink(missing_ok=True)
 
 
-_manager = ExecutionManager()
+_manager: ExecutionManager | None = None
 _breakpoints: dict[str, set[str]] = {}  # execution_id -> set of step names (cache)
 
 
-def _load_breakpoints():
-    """Populate breakpoint cache from DB on startup."""
-    conn = _get_conn()
+def _load_breakpoints(conn: sqlite3.Connection):
+    """Populate breakpoint cache from DB on first manager access."""
     rows = conn.execute("SELECT execution_id, step FROM breakpoints").fetchall()
     for exec_id, step in rows:
         _breakpoints.setdefault(exec_id, set()).add(step)
 
 
 def get_manager() -> ExecutionManager:
+    global _manager
+    if _manager is None:
+        _manager = ExecutionManager()
+        _load_breakpoints(_manager._conn)
     return _manager
 
 
+def close_manager() -> None:
+    """Close the singleton connection and reset it so the next access reopens."""
+    global _manager
+    if _manager is not None:
+        _manager.close()
+        _manager = None
+
+
 def set_breakpoint(execution_id: str, step: str, enabled: bool) -> None:
-    conn = _get_conn()
+    conn = get_manager()._conn
     if enabled:
         _breakpoints.setdefault(execution_id, set()).add(step)
         conn.execute(
@@ -346,6 +357,3 @@ def has_breakpoint(execution_id: str, step: str) -> bool:
 
 def get_breakpoints(execution_id: str) -> list[str]:
     return list(_breakpoints.get(execution_id, set()))
-
-
-_load_breakpoints()
