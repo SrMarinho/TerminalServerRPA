@@ -4,6 +4,10 @@ Todas as mudanças notáveis deste projeto são documentadas aqui. O formato é 
 
 ## [Não lançado]
 
+### Adicionado
+- Testes para a tarefa de produção `GeracaoRelatorio` (schema, fases de passos e
+  resolução de credenciais do cofre).
+
 ### Removido
 - Camada `core` órfã (`entities`/`use_cases`) que nenhuma parte da aplicação usava
   (ver [ADR-0003](docs/decisions/ADR-0003-remove-orphan-core-layer.md)).
