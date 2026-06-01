@@ -29,6 +29,9 @@ def find_free_port(start: int = 8080, max_attempts: int = 100) -> int:
 def _build_app(ws_queue: asyncio.Queue) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
+        from src.infrastructure.task_registry import TaskRegistry
+
+        TaskRegistry.auto_discover()  # scan tasks once at startup
         bg = asyncio.create_task(broadcast_from_queue(ws_queue))
         log.info("ws.broadcast.started")
         yield

@@ -71,7 +71,6 @@ src/
   automation/
     pages/                   Page Objects do Playwright (telas do ERP Senior)
     tasks/                   Tarefas RPA (ex.: geração de relatório)
-  core/                      Entidades de domínio e casos de uso
   config/                    Configuração de runtime
   utils/                     Auxiliares compartilhados (image matching, window utils)
 ```

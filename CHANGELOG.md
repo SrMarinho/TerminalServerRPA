@@ -4,7 +4,15 @@ Todas as mudanças notáveis deste projeto são documentadas aqui. O formato é 
 
 ## [Não lançado]
 
+### Removido
+- Camada `core` órfã (`entities`/`use_cases`) que nenhuma parte da aplicação usava
+  (ver [ADR-0003](docs/decisions/ADR-0003-remove-orphan-core-layer.md)).
+
 ### Alterado
+- `TaskRegistry.auto_discover` agora é idempotente (varre o filesystem uma vez por
+  processo); a descoberta roda no startup do servidor em vez de a cada requisição.
+- Validação de corpo de requisição via Pydantic (`CredentialIn`, `BreakpointIn`,
+  `SnippetIn`); corpos inválidos retornam 422.
 - Projeto renomeado de `senior-rpa` para **TerminalServerRPA** em todos os identificadores (diretório de dados, serviços do keyring, mutex do Windows, nomes de logger, arquivo de log, chaves de storage da UI, variável de ambiente, nome de distribuição). As referências ao produto ERP "Senior" permanecem inalteradas.
 
 ### Segurança

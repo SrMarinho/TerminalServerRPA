@@ -7,6 +7,7 @@ class Task(Protocol):
 
 class TaskRegistry:
     _tasks: dict[str, type] = {}
+    _discovered: bool = False
 
     @classmethod
     def register(cls, name: str = ""):
@@ -27,6 +28,9 @@ class TaskRegistry:
 
     @classmethod
     def auto_discover(cls):
+        # Idempotent: the filesystem scan runs only once per process.
+        if cls._discovered:
+            return
         import importlib
         import pkgutil
 
@@ -38,6 +42,7 @@ class TaskRegistry:
             count += 1
         if count == 0:
             importlib.import_module("src.automation.tasks")
+        cls._discovered = True
 
     @classmethod
     def get_schema(cls, name: str) -> list:
