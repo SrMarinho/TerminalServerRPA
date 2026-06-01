@@ -2,10 +2,15 @@ import pytest
 
 from src.infrastructure.vault import Vault
 
+_TEST_SERVICES = ("s1", "s2", "svc", "test-svc")
+
 
 @pytest.fixture
 def vault():
-    return Vault()
+    v = Vault()
+    yield v
+    for svc in _TEST_SERVICES:
+        v.delete_password(svc)
 
 
 class TestVaultIntegration:
