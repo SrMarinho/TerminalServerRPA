@@ -23,7 +23,7 @@ def _check_for_update() -> None:
     import threading
 
     from src.config.version import VERSION
-    from src.infrastructure.updater import check_for_update, download_asset
+    from src.infrastructure.updater import check_for_update
 
     def _run():
         try:

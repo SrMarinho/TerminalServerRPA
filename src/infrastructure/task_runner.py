@@ -1,22 +1,13 @@
 import asyncio
 import traceback
-from enum import StrEnum
 
 from src.infrastructure.execution_manager import _broadcast_exec_event, get_manager, has_breakpoint
+from src.infrastructure.models import ExecutionStatus
 from src.infrastructure.task_registry import TaskRegistry
 
 
 class SkipStep(Exception):  # noqa: N818
     pass
-
-
-class TaskStatus(StrEnum):
-    IDLE = "idle"
-    RUNNING = "running"
-    PAUSED = "paused"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    CANCELLED = "cancelled"
 
 
 class TaskRunner:
@@ -27,13 +18,13 @@ class TaskRunner:
         self._pause_event.set()
         self._cancel_requested = False
         self._skip_current = False
-        self._status = TaskStatus.IDLE
+        self._status = ExecutionStatus.IDLE
         self._result = None
         self._task: asyncio.Task | None = None
         self._page: object | None = None
 
     @property
-    def status(self) -> TaskStatus:
+    def status(self) -> ExecutionStatus:
         return self._status
 
     @property
@@ -41,23 +32,23 @@ class TaskRunner:
         return self._execution_id
 
     async def run(self, task_name: str, params: dict | None = None):
-        self._status = TaskStatus.RUNNING
+        self._status = ExecutionStatus.RUNNING
         self._cancel_requested = False
         self._pause_event.set()
         try:
             await self._execute(task_name, params or {})
             if not self._cancel_requested:
-                self._status = TaskStatus.COMPLETED
+                self._status = ExecutionStatus.COMPLETED
                 if self._current_step:
                     get_manager().update_step_status(self._execution_id, self._current_step, "completed")
                 get_manager().complete(self._execution_id, self._result)
         except asyncio.CancelledError:
-            self._status = TaskStatus.CANCELLED
+            self._status = ExecutionStatus.CANCELLED
             if self._current_step:
                 get_manager().update_step_status(self._execution_id, self._current_step, "cancelled")
             get_manager().cancel(self._execution_id)
         except Exception as e:
-            self._status = TaskStatus.FAILED
+            self._status = ExecutionStatus.FAILED
             if self._current_step:
                 get_manager().update_step_status(self._execution_id, self._current_step, "failed")
             get_manager().fail(self._execution_id, str(e) + "\n" + traceback.format_exc())
@@ -105,8 +96,8 @@ class TaskRunner:
         await self._pause_event.wait()
 
     def pause(self):
-        if self._status == TaskStatus.RUNNING:
-            self._status = TaskStatus.PAUSED
+        if self._status == ExecutionStatus.RUNNING:
+            self._status = ExecutionStatus.PAUSED
             self._pause_event.clear()
             if self._execution_id:
                 get_manager().set_status(self._execution_id, "paused")
@@ -115,8 +106,8 @@ class TaskRunner:
                 )
 
     def resume(self):
-        if self._status == TaskStatus.PAUSED:
-            self._status = TaskStatus.RUNNING
+        if self._status == ExecutionStatus.PAUSED:
+            self._status = ExecutionStatus.RUNNING
             self._pause_event.set()
             if self._execution_id:
                 get_manager().set_status(self._execution_id, "running")
@@ -125,12 +116,12 @@ class TaskRunner:
                 )
 
     def skip_step(self):
-        if self._status == TaskStatus.PAUSED:
+        if self._status == ExecutionStatus.PAUSED:
             self._skip_current = True
             self.resume()
 
     def cancel(self):
-        if self._status in (TaskStatus.RUNNING, TaskStatus.PAUSED):
+        if self._status in (ExecutionStatus.RUNNING, ExecutionStatus.PAUSED):
             self._cancel_requested = True
             self._pause_event.set()
             if self._task and not self._task.done():
@@ -142,7 +133,7 @@ class TaskPool:
         self._runners: dict[str, TaskRunner] = {}
 
     def is_busy(self) -> bool:
-        return any(r.status in (TaskStatus.RUNNING, TaskStatus.PAUSED) for r in self._runners.values())
+        return any(r.status in (ExecutionStatus.RUNNING, ExecutionStatus.PAUSED) for r in self._runners.values())
 
     def start(self, task_name: str, params: dict | None = None, breakpoints: list[str] | None = None) -> str:
         from src.infrastructure.execution_manager import set_breakpoint
@@ -173,14 +164,18 @@ class TaskPool:
         return {tid: {"task_id": tid, "status": r.status.value} for tid, r in self._runners.items()}
 
     def cleanup_done(self):
-        done = [tid for tid, r in self._runners.items() if r.status not in (TaskStatus.RUNNING, TaskStatus.PAUSED)]
+        done = [
+            tid
+            for tid, r in self._runners.items()
+            if r.status not in (ExecutionStatus.RUNNING, ExecutionStatus.PAUSED)
+        ]
         for tid in done:
             del self._runners[tid]
 
     def shutdown(self):
         """Cancel every active runner so the process can exit cleanly."""
         for runner in self._runners.values():
-            if runner.status in (TaskStatus.RUNNING, TaskStatus.PAUSED):
+            if runner.status in (ExecutionStatus.RUNNING, ExecutionStatus.PAUSED):
                 runner.cancel()
 
 

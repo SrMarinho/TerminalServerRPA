@@ -2,7 +2,8 @@ import asyncio
 
 import pytest
 
-from src.infrastructure.task_runner import TaskRunner, TaskStatus
+from src.infrastructure.models import ExecutionStatus
+from src.infrastructure.task_runner import TaskRunner
 
 
 @pytest.fixture
@@ -12,32 +13,32 @@ def runner():
 
 class TestInitialState:
     def test_starts_idle(self, runner):
-        assert runner.status == TaskStatus.IDLE
+        assert runner.status == ExecutionStatus.IDLE
 
 
 class TestPauseResume:
     def test_pause_sets_paused(self, runner):
-        runner._status = TaskStatus.RUNNING
+        runner._status = ExecutionStatus.RUNNING
         runner.pause()
-        assert runner.status == TaskStatus.PAUSED
+        assert runner.status == ExecutionStatus.PAUSED
 
     def test_resume_sets_running(self, runner):
-        runner._status = TaskStatus.PAUSED
+        runner._status = ExecutionStatus.PAUSED
         runner.resume()
-        assert runner.status == TaskStatus.RUNNING
+        assert runner.status == ExecutionStatus.RUNNING
 
     def test_pause_ignored_if_not_running(self, runner):
         runner.pause()
-        assert runner.status == TaskStatus.IDLE
+        assert runner.status == ExecutionStatus.IDLE
 
     def test_resume_ignored_if_not_paused(self, runner):
         runner.resume()
-        assert runner.status == TaskStatus.IDLE
+        assert runner.status == ExecutionStatus.IDLE
 
 
 class TestCancel:
     def test_cancel_sets_flag(self, runner):
-        runner._status = TaskStatus.RUNNING
+        runner._status = ExecutionStatus.RUNNING
         runner.cancel()
         assert runner._cancel_requested is True
 
@@ -55,7 +56,7 @@ class TestCheckpoint:
 
     @pytest.mark.asyncio
     async def test_checkpoint_pauses_when_paused(self, runner):
-        runner._status = TaskStatus.PAUSED
+        runner._status = ExecutionStatus.PAUSED
         runner._pause_event.clear()
 
         async def resume_soon():
@@ -70,7 +71,7 @@ class TestRun:
     @pytest.mark.asyncio
     async def test_run_marks_completed(self, runner):
         await runner.run("noop-task")
-        assert runner.status == TaskStatus.COMPLETED
+        assert runner.status == ExecutionStatus.COMPLETED
 
     @pytest.mark.asyncio
     async def test_run_cancelled_via_checkpoint(self, runner):
@@ -82,7 +83,7 @@ class TestRun:
 
         runner.checkpoint = cancel_on_first_checkpoint
         await runner.run("noop-task")
-        assert runner.status == TaskStatus.CANCELLED
+        assert runner.status == ExecutionStatus.CANCELLED
 
     @pytest.mark.asyncio
     async def test_run_fails_on_exception(self, runner):
@@ -91,7 +92,7 @@ class TestRun:
 
         runner._execute = raise_error
         await runner.run("noop-task")
-        assert runner.status == TaskStatus.FAILED
+        assert runner.status == ExecutionStatus.FAILED
 
 
 class TestGetPool:
