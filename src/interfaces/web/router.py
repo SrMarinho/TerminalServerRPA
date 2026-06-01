@@ -1,7 +1,6 @@
-import os
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 
 from src.infrastructure.execution_manager import get_manager
@@ -21,7 +20,7 @@ _log = get_logger("TerminalServerRPA.router")
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 
 
-def verify_token(authorization: str = "", token: str = ""):
+def verify_token(authorization: str = Header(default=""), token: str = ""):
     """Validate Bearer token from Authorization header or ?token= query param."""
     extracted = authorization.removeprefix("Bearer ")
     if not extracted:
@@ -222,9 +221,14 @@ async def cancel_task(task_id: str):
 
 
 @api_router.post("/api/shutdown")
-async def shutdown():
+async def shutdown(request: Request):
     _log.info("server.shutdown.requested")
-    os._exit(0)
+    server = getattr(request.app.state, "server", None)
+    if server is not None:
+        server.should_exit = True  # triggers graceful uvicorn shutdown (lifespan cleanup)
+        return {"status": "shutting down"}
+    # Fallback when no uvicorn server is attached (e.g. tests)
+    raise HTTPException(503, "server reference unavailable")
 
 
 @api_router.get("/api/dev")

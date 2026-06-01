@@ -266,6 +266,9 @@ class ExecutionManager:
                 del _breakpoints[eid]
         _prune_diag()
 
+    def close(self):
+        self._conn.close()
+
 
 _DIAG_DIR = Path("logs/diag")
 _DIAG_MAX_DAYS = 7
@@ -278,9 +281,6 @@ def _prune_diag() -> None:
     for f in _DIAG_DIR.iterdir():
         if f.is_file() and datetime.fromtimestamp(f.stat().st_mtime) < cutoff:
             f.unlink(missing_ok=True)
-
-    def close(self):
-        self._conn.close()
 
 
 _manager = ExecutionManager()

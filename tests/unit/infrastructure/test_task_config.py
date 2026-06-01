@@ -9,7 +9,7 @@ from src.infrastructure.task_config import load_config, save_config
 class TestTaskConfig:
     @pytest.fixture
     def isolated_dir(self, tmp_path):
-        with patch("src.infrastructure.task_config.TASKS_DIR", tmp_path / ".local" / "tasks"):
+        with patch("src.infrastructure.task_config._DB_PATH", tmp_path / "executions.db"):
             yield
 
     def test_load_empty_when_missing(self, isolated_dir):
@@ -33,10 +33,12 @@ class TestTaskConfig:
         assert load_config("task-b") == {"name": "B"}
 
     def test_invalid_json_raises(self, isolated_dir):
-        from src.infrastructure.task_config import TASKS_DIR
+        from src.infrastructure.task_config import _conn
 
-        bad = TASKS_DIR / "bad.json"
-        bad.parent.mkdir(parents=True, exist_ok=True)
-        bad.write_text("not json", encoding="utf-8")
+        with _conn() as conn:
+            conn.execute(
+                "INSERT INTO task_configs (task_name, params) VALUES (?, ?)",
+                ("bad", "not json"),
+            )
         with pytest.raises(json.JSONDecodeError):
             load_config("bad")

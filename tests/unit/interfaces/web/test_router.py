@@ -252,3 +252,22 @@ class TestWebSocketAuth:
     def test_ws_accepts_valid_token(self):
         with client.websocket_connect(f"/ws?token={AUTH_TOKEN}") as ws:
             assert ws is not None
+
+
+class TestShutdown:
+    def test_shutdown_requests_graceful_exit(self):
+        from unittest.mock import Mock
+
+        mock_server = Mock()
+        mock_server.should_exit = False
+        app.state.server = mock_server
+        try:
+            resp = client.post("/api/shutdown", headers={"Authorization": f"Bearer {AUTH_TOKEN}"})
+            assert resp.status_code == 200
+            assert mock_server.should_exit is True
+        finally:
+            del app.state.server
+
+    def test_shutdown_without_server_returns_503(self):
+        resp = client.post("/api/shutdown", headers={"Authorization": f"Bearer {AUTH_TOKEN}"})
+        assert resp.status_code == 503
