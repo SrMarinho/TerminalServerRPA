@@ -105,7 +105,15 @@ class TestSaveCredential:
             json={"service": "s"},
             headers={"Authorization": f"Bearer {AUTH_TOKEN}"},
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 422  # Pydantic validation (username or password required)
+
+    def test_rejects_empty_service(self, mock_vault):
+        resp = client.post(
+            "/api/credentials",
+            json={"service": "", "username": "u", "password": "p"},
+            headers={"Authorization": f"Bearer {AUTH_TOKEN}"},
+        )
+        assert resp.status_code == 422
 
 
 class TestGetCredential:
