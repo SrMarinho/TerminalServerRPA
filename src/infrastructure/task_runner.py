@@ -68,7 +68,9 @@ class TaskRunner:
         if task_cls is None:
             await self.checkpoint("unknown")
             return
-        task = task_cls(runner=self)
+        from src.infrastructure.vault import Vault
+
+        task = task_cls(runner=self, vault=Vault())
         self._result = await task.execute(params)
 
     def log(self, message: str, level: str = "info"):
@@ -221,8 +223,12 @@ async def _screenshot_loop(exec_id: str):
                                     "mime": "image/jpeg",
                                 }
                             )
-                except Exception:
-                    pass
+                except Exception as _exc:
+                    from src.infrastructure.logger import get_logger
+
+                    get_logger("TerminalServerRPA.screenshot-loop").warning(
+                        "screenshot.error", error=str(_exc)
+                    )
             await asyncio.sleep(0.25)
     finally:
         _screenshot_tasks.pop(exec_id, None)

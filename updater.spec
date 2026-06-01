@@ -2,7 +2,7 @@
 block_cipher = None
 
 a = Analysis(
-    ["src/password_vault/updater.py"],
+    ["src/infrastructure/updater.py"],
     pathex=[],
     binaries=[],
     datas=[],

@@ -60,6 +60,9 @@ async def index():
 
 @router.get("/_focus")
 async def focus():
+    # Liveness check for the single-instance protocol.  The second instance
+    # sends this request and then exits; the user already has the browser tab
+    # open from the first instance.
     return {"status": "focused"}
 
 
@@ -76,10 +79,25 @@ async def websocket_endpoint(ws: WebSocket):
             cmd = data.get("type")
             if cmd == "run":
                 task_name = data.get("task_name", "")
-                get_pool().start(task_name)
+                if not task_name:
+                    await ws.send_json({"type": "error", "message": "task_name required"})
+                    continue
+                TaskRegistry.auto_discover()
+                if TaskRegistry.get(task_name) is None:
+                    await ws.send_json(
+                        {"type": "error", "message": f"Unknown task: {task_name}"}
+                    )
+                    continue
+                try:
+                    get_pool().start(task_name)
+                except RuntimeError as e:
+                    await ws.send_json({"type": "error", "message": str(e)})
     except WebSocketDisconnect:
         manager.disconnect(ws)
     except Exception:
+        from src.infrastructure.logger import get_logger
+
+        get_logger("TerminalServerRPA.router").exception("ws.handler.error")
         manager.disconnect(ws)
 
 
@@ -106,7 +124,11 @@ async def get_credential(service: str, username: str = "", vault: Vault = Depend
     password = vault.get_password(service, username)
     if password is None:
         raise HTTPException(404, "credential not found")
-    return {"service": service, "username": username, "password": password}
+    # Never return the raw password over HTTP — the UI never reads it, and
+    # exposing it turns the API into a credential exfiltration vector.
+    # The task runner fetches passwords directly from the OS keyring at
+    # execution time using the service + username pair.
+    return {"service": service, "username": username, "password": "***"}
 
 
 @api_router.delete("/api/credentials/{service}")
@@ -236,6 +258,28 @@ async def dev_mode():
     from src.config.settings import DEV_MODE
 
     return {"dev": DEV_MODE}
+
+
+@api_router.post("/api/update")
+async def trigger_update():
+    """Download and apply the latest release, then restart."""
+    import sys
+    from pathlib import Path
+
+    from src.config.version import VERSION
+    from src.infrastructure.updater import apply_update, check_for_update
+
+    release = check_for_update(VERSION)
+    if release is None:
+        return {"status": "up_to_date", "version": VERSION}
+
+    current_exe = Path(sys.executable)
+    if current_exe.suffix != ".exe" or "TerminalServerRPA" not in current_exe.name:
+        return {"status": "skipped", "reason": "not a packaged build (dev mode)"}
+
+    apply_update(current_exe, current_exe)
+    # apply_update calls sys.exit(0) — never reaches here
+    return {"status": "restarting"}
 
 
 @dev_router.post("/api/executions/{exec_id}/snippet")

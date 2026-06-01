@@ -1,6 +1,10 @@
 from unittest.mock import patch
 
-from src.automation.tasks.report_generation import GeracaoRelatorio
+from src.automation.tasks.financas.gestao_contas_receber.contas_receber.relatorios.report_generation import (
+    GeracaoRelatorio,
+)
+
+_PATCH_PATH = "src.automation.tasks.financas.gestao_contas_receber.contas_receber.relatorios.report_generation"
 
 
 class TestSchema:
@@ -34,33 +38,43 @@ class TestSteps:
 
 
 class TestResolveCreds:
+    def _make_task(self, vault):
+        """Create GeracaoRelatorio with an injected vault mock."""
+        return GeracaoRelatorio(runner=None, vault=vault)
+
     def test_resolves_from_vault_when_service_given(self):
-        with patch("src.automation.tasks.report_generation.Vault") as mock_vault_cls:
+        with patch(f"{_PATCH_PATH}.Vault") as mock_vault_cls:
             v = mock_vault_cls.return_value
             v.list_credentials.return_value = [{"username": "u1"}]
             v.get_password.return_value = "secret"
-            out = GeracaoRelatorio._resolve_creds({"TS Credenciais": {"service": "svc"}}, "TS Credenciais")
+            task = self._make_task(v)
+            out = task._resolve_creds({"TS Credenciais": {"service": "svc"}}, "TS Credenciais")
         assert out == {"username": "u1", "password": "secret"}
 
     def test_empty_password_falls_back_to_blank(self):
-        with patch("src.automation.tasks.report_generation.Vault") as mock_vault_cls:
+        with patch(f"{_PATCH_PATH}.Vault") as mock_vault_cls:
             v = mock_vault_cls.return_value
             v.list_credentials.return_value = [{"username": "u1"}]
             v.get_password.return_value = None
-            out = GeracaoRelatorio._resolve_creds({"TS Credenciais": {"service": "svc"}}, "TS Credenciais")
+            task = self._make_task(v)
+            out = task._resolve_creds({"TS Credenciais": {"service": "svc"}}, "TS Credenciais")
         assert out == {"username": "u1", "password": ""}
 
     def test_returns_raw_dict_when_no_service(self):
-        out = GeracaoRelatorio._resolve_creds({"TS Credenciais": {"username": "x"}}, "TS Credenciais")
+        task = GeracaoRelatorio(runner=None, vault=None)
+        out = task._resolve_creds({"TS Credenciais": {"username": "x"}}, "TS Credenciais")
         assert out == {"username": "x"}
 
     def test_returns_empty_for_non_dict(self):
-        out = GeracaoRelatorio._resolve_creds({"TS Credenciais": None}, "TS Credenciais")
+        task = GeracaoRelatorio(runner=None, vault=None)
+        out = task._resolve_creds({"TS Credenciais": None}, "TS Credenciais")
         assert out == {}
 
     def test_returns_empty_when_service_has_no_users(self):
-        with patch("src.automation.tasks.report_generation.Vault") as mock_vault_cls:
-            mock_vault_cls.return_value.list_credentials.return_value = []
-            out = GeracaoRelatorio._resolve_creds({"TS Credenciais": {"service": "svc"}}, "TS Credenciais")
+        with patch(f"{_PATCH_PATH}.Vault") as mock_vault_cls:
+            v = mock_vault_cls.return_value
+            v.list_credentials.return_value = []
+            task = self._make_task(v)
+            out = task._resolve_creds({"TS Credenciais": {"service": "svc"}}, "TS Credenciais")
         # no users → returns the raw dict unchanged
         assert out == {"service": "svc"}

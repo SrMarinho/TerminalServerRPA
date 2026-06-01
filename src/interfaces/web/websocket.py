@@ -20,6 +20,11 @@ class ConnectionManager:
             try:
                 await ws.send_json(event)
             except Exception:
+                from src.infrastructure.logger import get_logger
+
+                get_logger("TerminalServerRPA.ws-broadcast").warning(
+                    "broadcast.send_failed", event_type=event.get("type", "unknown")
+                )
                 dead.add(ws)
         self._connections -= dead
 

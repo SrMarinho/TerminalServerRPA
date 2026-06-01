@@ -31,7 +31,7 @@ def get(service: str, username: str = typer.Option(..., "-u", "--username", prom
         typer.echo(f"No credential found for {service}/{username}", err=True)
         raise typer.Exit(code=1)
     typer.echo(f"Username: {username}")
-    typer.echo(f"Password: {password}")
+    typer.echo("Password: ***")  # never print the real password to terminal
 
 
 @vault_app.command()
