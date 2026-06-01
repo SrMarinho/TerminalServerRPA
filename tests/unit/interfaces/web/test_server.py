@@ -65,8 +65,9 @@ class TestRunServer:
         from src.interfaces.web.server import run_server
 
         run_server(port=8080, open_browser=False)
-        mock_uvicorn.run.assert_called_once()
-        assert mock_uvicorn.run.call_args[1]["port"] == 8080
+        mock_uvicorn.Config.assert_called_once()
+        assert mock_uvicorn.Config.call_args[1]["port"] == 8080
+        mock_uvicorn.Server.return_value.run.assert_called_once()
 
     @patch("src.interfaces.web.server.uvicorn")
     @patch("src.interfaces.web.server.webbrowser")
@@ -86,8 +87,9 @@ class TestRunServer:
         from src.interfaces.web.server import run_server
 
         run_server(port=8080, open_browser=False)
-        mock_uvicorn.run.assert_called_once()
-        assert mock_uvicorn.run.call_args[1]["port"] == 8081
+        mock_uvicorn.Config.assert_called_once()
+        assert mock_uvicorn.Config.call_args[1]["port"] == 8081
+        mock_uvicorn.Server.return_value.run.assert_called_once()
 
     @patch("src.interfaces.web.server.uvicorn")
     @patch("src.interfaces.web.server.focus_existing_instance")
@@ -97,4 +99,4 @@ class TestRunServer:
 
         run_server(port=8080, open_browser=False)
         mock_focus.assert_called_once()
-        mock_uvicorn.run.assert_not_called()
+        mock_uvicorn.Server.return_value.run.assert_not_called()

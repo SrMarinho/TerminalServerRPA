@@ -175,6 +175,12 @@ class TaskPool:
         for tid in done:
             del self._runners[tid]
 
+    def shutdown(self):
+        """Cancel every active runner so the process can exit cleanly."""
+        for runner in self._runners.values():
+            if runner.status in (TaskStatus.RUNNING, TaskStatus.PAUSED):
+                runner.cancel()
+
 
 _pool = TaskPool()
 _screenshot_subscribers: dict[str, int] = {}

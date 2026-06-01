@@ -33,6 +33,12 @@ def _build_app(ws_queue: asyncio.Queue) -> FastAPI:
         log.info("ws.broadcast.started")
         yield
         bg.cancel()
+        from src.infrastructure.execution_manager import get_manager
+        from src.infrastructure.task_runner import get_pool
+
+        get_pool().shutdown()
+        get_manager().close()
+        log.info("server.shutdown.cleanup_done")
 
     app = FastAPI(title="TerminalServerRPA", version="0.1.0", lifespan=lifespan)
     if STATIC_DIR.exists():
@@ -82,6 +88,8 @@ def run_server(port: int = 8080, open_browser: bool = True, dev: bool = False):
 
         _settings.DEV_MODE = True
         log.info("server.dev_mode", reload_dirs="templates, static")
-        uvicorn.run(app, host="127.0.0.1", port=actual_port, log_config=_uvicorn_log_config(), access_log=False)
-    else:
-        uvicorn.run(app, host="127.0.0.1", port=actual_port, log_config=_uvicorn_log_config(), access_log=False)
+
+    config = uvicorn.Config(app, host="127.0.0.1", port=actual_port, log_config=_uvicorn_log_config(), access_log=False)
+    server = uvicorn.Server(config)
+    app.state.server = server
+    server.run()
