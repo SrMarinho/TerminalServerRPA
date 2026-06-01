@@ -77,10 +77,6 @@ class Vault:
     def get_password(self, service: str, username: str) -> str | None:
         encrypted = keyring.get_password(self._keyring_service(service), username)
         if not encrypted:
-            # Fallback: try legacy unprefixed entry (pre-v1.1.0)
-            encrypted = keyring.get_password(service, username)
-            if encrypted:
-                return self._decrypt(encrypted)
             return None
         return self._decrypt(encrypted)
 
@@ -101,30 +97,3 @@ class Vault:
     def list_credentials(self, service: str) -> list:
         idx = self._load_index()
         return [{"username": u} for u in idx.get(service, [])]
-
-    def migrate(self) -> dict[str, int]:
-        """Migrate legacy credentials (no namespace prefix) to the current format.
-
-        Returns a dict with ``migrated`` (count) and ``skipped`` (count).
-        This is a no-op if credentials are already namespaced.
-        """
-        migrated = 0
-        skipped = 0
-        for service in self.list_services():
-            for entry in self.list_credentials(service):
-                username = entry["username"]
-                prefixed_key = self._keyring_service(service)
-                # Already migrated? skip.
-                if keyring.get_password(prefixed_key, username) is not None:
-                    skipped += 1
-                    continue
-                # Try legacy unprefixed entry.
-                raw = keyring.get_password(service, username)
-                if raw is not None:
-                    keyring.set_password(prefixed_key, username, raw)
-                    with suppress(PasswordDeleteError):
-                        keyring.delete_password(service, username)
-                    migrated += 1
-                else:
-                    skipped += 1
-        return {"migrated": migrated, "skipped": skipped}
