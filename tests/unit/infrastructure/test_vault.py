@@ -53,6 +53,14 @@ class TestVaultSetPassword:
         vault.set_password("svc", "usr", "second")
         assert vault.get_password("svc", "usr") == "second"
 
+    def test_rejects_empty_service(self, vault):
+        with pytest.raises(ValueError):
+            vault.set_password("", "usr", "secret")
+
+    def test_rejects_empty_username(self, vault):
+        with pytest.raises(ValueError):
+            vault.set_password("svc", "", "secret")
+
 
 class TestVaultGetPassword:
     def test_returns_password(self, vault):

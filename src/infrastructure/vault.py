@@ -63,6 +63,8 @@ class Vault:
         self._save_index(idx)
 
     def set_password(self, service: str, username: str, password: str):
+        if not service or not username:
+            raise ValueError("service and username are required")
         encrypted = self._encrypt(password)
         keyring.set_password(service, username, encrypted)
         self._add_to_index(service, username)
