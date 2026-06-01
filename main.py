@@ -1,8 +1,10 @@
 import typer
 
 from src.infrastructure.logger import configure_logger
+from src.interfaces.cli.cli import vault_app
 
 app = typer.Typer(no_args_is_help=True)
+app.add_typer(vault_app)
 configure_logger()
 
 
@@ -11,13 +13,6 @@ def web(port: int = 8080, browser: bool = True, dev: bool = False):
     from src.interfaces.web.server import run_server
 
     run_server(port=port, open_browser=browser, dev=dev)
-
-
-@app.command()
-def vault():
-    from src.interfaces.cli.cli import vault_app
-
-    vault_app()
 
 
 @app.command()
