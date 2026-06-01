@@ -1,17 +1,21 @@
 repos:
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    # Pinned below 0.15: ruff-format 0.15.x rewrites `except (A, B):` into the
-    # invalid Python-2 form `except A, B:`. 0.14.x is unaffected.
-    rev: v0.14.5
-    hooks:
-      - id: ruff
-        args: [--fix]
-      - id: ruff-format
   - repo: local
     hooks:
+      - id: ruff
+        name: ruff (legacy alias)
+        entry: python -m ruff check --fix
+        language: system
+        types: [python]
+        # Pinned below 0.15: ruff-format 0.15.x rewrites `except (A, B):` into the
+        # invalid Python-2 form `except A, B:`. 0.14.x is unaffected.
+      - id: ruff-format
+        name: ruff format
+        entry: python -m ruff format
+        language: system
+        types: [python]
       - id: pyright
         name: pyright
-        entry: uv run pyright src
+        entry: python -m pyright src
         language: system
         types: [python]
         pass_filenames: false
