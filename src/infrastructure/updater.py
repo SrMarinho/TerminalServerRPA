@@ -34,6 +34,9 @@ def check_for_update(current_version: str) -> Release | None:
     url = f"https://api.github.com/repos/{OWNER}/{REPO}/releases/latest"
     try:
         resp = httpx.get(url, timeout=10)
+        if resp.status_code == 404:
+            log.debug("update.no_releases")
+            return None
         resp.raise_for_status()
         data = resp.json()
         release = Release(
