@@ -233,9 +233,7 @@ class GeracaoRelatorio:
         except SkipStep:
             from src.infrastructure.logger import get_logger
 
-            get_logger("TerminalServerRPA.report-generation").warning(
-                "step.skipped.submit", step="Login Senior"
-            )
+            get_logger("TerminalServerRPA.report-generation").warning("step.skipped.submit", step="Login Senior")
 
     # ------------------------------------------------------------------
     # Phase: Home page setup + sidebar navigation
@@ -291,11 +289,14 @@ class GeracaoRelatorio:
                 await self._step(name)
             return
 
-        await self._step("Maximizando Relatório", maximize_window(
-            remote_page,
-            self._runner.log if self._runner else None,
-            title_img=_REPORT_TITLE_IMG,
-        ))
+        await self._step(
+            "Maximizando Relatório",
+            maximize_window(
+                remote_page,
+                self._runner.log if self._runner else None,
+                title_img=_REPORT_TITLE_IMG,
+            ),
+        )
         await asyncio.sleep(1)
 
         report = REPORTS_BY_CODE.get(relatorio_code)

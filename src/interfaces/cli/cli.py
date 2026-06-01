@@ -108,14 +108,15 @@ def logs(level: str = "info", since: str = "", task: str = "", json: bool = Fals
 def shutdown():
     import httpx
 
-    from src.infrastructure.single_instance import read_port
+    from src.infrastructure.single_instance import get_or_create_token, read_port
 
     port = read_port()
     if port is None:
         typer.echo("No running instance found.", err=True)
         raise typer.Exit(code=1)
     try:
-        resp = httpx.post(f"http://127.0.0.1:{port}/api/shutdown", timeout=5)
+        headers = {"Authorization": f"Bearer {get_or_create_token()}"}
+        resp = httpx.post(f"http://127.0.0.1:{port}/api/shutdown", headers=headers, timeout=5)
         typer.echo(f"Server shut down: {resp.json()['status']}")
     except httpx.ConnectError:
         typer.echo("No running instance found.", err=True)
