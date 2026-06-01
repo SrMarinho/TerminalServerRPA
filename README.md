@@ -76,6 +76,8 @@ uv run pyinstaller main.spec
 
 ![Diagrama de arquitetura](docs/architecture-diagram.html)
 
+![Screenshot da UI](docs/screenshot-ui.png)
+
 Camadas dentro de um único processo Windows:
 
 ```
