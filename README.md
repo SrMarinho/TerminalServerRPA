@@ -74,7 +74,8 @@ uv run pyinstaller main.spec
 
 ## Arquitetura
 
-![Diagrama de arquitetura](docs/architecture-diagram.html)
+![Diagrama de arquitetura](docs/architecture-diagram.svg)
+*Diagrama interativo completo: [docs/architecture-diagram.html](docs/architecture-diagram.html)*
 
 ![Screenshot da UI](docs/screenshot-ui.png)
 
