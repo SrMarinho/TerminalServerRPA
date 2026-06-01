@@ -44,7 +44,7 @@ class TestVaultSetPassword:
     def test_stores_encrypted_password(self, vault, mock_keyring):
         _, store = mock_keyring
         vault.set_password("svc", "usr", "secret123")
-        stored = store.get(("svc", "usr"))
+        stored = store.get(("TerminalServerRPA:svc", "usr"))
         assert stored is not None
         assert stored != "secret123"
 
@@ -72,7 +72,7 @@ class TestVaultGetPassword:
 
     def test_raises_on_decrypt_failure(self, vault, mock_keyring):
         _, store = mock_keyring
-        store[("svc", "usr")] = "invalid-ciphertext"
+        store[("TerminalServerRPA:svc", "usr")] = "invalid-ciphertext"
         with pytest.raises(ValueError, match="decrypt"):
             vault.get_password("svc", "usr")
 

@@ -52,6 +52,15 @@ def list():
         typer.echo(f"{svc}: {usernames}")
 
 
+@vault_app.command()
+def migrate():
+    """Migrate legacy credentials to namespaced keyring entries."""
+    result = _get_vault().migrate()
+    typer.echo(f"Migrated: {result['migrated']}, Skipped: {result['skipped']}")
+    if result["migrated"]:
+        typer.echo("Credentials are now stored under the 'TerminalServerRPA:' namespace.")
+
+
 def run(task_name: str):
     from src.infrastructure.execution_manager import get_manager
     from src.infrastructure.task_config import load_config

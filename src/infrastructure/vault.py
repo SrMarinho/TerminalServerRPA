@@ -9,6 +9,7 @@ _INDEX_SERVICE = "TerminalServerRPA-index"
 _INDEX_USER = "_service_index"
 _KEY_SERVICE = "TerminalServerRPA"
 _KEY_USER = "_vault_key"
+_KEYRING_PREFIX = "TerminalServerRPA:"
 
 
 class Vault:
@@ -62,28 +63,36 @@ class Vault:
                 del idx[service]
         self._save_index(idx)
 
+    def _keyring_service(self, service: str) -> str:
+        """Namespace the service name in the OS keyring to avoid collisions."""
+        return f"{_KEYRING_PREFIX}{service}"
+
     def set_password(self, service: str, username: str, password: str):
         if not service or not username:
             raise ValueError("service and username are required")
         encrypted = self._encrypt(password)
-        keyring.set_password(service, username, encrypted)
+        keyring.set_password(self._keyring_service(service), username, encrypted)
         self._add_to_index(service, username)
 
     def get_password(self, service: str, username: str) -> str | None:
-        encrypted = keyring.get_password(service, username)
+        encrypted = keyring.get_password(self._keyring_service(service), username)
         if not encrypted:
+            # Fallback: try legacy unprefixed entry (pre-v1.1.0)
+            encrypted = keyring.get_password(service, username)
+            if encrypted:
+                return self._decrypt(encrypted)
             return None
         return self._decrypt(encrypted)
 
     def delete_password(self, service: str, username: str | None = None):
         if username:
-            keyring.delete_password(service, username)
+            keyring.delete_password(self._keyring_service(service), username)
             self._remove_from_index(service, username)
         else:
             creds = self.list_credentials(service)
             for c in creds:
                 with suppress(PasswordDeleteError):
-                    keyring.delete_password(service, c["username"])
+                    keyring.delete_password(self._keyring_service(service), c["username"])
             self._remove_from_index(service)
 
     def list_services(self) -> list:
@@ -92,3 +101,30 @@ class Vault:
     def list_credentials(self, service: str) -> list:
         idx = self._load_index()
         return [{"username": u} for u in idx.get(service, [])]
+
+    def migrate(self) -> dict[str, int]:
+        """Migrate legacy credentials (no namespace prefix) to the current format.
+
+        Returns a dict with ``migrated`` (count) and ``skipped`` (count).
+        This is a no-op if credentials are already namespaced.
+        """
+        migrated = 0
+        skipped = 0
+        for service in self.list_services():
+            for entry in self.list_credentials(service):
+                username = entry["username"]
+                prefixed_key = self._keyring_service(service)
+                # Already migrated? skip.
+                if keyring.get_password(prefixed_key, username) is not None:
+                    skipped += 1
+                    continue
+                # Try legacy unprefixed entry.
+                raw = keyring.get_password(service, username)
+                if raw is not None:
+                    keyring.set_password(prefixed_key, username, raw)
+                    with suppress(PasswordDeleteError):
+                        keyring.delete_password(service, username)
+                    migrated += 1
+                else:
+                    skipped += 1
+        return {"migrated": migrated, "skipped": skipped}
