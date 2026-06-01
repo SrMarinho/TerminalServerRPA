@@ -11,9 +11,9 @@
 
 **Automação RPA para ERPs legados rodando dentro de Terminal Server.**
 
-Muitas empresas brasileiras executam ERP Senior, Protheus, SAP ou sistemas
-próprios dentro de sessões de Terminal Server — sem API, sem DOM acessível,
-sem integração moderna. Este projeto automatiza esses fluxos usando:
+Automatiza ERPs legados que rodam dentro de sessões de Terminal Server —
+sem API, sem DOM acessível, sem integração moderna. A interface é renderizada
+como bitmap, então a navegação é feita por visão computacional:
 
 - **Playwright** + **OCR** (Tesseract) + **template matching** (OpenCV)
   para navegar por interfaces legadas renderizadas como bitmap
@@ -92,8 +92,6 @@ src/
   config/                    Configuração + versão
   utils/                     image_match, window_utils
 ```
-
-Diagrama completo interativo: [TerminalServerRPA/docs/architecture-diagram.html](https://srmarinho.github.io/TerminalServerRPA/architecture-diagram.html)
 
 ## Segurança
 

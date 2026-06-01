@@ -35,13 +35,23 @@ class ConnectionManager:
 
 manager = ConnectionManager()
 
+_loop: asyncio.AbstractEventLoop | None = None
+
 
 def broadcast_event(event: dict):
-    loop = asyncio.get_event_loop()
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = _loop
+    if loop is None:
+        # No event loop available (e.g. CLI mode) — nothing to broadcast to.
+        raise RuntimeError("no event loop available for broadcast")
     loop.call_soon_threadsafe(lambda: asyncio.create_task(manager.broadcast(event)))
 
 
 async def broadcast_from_queue(queue: asyncio.Queue):
+    global _loop
+    _loop = asyncio.get_running_loop()
     while True:
         event = await queue.get()
         await manager.broadcast(event)

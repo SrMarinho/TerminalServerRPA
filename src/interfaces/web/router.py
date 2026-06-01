@@ -84,9 +84,7 @@ async def websocket_endpoint(ws: WebSocket):
                     continue
                 TaskRegistry.auto_discover()
                 if TaskRegistry.get(task_name) is None:
-                    await ws.send_json(
-                        {"type": "error", "message": f"Unknown task: {task_name}"}
-                    )
+                    await ws.send_json({"type": "error", "message": f"Unknown task: {task_name}"})
                     continue
                 try:
                     get_pool().start(task_name)

@@ -165,9 +165,7 @@ class TaskPool:
 
     def cleanup_done(self):
         done = [
-            tid
-            for tid, r in self._runners.items()
-            if r.status not in (ExecutionStatus.RUNNING, ExecutionStatus.PAUSED)
+            tid for tid, r in self._runners.items() if r.status not in (ExecutionStatus.RUNNING, ExecutionStatus.PAUSED)
         ]
         for tid in done:
             del self._runners[tid]
@@ -221,9 +219,7 @@ async def _screenshot_loop(exec_id: str):
                 except Exception as _exc:
                     from src.infrastructure.logger import get_logger
 
-                    get_logger("TerminalServerRPA.screenshot-loop").warning(
-                        "screenshot.error", error=str(_exc)
-                    )
+                    get_logger("TerminalServerRPA.screenshot-loop").warning("screenshot.error", error=str(_exc))
             await asyncio.sleep(0.25)
     finally:
         _screenshot_tasks.pop(exec_id, None)

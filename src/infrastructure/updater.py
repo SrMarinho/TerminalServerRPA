@@ -22,6 +22,14 @@ class Release:
         return self.tag_name.lstrip("v")
 
 
+def _parse_version(v: str) -> tuple[int, ...]:
+    parts = []
+    for chunk in v.split("."):
+        digits = "".join(c for c in chunk if c.isdigit())
+        parts.append(int(digits) if digits else 0)
+    return tuple(parts)
+
+
 def check_for_update(current_version: str) -> Release | None:
     url = f"https://api.github.com/repos/{OWNER}/{REPO}/releases/latest"
     try:
@@ -33,7 +41,7 @@ def check_for_update(current_version: str) -> Release | None:
             html_url=data["html_url"],
             assets=data.get("assets", []),
         )
-        if release.version > current_version:
+        if _parse_version(release.version) > _parse_version(current_version):
             log.info("update.available", current=current_version, latest=release.version)
             return release
         log.info("update.up_to_date", version=current_version)
