@@ -63,7 +63,7 @@ def configure_logger(level=logging.INFO):
 
     root_logger.setLevel(level)
 
-    for name in ("uvicorn", "uvicorn.access", "uvicorn.error"):
+    for name in ("uvicorn", "uvicorn.access", "uvicorn.error", "httpx", "httpcore"):
         logging.getLogger(name).handlers.clear()
         logging.getLogger(name).propagate = False
 
