@@ -44,9 +44,7 @@ def read_port() -> int | None:
         return None
     try:
         return int(path.read_text(encoding="utf-8").strip())
-    except OSError:
-        return None
-    except ValueError:
+    except (ValueError, OSError):
         return None
 
 
