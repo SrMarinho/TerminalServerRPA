@@ -11,6 +11,7 @@ a = Analysis(
     datas=[
         ("src/interfaces/web/templates", "src/interfaces/web/templates"),
         ("src/interfaces/web/static", "src/interfaces/web/static"),
+        ("assets", "assets"),
     ],
     hiddenimports=[
         "structlog",
@@ -71,4 +72,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon="assets/icon.ico",
 )

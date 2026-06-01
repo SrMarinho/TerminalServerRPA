@@ -68,6 +68,10 @@ def _build_app() -> FastAPI:
     app = FastAPI(title="TerminalServerRPA", version="0.1.0", lifespan=lifespan)
     if STATIC_DIR.exists():
         app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+    from src.config.settings import ASSETS_DIR
+
+    if ASSETS_DIR.exists():
+        app.mount("/assets", StaticFiles(directory=str(ASSETS_DIR)), name="assets")
     app.include_router(router)
     app.include_router(api_router)
     import src.config.settings as _settings
