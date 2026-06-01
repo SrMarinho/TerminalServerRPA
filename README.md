@@ -1,20 +1,40 @@
 # TerminalServerRPA
 
 [![CI](https://github.com/SrMarinho/TerminalServerRPA/actions/workflows/ci.yml/badge.svg)](https://github.com/SrMarinho/TerminalServerRPA/actions/workflows/ci.yml)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
-[![Lint: ruff](https://img.shields.io/badge/lint-ruff-orange.svg)](https://github.com/astral-sh/ruff)
+[![Python 3.14](https://img.shields.io/badge/python-3.14-blue.svg)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Playwright](https://img.shields.io/badge/Playwright-45ba4b?logo=playwright&logoColor=white)](https://playwright.dev/)
+[![Ruff](https://img.shields.io/badge/lint-ruff-orange)](https://github.com/astral-sh/ruff)
+[![Pyright](https://img.shields.io/badge/types-pyright-yellow)](https://github.com/microsoft/pyright)
+[![PyInstaller](https://img.shields.io/badge/build-PyInstaller-5C3D2E)](https://pyinstaller.org/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
-Aplicação RPA que automatiza o ERP Senior (via Terminal Server) — interface web local, cofre de credenciais criptografado, executor de tarefas com progresso ao vivo e auto-atualização. Nativa de Windows, processo único, servida via FastAPI.
+**Automação RPA para ERPs legados rodando dentro de Terminal Server.**
+
+Muitas empresas brasileiras executam ERP Senior, Protheus, SAP ou sistemas
+próprios dentro de sessões de Terminal Server — sem API, sem DOM acessível,
+sem integração moderna. Este projeto automatiza esses fluxos usando:
+
+- **Playwright** + **OCR** (Tesseract) + **template matching** (OpenCV)
+  para navegar por interfaces legadas renderizadas como bitmap
+- **FastAPI** local com **WebSocket** para execução e log ao vivo
+- **Cofre criptografado** (Windows Keyring + criptografia simétrica Fernet)
+- **Auto-atualização** via GitHub Releases com hot-swap
+
+> [!NOTE]
+> Aplicação Windows nativa. O servidor escuta apenas em `127.0.0.1` —
+> nunca exposto à rede.
 
 ## Funcionalidades
 
-- **Cofre de senhas** — credenciais criptografadas com Fernet, armazenadas no Gerenciador de Credenciais do Windows (keyring)
-- **Interface web** — frontend Tailwind CSS servido pelo FastAPI (somente localhost)
-- **CLI** — interface de linha de comando (Typer) para gerenciar o cofre e executar tarefas
-- **Executor de tarefas** — máquina de estados com pausar/retomar/cancelar/pular e streaming de log ao vivo via WebSocket
-- **Instância única** — mutex do Windows impede processos duplicados; foca a instância existente ao reabrir
-- **Auto-atualização** — verifica e baixa releases do GitHub
-- **Fallback de porta** — seleciona automaticamente a próxima porta livre se a 8080 estiver ocupada
+- **Cofre de senhas** — credenciais criptografadas no Gerenciador de Credenciais do Windows
+- **Interface web** — Tailwind SPA servida pelo FastAPI (localhost)
+- **WebSocket ao vivo** — logs, screenshots, status da execução em tempo real
+- **Executor de tarefas** — máquina de estados com pausar/retomar/cancelar/pular
+- **CLI** — gerenciar cofre, executar tarefas, ver logs
+- **Instância única** — mutex do Windows + foco na janela existente
+- **Auto-atualização** — verifica GitHub Releases e aplica em segundo plano via `POST /api/update`
+- **Fallback de porta** — encontra próxima porta livre se 8080 estiver ocupada
 
 ## Início rápido
 
@@ -27,11 +47,7 @@ uv run python main.py web
 
 # Gerenciar credenciais (CLI)
 uv run python main.py vault set meu-servico -u meu-usuario
-uv run python main.py vault get meu-servico
 uv run python main.py vault list
-
-# Ver logs
-uv run python main.py logs --level error
 
 # Executar uma tarefa RPA
 uv run python main.py run "Relatório Contas Receber"
@@ -40,7 +56,7 @@ uv run python main.py run "Relatório Contas Receber"
 ## Desenvolvimento
 
 ```bash
-# Testes
+# Testes (145, pytest + coverage)
 uv run pytest
 
 # Lint
@@ -58,43 +74,50 @@ uv run pyinstaller main.spec
 
 ## Arquitetura
 
-Camadas de Clean Architecture dentro de um único processo. A interface web e a CLI são adaptadores sobre a mesma camada de infraestrutura e o mesmo motor de automação.
+![Diagrama de arquitetura](docs/architecture-diagram.html)
+
+Camadas dentro de um único processo Windows:
 
 ```
-main.py                      Entrypoint Typer (web | vault | run | logs | shutdown)
+main.py                      Entrypoint Typer
 src/
-  interfaces/
-    web/                     Router FastAPI, WebSocket, servidor, UI estática (JS)
-    cli/                     Subcomandos Typer
-  infrastructure/            vault, task_runner, execution_manager, logger,
-                             single_instance, updater, task_registry
-  automation/
-    pages/                   Page Objects do Playwright (telas do ERP Senior)
-    tasks/                   Tarefas RPA (ex.: geração de relatório)
-  config/                    Configuração de runtime
-  utils/                     Auxiliares compartilhados (image matching, window utils)
+  interfaces/web/            FastAPI, WebSocket, UI estática
+  interfaces/cli/            CLI Typer
+  infrastructure/            Vault, TaskRunner, SQLite, Logger, Updater
+  automation/pages/          Page Objects (Playwright + OCR)
+  automation/tasks/          GeracaoRelatorio (espelha menu do Senior ERP)
+  config/                    Configuração + versão
+  utils/                     image_match, window_utils
 ```
 
-Veja [docs/architecture.md](docs/architecture.md) para o mapa completo de módulos e fluxo de dados.
+Diagrama completo interativo: [docs/architecture-diagram.html](docs/architecture-diagram.html)
 
 ## Segurança
 
-- Interface web local vinculada apenas a `127.0.0.1`; nunca exposta à rede.
-- Todos os endpoints REST **e** o WebSocket exigem um token Bearer por processo (gerado automaticamente e injetado na página).
-- Credenciais são armazenadas criptografadas (Fernet) no Gerenciador de Credenciais do Windows (keyring) — nunca em texto puro no disco.
+- Servidor vinculado a `127.0.0.1` — sem exposição à rede
+- Token Bearer (automático) em todas as rotas REST + WebSocket
+- Credenciais cifradas via Fernet + Windows Keyring — **nunca em plaintext na API ou CLI**
+- Pipeline CI executa lint + typecheck + testes a cada push
 
-Modelo de ameaça completo e riscos aceitos: [docs/security.md](docs/security.md).
+## Stack
+
+| Categoria | Tecnologias |
+|-----------|-------------|
+| **Runtime** | Python 3.14, uv (package manager) |
+| **Web** | FastAPI, Uvicorn, WebSocket, Tailwind CSS |
+| **RPA** | Playwright, OpenCV (template matching), Tesseract (OCR) |
+| **Infra** | structlog (logs), cryptography (Fernet), keyring (Windows), SQLite |
+| **Build** | PyInstaller, GitHub Actions (CI + Release) |
+| **Qualidade** | pytest, ruff, pyright |
 
 ## Documentação
 
-| Público | Comece por |
-|---------|-----------|
-| Usuários | [Instalação](docs/installation.md) · [Guia do usuário](docs/user-guide.md) · [Referência da CLI](docs/cli-reference.md) |
-| Desenvolvedores | [Arquitetura](docs/architecture.md) · [Desenvolvimento](docs/development.md) · [Referência da API](docs/api-reference.md) · [Segurança](docs/security.md) |
-| Decisões | [ADRs](docs/decisions/) · [Roadmap](docs/roadmap.md) · [Changelog](CHANGELOG.md) |
+| Público | Links |
+|---------|-------|
+| Usuários | [Instalação](docs/installation.md) · [Guia do usuário](docs/user-guide.md) · [CLI](docs/cli-reference.md) |
+| Devs | [Arquitetura](docs/architecture.md) · [Desenvolvimento](docs/development.md) · [API](docs/api-reference.md) · [Segurança](docs/security.md) |
+| Decisões | [ADRs](docs/decisions/) · [Roadmap](docs/roadmap.md) · [CHANGELOG](CHANGELOG.md) |
 
-## Status do projeto
+## Licença
 
-Implementado: cofre criptografado, CLI, interface web, executor de tarefas (pausar/retomar/cancelar/pular), coordenação de instância única, auto-atualização, logging estruturado, fallback de porta, CI (GitHub Actions, Python 3.10–3.13), checagem de tipos (pyright), lint (ruff), automação RPA com Playwright.
-
-Em andamento: hardening de segurança (auth do WebSocket concluída, shutdown gracioso), validação de requisições com Pydantic, injeção de dependências no lugar de singletons globais, cobertura de testes para a tarefa de relatório em produção. Veja o [Roadmap](docs/roadmap.md).
+MIT. Veja [LICENSE](LICENSE).
