@@ -68,8 +68,7 @@ tests/
 ├── unit/                    # Testes unitários (dependências mockadas)
 │   ├── infrastructure/      # vault, task_runner, logger, updater, ...
 │   ├── interfaces/          # web (router, server, websocket), cli
-│   ├── automation/          # pages, tasks
-│   └── core/                # entities, use_cases
+│   └── automation/          # pages, tasks
 ├── integration/             # Testes de integração (keyring real)
 │   └── infrastructure/
 └── e2e/                     # Ponta a ponta (CLI + cofre)
