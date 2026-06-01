@@ -1,10 +1,10 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from src.interfaces.web.router import api_router, router
+from src.interfaces.web.router import api_router, get_pool, get_vault, router
 
 app = FastAPI()
 app.include_router(router)
@@ -25,11 +25,13 @@ def mock_token():
 
 @pytest.fixture(autouse=True)
 def mock_vault():
-    with patch("src.interfaces.web.router._vault") as m:
-        m.list_services.return_value = ["svc1"]
-        m.list_credentials.return_value = [{"username": "usr1"}]
-        m.get_password.return_value = "secret123"
-        yield m
+    m = MagicMock()
+    m.list_services.return_value = ["svc1"]
+    m.list_credentials.return_value = [{"username": "usr1"}]
+    m.get_password.return_value = "secret123"
+    app.dependency_overrides[get_vault] = lambda: m
+    yield m
+    app.dependency_overrides.pop(get_vault, None)
 
 
 @pytest.fixture(autouse=True)
@@ -153,11 +155,13 @@ class TestDeleteCredential:
 
 @pytest.fixture(autouse=True)
 def mock_pool():
-    with patch("src.interfaces.web.router._pool") as m:
-        m.start.return_value = "abc12345"
-        m.list_all.return_value = {}
-        m.get.return_value = None
-        yield m
+    m = MagicMock()
+    m.start.return_value = "abc12345"
+    m.list_all.return_value = {}
+    m.get.return_value = None
+    app.dependency_overrides[get_pool] = lambda: m
+    yield m
+    app.dependency_overrides.pop(get_pool, None)
 
 
 class TestTasks:

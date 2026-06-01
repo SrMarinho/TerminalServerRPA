@@ -1,3 +1,4 @@
+from functools import lru_cache
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, WebSocket, WebSocketDisconnect
@@ -8,17 +9,21 @@ from src.infrastructure.logger import get_logger
 from src.infrastructure.single_instance import get_or_create_token
 from src.infrastructure.task_config import load_config, save_config
 from src.infrastructure.task_registry import TaskRegistry
-from src.infrastructure.task_runner import get_pool
+from src.infrastructure.task_runner import TaskPool, get_pool
 from src.infrastructure.vault import Vault
 from src.interfaces.web.schemas import BreakpointIn, CredentialIn, SnippetIn
 from src.interfaces.web.websocket import manager
 
 router = APIRouter()
-_vault = Vault()
-_pool = get_pool()
 _log = get_logger("TerminalServerRPA.router")
 
 TEMPLATES_DIR = Path(__file__).parent / "templates"
+
+
+@lru_cache
+def get_vault() -> Vault:
+    """Lazy singleton provider — injected via Depends so tests can override it."""
+    return Vault()
 
 
 def verify_token(authorization: str = Header(default=""), token: str = ""):
@@ -71,7 +76,7 @@ async def websocket_endpoint(ws: WebSocket):
             cmd = data.get("type")
             if cmd == "run":
                 task_name = data.get("task_name", "")
-                _pool.start(task_name)
+                get_pool().start(task_name)
     except WebSocketDisconnect:
         manager.disconnect(ws)
     except Exception:
@@ -79,34 +84,34 @@ async def websocket_endpoint(ws: WebSocket):
 
 
 @api_router.get("/api/credentials")
-async def list_credentials():
-    services = _vault.list_services()
+async def list_credentials(vault: Vault = Depends(get_vault)):
+    services = vault.list_services()
     result = []
     for svc in services:
-        creds = _vault.list_credentials(svc)
+        creds = vault.list_credentials(svc)
         result.append({"service": svc, "usernames": [c["username"] for c in creds]})
     return result
 
 
 @api_router.post("/api/credentials")
-async def save_credential(data: CredentialIn):
-    _vault.set_password(data.service, data.username, data.password)
+async def save_credential(data: CredentialIn, vault: Vault = Depends(get_vault)):
+    vault.set_password(data.service, data.username, data.password)
     return {"status": "ok"}
 
 
 @api_router.get("/api/credentials/{service}")
-async def get_credential(service: str, username: str = ""):
+async def get_credential(service: str, username: str = "", vault: Vault = Depends(get_vault)):
     if not username:
         raise HTTPException(400, "username query param required")
-    password = _vault.get_password(service, username)
+    password = vault.get_password(service, username)
     if password is None:
         raise HTTPException(404, "credential not found")
     return {"service": service, "username": username, "password": password}
 
 
 @api_router.delete("/api/credentials/{service}")
-async def delete_credential(service: str):
-    _vault.delete_password(service)
+async def delete_credential(service: str, vault: Vault = Depends(get_vault)):
+    vault.delete_password(service)
     return {"status": "deleted"}
 
 
@@ -116,19 +121,18 @@ async def list_tasks():
 
 
 @api_router.get("/api/tasks/running")
-async def list_running():
-    return _pool.list_all()
+async def list_running(pool: TaskPool = Depends(get_pool)):
+    return pool.list_all()
 
 
 @api_router.delete("/api/tasks/running")
-async def cleanup_running():
-    _pool.cleanup_done()
+async def cleanup_running(pool: TaskPool = Depends(get_pool)):
+    pool.cleanup_done()
     return {"status": "cleaned"}
 
 
 @api_router.post("/api/run/{task_name}")
-async def run_task(task_name: str, data: dict | None = None):
-
+async def run_task(task_name: str, data: dict | None = None, pool: TaskPool = Depends(get_pool)):
     bps: list[str] = []
     params: dict | None = data
     if isinstance(data, dict) and "_breakpoints" in data:
@@ -137,7 +141,7 @@ async def run_task(task_name: str, data: dict | None = None):
     if params:
         save_config(task_name, params)
     try:
-        task_id = _pool.start(task_name, params or None, bps)
+        task_id = pool.start(task_name, params or None, bps)
     except RuntimeError as e:
         raise HTTPException(409, str(e))
     return {"status": "started", "task": task_name, "task_id": task_id}
@@ -173,8 +177,8 @@ async def save_task_config(task_name: str, data: dict):
 
 
 @api_router.post("/api/tasks/{task_id}/pause")
-async def pause_task(task_id: str):
-    runner = _pool.get(task_id)
+async def pause_task(task_id: str, pool: TaskPool = Depends(get_pool)):
+    runner = pool.get(task_id)
     if not runner:
         raise HTTPException(404, "task not found")
     runner.pause()
@@ -182,8 +186,8 @@ async def pause_task(task_id: str):
 
 
 @api_router.post("/api/tasks/{task_id}/resume")
-async def resume_task(task_id: str):
-    runner = _pool.get(task_id)
+async def resume_task(task_id: str, pool: TaskPool = Depends(get_pool)):
+    runner = pool.get(task_id)
     if not runner:
         raise HTTPException(404, "task not found")
     runner.resume()
@@ -191,8 +195,8 @@ async def resume_task(task_id: str):
 
 
 @api_router.post("/api/tasks/{task_id}/skip")
-async def skip_task_step(task_id: str):
-    runner = _pool.get(task_id)
+async def skip_task_step(task_id: str, pool: TaskPool = Depends(get_pool)):
+    runner = pool.get(task_id)
     if not runner:
         raise HTTPException(404, "task not found")
     runner.skip_step()
@@ -208,8 +212,8 @@ async def set_exec_breakpoint(exec_id: str, data: BreakpointIn):
 
 
 @api_router.post("/api/tasks/{task_id}/cancel")
-async def cancel_task(task_id: str):
-    runner = _pool.get(task_id)
+async def cancel_task(task_id: str, pool: TaskPool = Depends(get_pool)):
+    runner = pool.get(task_id)
     if not runner:
         raise HTTPException(404, "task not found")
     runner.cancel()
@@ -235,7 +239,7 @@ async def dev_mode():
 
 
 @dev_router.post("/api/executions/{exec_id}/snippet")
-async def run_snippet(exec_id: str, data: SnippetIn):
+async def run_snippet(exec_id: str, data: SnippetIn, pool: TaskPool = Depends(get_pool)):
     import asyncio as _asyncio
     import traceback
 
@@ -243,7 +247,7 @@ async def run_snippet(exec_id: str, data: SnippetIn):
 
     if not DEV_MODE:  # defense in depth; route is also unregistered in prod
         raise HTTPException(403, "only available in dev mode")
-    runner = _pool.get(exec_id)
+    runner = pool.get(exec_id)
     if not runner or not runner._page:
         raise HTTPException(404, "execution not running or page not available")
     code = data.code
