@@ -90,6 +90,18 @@ async def websocket_endpoint(ws: WebSocket):
                     get_pool().start(task_name)
                 except RuntimeError as e:
                     await ws.send_json({"type": "error", "message": str(e)})
+            elif cmd == "screenshot:subscribe":
+                exec_id = data.get("execution_id", "")
+                if exec_id:
+                    from src.infrastructure.task_runner import subscribe_screenshot
+
+                    subscribe_screenshot(exec_id)
+            elif cmd == "screenshot:unsubscribe":
+                exec_id = data.get("execution_id", "")
+                if exec_id:
+                    from src.infrastructure.task_runner import unsubscribe_screenshot
+
+                    unsubscribe_screenshot(exec_id)
     except WebSocketDisconnect:
         manager.disconnect(ws)
     except Exception:
