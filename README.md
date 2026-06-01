@@ -75,7 +75,7 @@ uv run pyinstaller main.spec
 ## Arquitetura
 
 ![Diagrama de arquitetura](docs/architecture-diagram.svg)
-*Diagrama interativo completo: [docs/architecture-diagram.html](docs/architecture-diagram.html)*
+*Diagrama interativo completo: [TerminalServerRPA/docs/architecture-diagram.html](https://srmarinho.github.io/TerminalServerRPA/architecture-diagram.html)*
 
 ![Screenshot da UI](docs/screenshot-ui.png)
 
@@ -93,7 +93,7 @@ src/
   utils/                     image_match, window_utils
 ```
 
-Diagrama completo interativo: [docs/architecture-diagram.html](docs/architecture-diagram.html)
+Diagrama completo interativo: [TerminalServerRPA/docs/architecture-diagram.html](https://srmarinho.github.io/TerminalServerRPA/architecture-diagram.html)
 
 ## Segurança
 
