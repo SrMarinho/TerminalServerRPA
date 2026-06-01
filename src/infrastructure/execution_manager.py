@@ -5,6 +5,8 @@ from contextlib import suppress
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from src.infrastructure.models import Execution, ExecutionStatus, LogEntry, Step, StepStatus
+
 DB_DIR = Path(".local")
 DB_PATH = DB_DIR / "executions.db"
 MAX_EXECUTIONS = 100
@@ -223,31 +225,49 @@ class ExecutionManager:
             }
         )
 
-    def get(self, execution_id: str) -> dict | None:
+    def get(self, execution_id: str) -> Execution | None:
         row = self._conn.execute(
             "SELECT id, task_name, status, params, result, started_at, finished_at FROM executions WHERE id=?",
             (execution_id,),
         ).fetchone()
         if row is None:
             return None
-        entry = dict(row)
-        entry["params"] = json.loads(entry["params"]) if entry["params"] else {}
-        entry["result"] = json.loads(entry["result"]) if entry["result"] else None
-        entry["steps"] = [
-            dict(s)
+        params = json.loads(row["params"]) if row["params"] else {}
+        result = json.loads(row["result"]) if row["result"] else None
+        steps = [
+            Step(
+                name=s["name"],
+                phase=s["phase"],
+                status=StepStatus(s["status"]),
+                timestamp=s["timestamp"],
+            )
             for s in self._conn.execute(
                 "SELECT name, phase, status, timestamp FROM steps WHERE execution_id=? ORDER BY id",
                 (execution_id,),
             ).fetchall()
         ]
-        entry["logs"] = [
-            dict(ln)
+        logs = [
+            LogEntry(
+                message=ln["message"],
+                level=ln["level"],
+                timestamp=ln["timestamp"],
+            )
             for ln in self._conn.execute(
                 "SELECT message, level, timestamp FROM logs WHERE execution_id=? ORDER BY id",
                 (execution_id,),
             ).fetchall()
         ]
-        return entry
+        return Execution(
+            id=row["id"],
+            task_name=row["task_name"],
+            status=ExecutionStatus(row["status"]),
+            params=params,
+            result=result,
+            started_at=row["started_at"],
+            finished_at=row["finished_at"],
+            steps=steps,
+            logs=logs,
+        )
 
     def list_all(self, limit: int = 50) -> list[dict]:
         rows = self._conn.execute(

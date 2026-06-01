@@ -1,5 +1,7 @@
 from typing import Protocol
 
+from src.infrastructure.models import TaskInfo
+
 
 class Task(Protocol):
     async def execute(self, params: dict) -> dict: ...
@@ -25,6 +27,31 @@ class TaskRegistry:
     @classmethod
     def list(cls) -> list[str]:
         return list(cls._tasks.keys())
+
+    @classmethod
+    def list_info(cls) -> list[TaskInfo]:
+        """Return rich metadata for every registered task."""
+        result: list[TaskInfo] = []
+        for name, task_cls in cls._tasks.items():
+            steps: dict[str, list[str]] = {}
+            if hasattr(task_cls, "get_steps"):
+                raw = task_cls.get_steps()
+                if isinstance(raw, dict):
+                    steps = raw
+                elif isinstance(raw, list):
+                    steps = {"": raw}
+            schema: list[dict] = []
+            if hasattr(task_cls, "get_schema"):
+                schema = task_cls.get_schema()
+            result.append(
+                TaskInfo(
+                    name=name,
+                    display_name=name,
+                    steps=steps,
+                    schema_fields=schema,
+                )
+            )
+        return result
 
     @classmethod
     def auto_discover(cls):
