@@ -61,11 +61,11 @@ def _build_app(ws_queue: asyncio.Queue) -> FastAPI:
 
         yield
         bg.cancel()
-        from src.infrastructure.execution_manager import get_manager
+        from src.infrastructure.execution_manager import close_manager
         from src.infrastructure.task_runner import get_pool
 
         get_pool().shutdown()
-        get_manager().close()
+        close_manager()
         log.info("server.shutdown.cleanup_done")
 
     app = FastAPI(title="TerminalServerRPA", version="0.1.0", lifespan=lifespan)
