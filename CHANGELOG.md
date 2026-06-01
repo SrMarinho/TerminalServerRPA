@@ -9,6 +9,9 @@ Todas as mudanças notáveis deste projeto são documentadas aqui. O formato é 
   (ver [ADR-0003](docs/decisions/ADR-0003-remove-orphan-core-layer.md)).
 
 ### Alterado
+- O cofre (`Vault`) e o pool de tarefas deixam de ser singletons criados no import
+  do router; passam a ser injetados via `Depends` (`get_vault`/`get_pool`), tornando
+  os endpoints testáveis com `app.dependency_overrides`.
 - `TaskRegistry.auto_discover` agora é idempotente (varre o filesystem uma vez por
   processo); a descoberta roda no startup do servidor em vez de a cada requisição.
 - Validação de corpo de requisição via Pydantic (`CredentialIn`, `BreakpointIn`,

@@ -34,6 +34,10 @@ extend-exclude = ["*.spec"]
 select = ["E", "F", "I", "W", "N", "UP", "B", "SIM"]
 ignore = ["B904", "UP007"]
 
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI dependency-injection markers are meant to be called in argument defaults.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Header", "fastapi.Path"]
+
 [tool.ruff.format]
 quote-style = "double"
 
