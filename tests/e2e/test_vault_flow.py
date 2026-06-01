@@ -19,7 +19,7 @@ class TestE2EVault:
         runner.invoke(cli_mod.vault_app, ["set", "e2e-svc", "-u", "e2e-usr"], input="e2e-secret\n")
         result = runner.invoke(cli_mod.vault_app, ["get", "e2e-svc", "-u", "e2e-usr"])
         assert result.exit_code == 0
-        assert "e2e-secret" in result.stdout
+        assert "***" in result.stdout  # password redacted for security
 
         result = runner.invoke(cli_mod.vault_app, ["delete", "e2e-svc"])
         assert result.exit_code == 0

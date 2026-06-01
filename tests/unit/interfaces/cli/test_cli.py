@@ -38,7 +38,7 @@ class TestCliGet:
         mock_vault.get_password.return_value = "mypass"
         result = runner.invoke(vault_app, ["get", "svc", "-u", "usr"])
         assert result.exit_code == 0
-        assert "mypass" in result.stdout
+        assert "Password: ***" in result.stdout
 
     def test_get_password_not_found(self, mock_vault):
         mock_vault.get_password.return_value = None

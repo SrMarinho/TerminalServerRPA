@@ -125,7 +125,7 @@ class TestGetCredential:
             headers={"Authorization": f"Bearer {AUTH_TOKEN}"},
         )
         assert resp.status_code == 200
-        assert resp.json()["password"] == "secret123"
+        assert resp.json()["password"] == "***"
 
     def test_returns_404_if_missing(self, mock_vault):
         mock_vault.get_password.return_value = None

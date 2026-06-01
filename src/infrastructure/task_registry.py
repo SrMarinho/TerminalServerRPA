@@ -37,8 +37,11 @@ class TaskRegistry:
         import src.automation.tasks as pkg
 
         count = 0
-        for _importer, modname, _ispkg in pkgutil.iter_modules(pkg.__path__):
-            importlib.import_module(f"src.automation.tasks.{modname}")
+        # walk_packages recurses into subdirectories so the filesystem
+        # can mirror the Senior ERP menu hierarchy (e.g.
+        # financas/gestao_contas_receber/contas_receber/relatorios/…).
+        for _importer, modname, _ispkg in pkgutil.walk_packages(pkg.__path__, prefix=f"{pkg.__name__}."):
+            importlib.import_module(modname)
             count += 1
         if count == 0:
             importlib.import_module("src.automation.tasks")

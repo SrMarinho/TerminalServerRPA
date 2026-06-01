@@ -16,7 +16,11 @@ def _broadcast_exec_event(event: dict):
 
         broadcast_event(event)
     except RuntimeError:
-        pass  # no event loop running (e.g., CLI mode)
+        from src.infrastructure.logger import get_logger
+
+        get_logger("TerminalServerRPA.execution-manager").debug(
+            "broadcast.no_loop", event_type=event.get("type", "unknown")
+        )  # no event loop running (e.g., CLI mode)
 
 
 def _get_conn() -> sqlite3.Connection:

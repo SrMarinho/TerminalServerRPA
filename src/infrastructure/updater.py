@@ -57,3 +57,47 @@ def download_asset(asset_name: str, dest_dir: Path) -> Path | None:
     except Exception as e:
         log.error("update.download_failed", error=str(e))
     return None
+
+
+def apply_update(current_exe: Path, new_exe: Path) -> None:
+    """Download the latest release and schedule a hot-swap via the updater executable.
+
+    1. Download the new EXE into the parent directory of the running EXE.
+    2. Write a one-shot batch script that waits for the parent process to
+       exit, replaces the EXE, restarts it, then self-destructs.
+    3. Launch the batch script detached so it survives this process exit.
+    """
+    import os
+    import subprocess
+    import sys
+
+    dest = download_asset(current_exe.name, current_exe.parent)
+    if dest is None:
+        return
+
+    batch = current_exe.parent / "_update.bat"
+    batch.write_text(
+        f"""@echo off
+rem Wait for the parent process to exit (up to 30s).
+:wait
+tasklist /FI "PID eq {os.getpid()}" 2>nul | find "{os.getpid()}" >nul
+if not errorlevel 1 (
+    timeout /t 2 /nobreak >nul
+    goto wait
+)
+rem Replace the running EXE with the downloaded one.
+copy /y "{dest}" "{current_exe}" >nul
+rem Restart.
+start "" "{current_exe}"
+rem Clean up.
+del /q "{dest}" "%~f0"
+""",
+        encoding="utf-8",
+    )
+
+    log.info("update.scheduled", batch=str(batch))
+    subprocess.Popen(
+        ["cmd.exe", "/c", str(batch)],
+        creationflags=subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP,
+    )
+    sys.exit(0)

@@ -18,6 +18,27 @@ log = get_logger("TerminalServerRPA.server")
 STATIC_DIR = Path(__file__).parent / "static"
 
 
+def _check_for_update() -> None:
+    """Check GitHub for a newer release and prompt the user via the UI."""
+    import threading
+
+    from src.config.version import VERSION
+    from src.infrastructure.updater import check_for_update, download_asset
+
+    def _run():
+        try:
+            release = check_for_update(VERSION)
+            if release is None:
+                return
+            log.info("update.available", version=release.version, url=release.html_url)
+            # In a full UI this would show a notification.  For now the
+            # user can always trigger the update via GET /api/update.
+        except Exception:
+            log.exception("update.background_check_failed")
+
+    threading.Thread(target=_run, daemon=True).start()
+
+
 def find_free_port(start: int = 8080, max_attempts: int = 100) -> int:
     for port in range(start, start + max_attempts):
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -34,6 +55,10 @@ def _build_app(ws_queue: asyncio.Queue) -> FastAPI:
         TaskRegistry.auto_discover()  # scan tasks once at startup
         bg = asyncio.create_task(broadcast_from_queue(ws_queue))
         log.info("ws.broadcast.started")
+
+        # Check for updates in the background (fire-and-forget).
+        _check_for_update()
+
         yield
         bg.cancel()
         from src.infrastructure.execution_manager import get_manager

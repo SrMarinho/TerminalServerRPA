@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -58,3 +58,50 @@ class TestUserRegistrationPage:
         rp = UserRegistrationPage(page)
         assert await rp.is_success() is True
         page.is_visible.assert_awaited_once_with(".success-message")
+
+
+class TestTsLoginPage:
+    @pytest.mark.asyncio
+    async def test_navigate_calls_goto(self):
+        from src.automation.pages.ts_login_page import TsLoginPage
+
+        page = AsyncMock()
+        lp = TsLoginPage(page, base_url="https://sistema.nazaria.com.br/")
+        await lp.navigate()
+        page.goto.assert_awaited_once_with("https://sistema.nazaria.com.br/")
+
+    @pytest.mark.asyncio
+    async def test_login_fills_selectors(self):
+        from unittest.mock import MagicMock
+
+        from src.automation.pages.ts_login_page import TsLoginPage
+
+        page = AsyncMock()
+        page.get_by_text = MagicMock(return_value=AsyncMock())
+        lp = TsLoginPage(page)
+        await lp.login("myuser", "mypass")
+        page.fill.assert_any_await("#Editbox1", "myuser")
+        page.fill.assert_any_await("#Editbox2", "mypass")
+        page.get_by_text.assert_called_once_with("Entrar")
+        page.get_by_text.return_value.click.assert_called_once_with(click_count=2, delay=100)
+
+
+class TestTsApplicationsPage:
+    @pytest.mark.asyncio
+    async def test_click_application_uses_image_match(self):
+        from src.automation.pages.ts_applications_page import TsApplicationsPage
+
+        page = AsyncMock()
+        page.screenshot.return_value = b"fake_image_bytes"
+        ap = TsApplicationsPage(page)
+        ap._dump = AsyncMock()
+        ap._log = lambda _: None
+
+        with (
+            patch("src.automation.pages.ts_applications_page.find_template") as mock_find,
+            patch("pathlib.Path.exists", return_value=True),
+        ):
+            mock_find.return_value = ((500, 300), 0.95)
+            await ap.click_application("Gestão Empresarial", asset_folder="Senior")
+
+        page.mouse.click.assert_awaited_once_with(500, 300)
