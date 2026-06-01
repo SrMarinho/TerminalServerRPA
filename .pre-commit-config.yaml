@@ -1,6 +1,8 @@
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.15.0
+    # Pinned below 0.15: ruff-format 0.15.x rewrites `except (A, B):` into the
+    # invalid Python-2 form `except A, B:`. 0.14.x is unaffected.
+    rev: v0.14.5
     hooks:
       - id: ruff
         args: [--fix]
