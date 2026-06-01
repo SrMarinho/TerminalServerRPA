@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import sys
 from logging.handlers import RotatingFileHandler
@@ -13,19 +12,7 @@ LOG_FILE = LOG_DIR / "TerminalServerRPA.jsonl"
 
 LOG_DIR.mkdir(parents=True, exist_ok=True)
 
-_ws_queue: asyncio.Queue | None = None
 _configured = False
-
-
-def set_ws_queue(queue: asyncio.Queue):
-    global _ws_queue
-    _ws_queue = queue
-
-
-def _ws_processor(logger, method_name, event_dict):
-    if _ws_queue is not None:
-        _ws_queue.put_nowait(event_dict)
-    return event_dict
 
 
 def configure_logger(level=logging.INFO):
@@ -51,7 +38,6 @@ def configure_logger(level=logging.INFO):
             timestamper,
             structlog.stdlib.add_log_level,
             structlog.processors.UnicodeDecoder(),
-            _ws_processor,
             JSONRenderer(),
         ],
         foreign_pre_chain=shared_processors,
