@@ -33,6 +33,10 @@ def verify_token(authorization: str = Header(default=""), token: str = ""):
 # Separate router for /api/* routes with auth protection
 api_router = APIRouter(prefix="", dependencies=[Depends(verify_token)])
 
+# Dev-only routes — included by the server only when DEV_MODE is enabled,
+# so the attack surface does not exist at all in production builds.
+dev_router = APIRouter(prefix="", dependencies=[Depends(verify_token)])
+
 
 @router.get("/", response_class=HTMLResponse)
 async def index():
@@ -238,14 +242,14 @@ async def dev_mode():
     return {"dev": DEV_MODE}
 
 
-@api_router.post("/api/executions/{exec_id}/snippet")
+@dev_router.post("/api/executions/{exec_id}/snippet")
 async def run_snippet(exec_id: str, data: dict):
     import asyncio as _asyncio
     import traceback
 
     from src.config.settings import DEV_MODE
 
-    if not DEV_MODE:
+    if not DEV_MODE:  # defense in depth; route is also unregistered in prod
         raise HTTPException(403, "only available in dev mode")
     runner = _pool.get(exec_id)
     if not runner or not runner._page:

@@ -29,20 +29,24 @@ O `uvicorn` é iniciado com `host="127.0.0.1"` (veja `src/interfaces/web/server.
 - REST: toda rota `/api/*` depende de `verify_token` (cabeçalho Bearer ou `?token=`).
 - WebSocket `/ws`: o token é validado a partir do parâmetro `?token=` no handshake; tokens inválidos/ausentes são rejeitados com código de fechamento `1008` (violação de política) **antes** de a conexão ser aceita.
 
-### Armazenamento de credenciais
+### Armazenamento de credenciais e token
 - Uma chave Fernet fica no Gerenciador de Credenciais do Windows sob o serviço `TerminalServerRPA` (`src/infrastructure/vault.py`).
 - Cada credencial é criptografada com essa chave e armazenada no keyring; um índice criptografado rastreia serviços/usuários. Nada é gravado em disco em texto puro.
+- O **token de API** também fica no keyring (`single_instance.get_or_create_token`); o arquivo legado `token.txt` é removido na primeira execução.
+- `set_password` valida a entrada (rejeita serviço/usuário vazios); `_decrypt` encadeia exceções (`raise ... from e`).
+
+### Endpoint de desenvolvimento
+- `/api/executions/{id}/snippet` executa Python arbitrário contra a página Playwright. A rota só é **registrada** quando `DEV_MODE` está ligado (via `dev_router`), além de um guard interno — em produção a rota não existe.
+
+### Shutdown
+- `/api/shutdown` dispara o shutdown gracioso do uvicorn (`Server.should_exit`), que roda o cleanup do lifespan (cancela tarefas ativas, fecha a conexão do banco). Não há mais `os._exit(0)`.
 
 ## Limitações conhecidas e hardening planejado
 
-Itens rastreados no [roadmap](roadmap.md). Documentados aqui por honestidade e para delimitar expectativas.
-
 | Item | Status |
 |------|--------|
-| **Token de API em texto puro** em `%LOCALAPPDATA%/TerminalServerRPA/token.txt` (legível pelo usuário local). | Planejado: mover para o keyring / restringir ACL. |
-| **`/api/executions/{id}/snippet`** executa Python arbitrário (`exec`) contra a página Playwright ativa. | Protegido por `DEV_MODE` (desligado em builds de produção). Planejado: registrar a rota apenas quando `DEV_MODE` para eliminar a superfície de ataque. |
-| **Shutdown via `os._exit(0)`** pula o cleanup (processos do browser/Playwright podem ficar órfãos). | Planejado: shutdown gracioso via o lifespan do app. |
-| **`verify_token` lê `authorization` como parâmetro de query** em vez do cabeçalho HTTP no trabalho em andamento. | A corrigir: vincular como `Header(...)`. |
+| Validação de entrada nos endpoints ainda parcialmente manual (`dict.get()`). | Em migração para schemas Pydantic (Fase 2). |
+| Singletons globais de infraestrutura dificultam o mock em testes. | Em migração para injeção de dependência (Fase 3). |
 
 ## Reporte
 

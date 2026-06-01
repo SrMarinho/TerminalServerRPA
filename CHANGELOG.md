@@ -9,6 +9,11 @@ Todas as mudanças notáveis deste projeto são documentadas aqui. O formato é 
 
 ### Segurança
 - O WebSocket `/ws` agora exige o token de API no handshake e rejeita conexões não autenticadas com código de fechamento `1008`. Antes, o WebSocket era aberto enquanto a API REST era protegida.
+- `verify_token` passa a ler o cabeçalho `Authorization` de fato (via `Header(...)`); antes era tratado como parâmetro de query, quebrando a autenticação por Bearer em todas as rotas `/api/*`.
+- O endpoint `/api/shutdown` faz shutdown gracioso (`uvicorn.Server.should_exit`) com cleanup de tarefas e do banco, no lugar de `os._exit(0)`.
+- O endpoint `/snippet` (execução de código arbitrário) só é registrado quando `DEV_MODE` está ligado — a rota não existe em produção.
+- O token de API é armazenado no keyring do SO em vez de um arquivo `token.txt` em texto puro (o arquivo legado é removido).
+- `Vault.set_password` valida a entrada (rejeita serviço/usuário vazios).
 - Adicionada a [documentação de segurança](docs/security.md) com o modelo de ameaça e as limitações conhecidas.
 
 ## [0.1.0]

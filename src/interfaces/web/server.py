@@ -10,7 +10,7 @@ from fastapi.staticfiles import StaticFiles
 
 from src.infrastructure.logger import configure_logger, get_logger, set_ws_queue
 from src.infrastructure.single_instance import focus_existing_instance, is_first_instance, save_port
-from src.interfaces.web.router import api_router, router
+from src.interfaces.web.router import api_router, dev_router, router
 from src.interfaces.web.websocket import broadcast_from_queue
 
 log = get_logger("TerminalServerRPA.server")
@@ -45,6 +45,10 @@ def _build_app(ws_queue: asyncio.Queue) -> FastAPI:
         app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
     app.include_router(router)
     app.include_router(api_router)
+    import src.config.settings as _settings
+
+    if _settings.DEV_MODE:
+        app.include_router(dev_router)
     return app
 
 
@@ -76,18 +80,19 @@ def run_server(port: int = 8080, open_browser: bool = True, dev: bool = False):
         log.warning("port.busy", requested=port, fallback=actual_port)
     (log.debug if dev else log.info)("server.starting", port=actual_port)
 
+    # Enable dev mode before building the app so dev-only routes register.
+    if dev:
+        import src.config.settings as _settings
+
+        _settings.DEV_MODE = True
+        log.info("server.dev_mode", reload_dirs="templates, static")
+
     ws_queue: asyncio.Queue = asyncio.Queue()
     set_ws_queue(ws_queue)
     app = _build_app(ws_queue)
 
     if open_browser:
         webbrowser.open(f"http://127.0.0.1:{actual_port}")
-
-    if dev:
-        import src.config.settings as _settings
-
-        _settings.DEV_MODE = True
-        log.info("server.dev_mode", reload_dirs="templates, static")
 
     config = uvicorn.Config(app, host="127.0.0.1", port=actual_port, log_config=_uvicorn_log_config(), access_log=False)
     server = uvicorn.Server(config)

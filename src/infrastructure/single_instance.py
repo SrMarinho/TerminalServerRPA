@@ -5,6 +5,8 @@ import secrets
 import socket
 from pathlib import Path
 
+import keyring
+
 _MUTEX_NAME = "TerminalServerRPA-{}".format(
     str(Path(__file__).resolve().parent.parent.parent).replace("\\", "_").replace(":", "")
 )
@@ -30,10 +32,6 @@ def _get_port_path() -> Path:
     return _get_app_dir() / "port.txt"
 
 
-def _get_token_path() -> Path:
-    return _get_app_dir() / "token.txt"
-
-
 def save_port(port: int):
     path = _get_port_path()
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -46,7 +44,7 @@ def read_port() -> int | None:
         return None
     try:
         return int(path.read_text(encoding="utf-8").strip())
-    except ValueError, OSError:
+    except (ValueError, OSError):
         return None
 
 
@@ -59,16 +57,21 @@ def focus_existing_instance():
             s.sendall(b"GET /_focus HTTP/1.0\r\nHost: 127.0.0.1\r\n\r\n")
             s.recv(1024)
         return True
-    except TimeoutError, ConnectionRefusedError, OSError:
+    except (TimeoutError, ConnectionRefusedError, OSError):
         return False
 
 
+_TOKEN_SERVICE = "TerminalServerRPA"
+_TOKEN_KEY = "_api_token"
+
+
 def get_or_create_token() -> str:
-    """Return existing API token or generate a new one."""
-    path = _get_token_path()
-    if path.exists():
-        return path.read_text(encoding="utf-8").strip()
+    """Return the existing API token or generate one, stored in the OS keyring."""
+    existing = keyring.get_password(_TOKEN_SERVICE, _TOKEN_KEY)
+    if existing:
+        return existing
     token = secrets.token_hex(32)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(token, encoding="utf-8")
+    keyring.set_password(_TOKEN_SERVICE, _TOKEN_KEY, token)
+    # Best-effort cleanup of the legacy plaintext token file.
+    (_get_app_dir() / "token.txt").unlink(missing_ok=True)
     return token

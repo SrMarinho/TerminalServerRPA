@@ -271,3 +271,34 @@ class TestShutdown:
     def test_shutdown_without_server_returns_503(self):
         resp = client.post("/api/shutdown", headers={"Authorization": f"Bearer {AUTH_TOKEN}"})
         assert resp.status_code == 503
+
+
+class TestDevRouterGating:
+    def test_snippet_route_absent_without_dev_router(self):
+        # The default app (production) does not include dev_router, so the
+        # arbitrary-code snippet endpoint does not exist at all.
+        resp = client.post(
+            "/api/executions/x/snippet",
+            json={"code": "print(1)"},
+            headers={"Authorization": f"Bearer {AUTH_TOKEN}"},
+        )
+        assert resp.status_code == 404
+
+    def test_snippet_route_present_when_dev_router_included(self):
+        from fastapi import FastAPI
+        from fastapi.testclient import TestClient
+
+        from src.interfaces.web.router import api_router, dev_router, router
+
+        dev_app = FastAPI()
+        dev_app.include_router(router)
+        dev_app.include_router(api_router)
+        dev_app.include_router(dev_router)
+        dev_client = TestClient(dev_app)
+        resp = dev_client.post(
+            "/api/executions/x/snippet",
+            json={"code": "print(1)"},
+            headers={"Authorization": f"Bearer {AUTH_TOKEN}"},
+        )
+        # Route exists now; DEV_MODE guard returns 403 (DEV_MODE off in tests).
+        assert resp.status_code == 403
