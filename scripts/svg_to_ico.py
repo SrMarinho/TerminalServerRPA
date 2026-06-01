@@ -36,7 +36,11 @@ async def rasterize(svg_path: Path, size: int) -> Image.Image:
 
     import io
 
-    return Image.open(io.BytesIO(buf)).convert("RGBA")
+    img = Image.open(io.BytesIO(buf)).convert("RGBA")
+    bbox = img.getbbox()
+    if bbox:
+        img = img.crop(bbox).resize((size, size), Image.LANCZOS)
+    return img
 
 
 def main() -> None:
