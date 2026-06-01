@@ -1,4 +1,3 @@
-import asyncio
 import logging
 
 import pytest
@@ -42,33 +41,6 @@ class TestConfigureLogger:
         count = len(root.handlers)
         configure_logger()
         assert len(root.handlers) == count
-
-
-class TestWsQueue:
-    def test_set_queue(self):
-        import src.infrastructure.logger as logger_mod
-
-        q = asyncio.Queue()
-        logger_mod.set_ws_queue(q)
-        assert logger_mod._ws_queue is q
-        logger_mod.set_ws_queue(None)
-
-    def test_processor_puts_event(self):
-        import src.infrastructure.logger as logger_mod
-
-        q = asyncio.Queue()
-        logger_mod.set_ws_queue(q)
-        logger_mod._ws_processor(None, "info", {"event": "test"})
-        assert not q.empty()
-        assert q.get_nowait() == {"event": "test"}
-        logger_mod.set_ws_queue(None)
-
-    def test_processor_skips_when_no_queue(self):
-        import src.infrastructure.logger as logger_mod
-
-        logger_mod.set_ws_queue(None)
-        result = logger_mod._ws_processor(None, "info", {"event": "test"})
-        assert result == {"event": "test"}
 
 
 class TestGetLogger:

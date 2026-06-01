@@ -1,4 +1,3 @@
-import asyncio
 from unittest.mock import MagicMock, patch
 
 from fastapi import FastAPI
@@ -43,14 +42,14 @@ class TestBuildApp:
     def test_returns_fastapi_app(self):
         from src.interfaces.web.server import _build_app
 
-        app = _build_app(asyncio.Queue())
+        app = _build_app()
         assert isinstance(app, FastAPI)
         assert app.title == "TerminalServerRPA"
 
     def test_includes_router(self):
         from src.interfaces.web.server import _build_app
 
-        app = _build_app(asyncio.Queue())
+        app = _build_app()
         routes = [r.path for r in app.routes]
         assert "/api/credentials" in routes
         assert "/" in routes

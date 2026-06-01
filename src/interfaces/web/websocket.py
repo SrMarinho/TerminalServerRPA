@@ -38,6 +38,12 @@ manager = ConnectionManager()
 _loop: asyncio.AbstractEventLoop | None = None
 
 
+def capture_loop() -> None:
+    """Record the running loop so cross-thread callers can schedule broadcasts."""
+    global _loop
+    _loop = asyncio.get_running_loop()
+
+
 def broadcast_event(event: dict):
     try:
         loop = asyncio.get_running_loop()
@@ -47,11 +53,3 @@ def broadcast_event(event: dict):
         # No event loop available (e.g. CLI mode) — nothing to broadcast to.
         raise RuntimeError("no event loop available for broadcast")
     loop.call_soon_threadsafe(lambda: asyncio.create_task(manager.broadcast(event)))
-
-
-async def broadcast_from_queue(queue: asyncio.Queue):
-    global _loop
-    _loop = asyncio.get_running_loop()
-    while True:
-        event = await queue.get()
-        await manager.broadcast(event)

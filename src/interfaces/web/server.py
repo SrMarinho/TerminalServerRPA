@@ -1,4 +1,3 @@
-import asyncio
 import socket
 import webbrowser
 from contextlib import asynccontextmanager
@@ -8,10 +7,9 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from src.infrastructure.logger import configure_logger, get_logger, set_ws_queue
+from src.infrastructure.logger import configure_logger, get_logger
 from src.infrastructure.single_instance import focus_existing_instance, is_first_instance, save_port
 from src.interfaces.web.router import api_router, dev_router, router
-from src.interfaces.web.websocket import broadcast_from_queue
 
 log = get_logger("TerminalServerRPA.server")
 
@@ -47,20 +45,19 @@ def find_free_port(start: int = 8080, max_attempts: int = 100) -> int:
     raise RuntimeError(f"no free port found in range {start}-{start + max_attempts}")
 
 
-def _build_app(ws_queue: asyncio.Queue) -> FastAPI:
+def _build_app() -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         from src.infrastructure.task_registry import TaskRegistry
+        from src.interfaces.web.websocket import capture_loop
 
         TaskRegistry.auto_discover()  # scan tasks once at startup
-        bg = asyncio.create_task(broadcast_from_queue(ws_queue))
-        log.info("ws.broadcast.started")
+        capture_loop()  # record loop for cross-thread broadcast scheduling
 
         # Check for updates in the background (fire-and-forget).
         _check_for_update()
 
         yield
-        bg.cancel()
         from src.infrastructure.execution_manager import close_manager
         from src.infrastructure.task_runner import get_pool
 
@@ -115,9 +112,7 @@ def run_server(port: int = 8080, open_browser: bool = True, dev: bool = False):
         _settings.DEV_MODE = True
         log.info("server.dev_mode", reload_dirs="templates, static")
 
-    ws_queue: asyncio.Queue = asyncio.Queue()
-    set_ws_queue(ws_queue)
-    app = _build_app(ws_queue)
+    app = _build_app()
 
     if open_browser:
         webbrowser.open(f"http://127.0.0.1:{actual_port}")
