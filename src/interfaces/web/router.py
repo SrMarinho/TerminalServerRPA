@@ -10,6 +10,7 @@ from src.infrastructure.task_config import load_config, save_config
 from src.infrastructure.task_registry import TaskRegistry
 from src.infrastructure.task_runner import get_pool
 from src.infrastructure.vault import Vault
+from src.interfaces.web.schemas import BreakpointIn, CredentialIn, SnippetIn
 from src.interfaces.web.websocket import manager
 
 router = APIRouter()
@@ -88,15 +89,8 @@ async def list_credentials():
 
 
 @api_router.post("/api/credentials")
-async def save_credential(data: dict):
-    service: str = data.get("service") or ""
-    username: str = data.get("username") or ""
-    password: str = data.get("password") or ""
-    if not service:
-        raise HTTPException(400, "service required")
-    if not username and not password:
-        raise HTTPException(400, "username or password required")
-    _vault.set_password(service, username, password)
+async def save_credential(data: CredentialIn):
+    _vault.set_password(data.service, data.username, data.password)
     return {"status": "ok"}
 
 
@@ -208,10 +202,10 @@ async def skip_task_step(task_id: str):
 
 
 @api_router.post("/api/executions/{exec_id}/breakpoint")
-async def set_exec_breakpoint(exec_id: str, data: dict):
+async def set_exec_breakpoint(exec_id: str, data: BreakpointIn):
     from src.infrastructure.execution_manager import get_breakpoints, set_breakpoint
 
-    set_breakpoint(exec_id, data["step"], data["enabled"])
+    set_breakpoint(exec_id, data.step, data.enabled)
     return {"breakpoints": get_breakpoints(exec_id)}
 
 
@@ -243,7 +237,7 @@ async def dev_mode():
 
 
 @dev_router.post("/api/executions/{exec_id}/snippet")
-async def run_snippet(exec_id: str, data: dict):
+async def run_snippet(exec_id: str, data: SnippetIn):
     import asyncio as _asyncio
     import traceback
 
@@ -254,7 +248,7 @@ async def run_snippet(exec_id: str, data: dict):
     runner = _pool.get(exec_id)
     if not runner or not runner._page:
         raise HTTPException(404, "execution not running or page not available")
-    code = data.get("code", "")
+    code = data.code
     output: list[str] = []
     import cv2 as _cv2  # type: ignore[import-untyped]
     import numpy as _np  # type: ignore[import-untyped]
