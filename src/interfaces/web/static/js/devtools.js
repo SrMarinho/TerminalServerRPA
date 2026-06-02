@@ -100,7 +100,7 @@ async function runDevOcr() {
   output.textContent = '';
   try {
     var res = await api('POST', '/api/executions/' + execId + '/ocr');
-    status.textContent = 'ok · salvo em ocr_last.txt';
+    status.textContent = 'ok';
     status.style.color = 'var(--accent)';
     output.textContent = res.text || '';
   } catch(e) {

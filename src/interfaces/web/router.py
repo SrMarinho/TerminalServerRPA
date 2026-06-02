@@ -338,7 +338,7 @@ async def run_ocr(exec_id: str, pool: TaskPool = Depends(get_pool)):
     import pytesseract as _pytesseract  # type: ignore[import-untyped]
     from PIL import Image
 
-    from src.config.settings import BASE_DIR, DEV_MODE
+    from src.config.settings import DEV_MODE
 
     if not DEV_MODE:
         raise HTTPException(403, "only available in dev mode")
@@ -348,5 +348,4 @@ async def run_ocr(exec_id: str, pool: TaskPool = Depends(get_pool)):
     raw = await runner._page.screenshot()  # type: ignore[attr-defined]
     img = Image.open(io.BytesIO(raw))
     text = _pytesseract.image_to_string(img, lang="por")
-    (BASE_DIR / "ocr_last.txt").write_text(text, encoding="utf-8")
-    return {"text": text, "saved": "ocr_last.txt"}
+    return {"text": text}
