@@ -27,7 +27,16 @@ class RotConciliacao703(BaseReport):
             {"name": "titulo", "label": "Título", "type": "string"},
             {"name": "data_emissao", "label": "Data Emissão", "type": "string"},
             {"name": "data_movimento", "label": "Data Movimento", "type": "string"},
-            {"name": "opcao", "label": "Opção", "type": "select", "default": "V", "options": ["V"]},
+            {
+                "name": "opcao",
+                "label": "Opção",
+                "type": "select",
+                "default": "V",
+                "options": [
+                    {"value": "V", "label": "V — Validar"},
+                    {"value": "B", "label": "B — Baixar Títulos"},
+                ],
+            },
             {
                 "name": "analitico_sintetico",
                 "label": "Analítico/Sintético",
