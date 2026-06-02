@@ -329,3 +329,24 @@ async def run_snippet(exec_id: str, data: SnippetIn, pool: TaskPool = Depends(ge
     except Exception:
         return {"ok": False, "error": traceback.format_exc(), "output": output}
     return {"ok": True, "output": output}
+
+
+@dev_router.post("/api/executions/{exec_id}/ocr")
+async def run_ocr(exec_id: str, pool: TaskPool = Depends(get_pool)):
+    import io
+
+    import pytesseract as _pytesseract  # type: ignore[import-untyped]
+    from PIL import Image
+
+    from src.config.settings import BASE_DIR, DEV_MODE
+
+    if not DEV_MODE:
+        raise HTTPException(403, "only available in dev mode")
+    runner = pool.get(exec_id)
+    if not runner or not runner._page:
+        raise HTTPException(404, "execution not running or page not available")
+    raw = await runner._page.screenshot()  # type: ignore[attr-defined]
+    img = Image.open(io.BytesIO(raw))
+    text = _pytesseract.image_to_string(img, lang="por")
+    (BASE_DIR / "ocr_last.txt").write_text(text, encoding="utf-8")
+    return {"text": text, "saved": "ocr_last.txt"}
