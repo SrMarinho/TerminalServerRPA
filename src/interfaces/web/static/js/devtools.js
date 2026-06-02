@@ -89,3 +89,23 @@ async function runDevSnippet() {
     output.textContent = e.message;
   }
 }
+
+async function runDevOcr() {
+  var execId = document.getElementById('devExecSelect').value;
+  if (!execId) { toast('Selecione uma execução', true); return; }
+  var status = document.getElementById('devSnippetStatus');
+  var output = document.getElementById('devSnippetOutput');
+  status.textContent = 'ocr...';
+  status.style.color = 'var(--text-2)';
+  output.textContent = '';
+  try {
+    var res = await api('POST', '/api/executions/' + execId + '/ocr');
+    status.textContent = 'ok · salvo em ocr_last.txt';
+    status.style.color = 'var(--accent)';
+    output.textContent = res.text || '';
+  } catch(e) {
+    status.textContent = 'erro';
+    status.style.color = 'var(--danger)';
+    output.textContent = e.message;
+  }
+}
