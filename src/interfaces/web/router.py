@@ -306,10 +306,14 @@ async def run_snippet(exec_id: str, data: SnippetIn, pool: TaskPool = Depends(ge
         raise HTTPException(404, "execution not running or page not available")
     code = data.code
     output: list[str] = []
+    from pathlib import Path as _Path
+
     import cv2 as _cv2  # type: ignore[import-untyped]
     import numpy as _np  # type: ignore[import-untyped]
     import pytesseract as _pytesseract  # type: ignore[import-untyped]
 
+    from src.config.settings import ASSETS_DIR as _ASSETS_DIR
+    from src.utils.image_match import find_template as _find_template
     from src.utils.image_match import find_text as _find_text
 
     globs: dict = {
@@ -320,6 +324,9 @@ async def run_snippet(exec_id: str, data: SnippetIn, pool: TaskPool = Depends(ge
         "numpy": _np,
         "pytesseract": _pytesseract,
         "find_text": _find_text,
+        "find_template": _find_template,
+        "ASSETS_DIR": _ASSETS_DIR,
+        "Path": _Path,
         "print": lambda *a, **_: output.append(" ".join(str(x) for x in a)),
     }
     try:
