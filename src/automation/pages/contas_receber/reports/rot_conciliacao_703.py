@@ -76,10 +76,11 @@ class RotConciliacao703(BaseReport):
                 return
             target_x, target_y = pos
             await page.mouse.click(target_x, target_y)
-            await asyncio.sleep(0.3)
-            await page.keyboard.press("Control+a")
             await asyncio.sleep(0.1)
+            await page.mouse.click(target_x, target_y)
+            await asyncio.sleep(0.2)
             await page.keyboard.press("Backspace")
+            await asyncio.sleep(0.2)
             await page.keyboard.type(value, delay=50)
             _log(f"filled ({target_x},{target_y}) → {value!r}")
 
