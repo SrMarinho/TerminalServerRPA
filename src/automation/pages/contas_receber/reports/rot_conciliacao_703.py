@@ -78,6 +78,7 @@ class RotConciliacao703(BaseReport):
             await page.mouse.click(target_x, target_y)
             await asyncio.sleep(0.3)
             await page.keyboard.press("Control+a")
+            await asyncio.sleep(0.1)
             await page.keyboard.press("Delete")
             await page.keyboard.type(value, delay=50)
             _log(f"filled ({target_x},{target_y}) → {value!r}")
