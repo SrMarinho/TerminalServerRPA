@@ -61,8 +61,10 @@ class TaskRunner:
             return
         from src.infrastructure.vault import Vault
 
+        from src.automation.param_resolvers import resolve_params
+
         task = task_cls(runner=self, vault=Vault())
-        self._result = await task.execute(params)
+        self._result = await task.execute(resolve_params(params or {}))
 
     def log(self, message: str, level: str = "info"):
         if self._execution_id:
