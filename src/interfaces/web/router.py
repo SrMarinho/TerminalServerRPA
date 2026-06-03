@@ -202,6 +202,50 @@ async def get_task_schema(task_name: str):
     return TaskRegistry.get_schema(task_name)
 
 
+@api_router.get("/api/resolvers")
+async def get_resolvers():
+    from src.automation.param_resolvers import resolver_meta
+    return resolver_meta()
+
+
+@api_router.post("/api/resolvers/preview")
+async def preview_formula(data: dict):
+    from src.automation.param_resolvers import _parse_formula
+    formula = data.get("formula", "")
+    result = _parse_formula(formula)
+    return {"result": result}
+
+
+@api_router.get("/api/tasks/{task_name}/form")
+async def get_task_form(task_name: str, wrap_class: str = "", vault: Vault = Depends(get_vault)):
+    from jinja2 import Environment, FileSystemLoader, select_autoescape
+
+    schema = TaskRegistry.get_schema(task_name)
+    config = load_config(task_name) or {}
+    creds = [{"service": s} for s in vault.list_services()]
+    env = Environment(
+        loader=FileSystemLoader(str(TEMPLATES_DIR)),
+        autoescape=select_autoescape(["html"]),
+    )
+    html = env.get_template("form_fields.html").render(
+        fields=schema, config=config, creds=creds, wrap_class=wrap_class
+    )
+    return {"html": html}
+
+
+@api_router.post("/api/tasks/{task_name}/visibility")
+async def get_field_visibility(task_name: str, data: dict):
+    params = data.get("params", {})
+    schema = TaskRegistry.get_schema(task_name)
+    result = {}
+    for field in schema:
+        if "when" in field:
+            conditions = field["when"]
+            visible = all(str(params.get(k, "")) == str(v) for k, v in conditions.items())
+            result[field["name"]] = visible
+    return result
+
+
 @api_router.post("/api/tasks/{task_name}/config")
 async def save_task_config(task_name: str, data: dict):
     save_config(task_name, data)
@@ -292,6 +336,18 @@ async def trigger_update():
     return {"status": "restarting"}
 
 
+_snippet_tasks: dict[str, "asyncio.Task"] = {}
+
+
+@dev_router.delete("/api/executions/{exec_id}/snippet", status_code=204)
+async def cancel_snippet(exec_id: str):
+    import asyncio
+
+    task = _snippet_tasks.get(exec_id)
+    if task and not task.done():
+        task.cancel()
+
+
 @dev_router.post("/api/executions/{exec_id}/snippet")
 async def run_snippet(exec_id: str, data: SnippetIn, pool: TaskPool = Depends(get_pool)):
     import asyncio as _asyncio
@@ -332,8 +388,16 @@ async def run_snippet(exec_id: str, data: SnippetIn, pool: TaskPool = Depends(ge
     try:
         wrapped = "async def _snippet_main():\n" + "\n".join("    " + line for line in code.splitlines()) + "\n"
         exec(compile(wrapped, "<snippet>", "exec"), globs)  # noqa: S102
-        await globs["_snippet_main"]()
+        task = _asyncio.create_task(globs["_snippet_main"]())
+        _snippet_tasks[exec_id] = task
+        try:
+            await task
+        except _asyncio.CancelledError:
+            return {"ok": False, "error": "abortado", "output": output}
+        finally:
+            _snippet_tasks.pop(exec_id, None)
     except Exception:
+        _snippet_tasks.pop(exec_id, None)
         return {"ok": False, "error": traceback.format_exc(), "output": output}
     return {"ok": True, "output": output}
 

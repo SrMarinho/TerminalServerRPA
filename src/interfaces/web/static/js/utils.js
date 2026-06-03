@@ -5,13 +5,14 @@ function _getToken() {
   return meta ? meta.getAttribute('content') : '';
 }
 
-async function api(method, path, body) {
+async function api(method, path, body, signal) {
   const opts = { method, headers: {} };
   var token = _getToken();
   if (token) {
     opts.headers['Authorization'] = 'Bearer ' + token;
   }
   if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+  if (signal) { opts.signal = signal; }
   const res = await fetch(API + path, opts);
   if (!res.ok) { const err = await res.text(); throw new Error(err); }
   return res.status === 204 ? null : res.json();
@@ -38,6 +39,7 @@ function logLine(msg, type) {
 }
 
 function esc(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function escAttr(s) { return esc(String(s)).replace(/"/g, '&quot;'); }
 
 function renderJson(obj, depth) {
   if (depth > 10) return '<span style="color:var(--text-3)">\u2026</span>';

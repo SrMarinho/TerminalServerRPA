@@ -1,0 +1,32 @@
+{% for f in fields %}
+<div{% if f.when %} id="wrap-{{ f.name }}" data-when='{{ f.when | tojson }}'{% endif %}{% if wrap_class %} class="{{ wrap_class }}"{% endif %}>
+  <label class="label" style="margin-bottom:6px">{{ f.label | e }}</label>
+  {% if f.type == 'credential' %}
+  <select id="cfg-{{ f.name }}" data-field-type="credential" class="input">
+    <option value="">— selecione —</option>
+    {% for cred in creds %}
+    <option value="{{ cred.service | e }}"{% if config.get(f.name, {}).get('service') == cred.service %} selected{% endif %}>{{ cred.service | e }}</option>
+    {% endfor %}
+  </select>
+  {% elif f.type == 'select' %}
+  {% set cur_val = config.get(f.name, f.default | default('')) | string %}
+  <select id="cfg-{{ f.name }}" data-field-type="select" class="input">
+    {% for opt in f.options | default([]) %}
+    {% set opt_val = opt.value if opt is mapping else opt %}
+    {% set opt_label = opt.label if opt is mapping else opt %}
+    <option value="{{ opt_val | e }}"{% if cur_val == opt_val | string %} selected{% endif %}>{{ opt_label | e }}</option>
+    {% endfor %}
+  </select>
+  {% elif f.type == 'json' %}
+  {% set jval = config.get(f.name) %}
+  <textarea id="cfg-{{ f.name }}" rows="5" class="input" style="font-family:'JetBrains Mono',monospace;resize:vertical;line-height:1.6" spellcheck="false">{{ jval | tojson(indent=2) if jval is not none else '' }}</textarea>
+  {% elif f.type == 'number' %}
+  <input id="cfg-{{ f.name }}" type="number" value="{{ config.get(f.name, '') | e }}" class="input">
+  {% else %}
+  {% set sv = config.get(f.name, f.default | default('')) %}
+  <input id="cfg-{{ f.name }}" type="text" value="{{ sv | e }}" placeholder="{{ f.label | e }}" class="input">
+  {% endif %}
+</div>
+{% else %}
+<div class="text-sm" style="color:var(--text-2)">Sem parâmetros.</div>
+{% endfor %}
