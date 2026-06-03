@@ -174,7 +174,14 @@ function _renderExecDetail(id, exec) {
       + '<button class="btn btn-danger" style="padding:5px 12px;font-size:11px" onclick="cancelById(\'' + id + '\')">cancelar</button>'
       + '</div>' : '')
     + '</div>' + stepsHtml + '</div>'
-    + '<div class="card p-6"><div class="label" style="margin-bottom:8px">LOG</div><div id="execLogBox" class="log-box" style="height:240px;overflow-y:auto">' + logEntries + '</div></div>'
+    + '<div class="card p-6"><div class="flex items-center justify-between" style="margin-bottom:8px"><div class="label" style="margin-bottom:0">LOG</div>'
+    + '<button class="btn btn-ghost" style="padding:4px 8px;font-size:10px" onclick="var btn=this,b=document.getElementById(\'execLogBox\');navigator.clipboard.writeText(b.innerText);btn.textContent=\'copiado\';var t=setTimeout(function(){btn.textContent=\'📋\'},2000);btn.addEventListener(\'mouseenter\',function h(){btn.textContent=\'📋\';clearTimeout(t);btn.removeEventListener(\'mouseenter\',h)},{once:true})">📋</button>'
+    + '</div><div id="execLogBox" class="log-box" style="height:240px;overflow-y:auto">' + logEntries + '</div></div>'
+    + (exec.result && exec.result.arquivo
+        ? '<div class="card p-6"><div class="flex items-center justify-between" style="margin-bottom:8px"><div class="label" style="margin-bottom:0">ARQUIVO GERADO</div>'
+          + '<button class="btn btn-ghost" style="padding:4px 8px;font-size:10px" onclick="var btn=this;navigator.clipboard.writeText(\'' + esc(exec.result.arquivo) + '\');btn.textContent=\'copiado\';var t=setTimeout(function(){btn.textContent=\'📋\'},2000);btn.addEventListener(\'mouseenter\',function h(){btn.textContent=\'📋\';clearTimeout(t);btn.removeEventListener(\'mouseenter\',h)},{once:true})">📋</button>'
+          + '</div><span style="font-family:\'JetBrains Mono\',monospace;font-size:12px;color:var(--text-0)">' + esc(exec.result.arquivo) + '</span></div>'
+        : '')
     + resultHtml
     + '';
 

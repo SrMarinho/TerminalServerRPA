@@ -1,5 +1,7 @@
 var _devPanelOpen = false;
 var _devEditor = null;
+var _devSnippetAbortCtrl = null;
+var _devSnippetExecId = null;
 
 function initDevTools() {
   var btn = document.getElementById('devBtn');
@@ -75,18 +77,48 @@ async function runDevSnippet() {
   if (!code.trim()) return;
   var status = document.getElementById('devSnippetStatus');
   var output = document.getElementById('devSnippetOutput');
+  var abortBtn = document.getElementById('devSnippetAbort');
+  var runBtn = document.getElementById('devSnippetRun');
   status.textContent = 'executando...';
   status.style.color = 'var(--text-2)';
   output.textContent = '';
+  _devSnippetAbortCtrl = new AbortController();
+  _devSnippetExecId = execId;
+  if (abortBtn) abortBtn.style.display = '';
+  if (runBtn) runBtn.disabled = true;
   try {
-    var res = await api('POST', '/api/executions/' + execId + '/snippet', { code: code });
-    status.textContent = res.ok ? 'ok' : 'erro';
-    status.style.color = res.ok ? 'var(--accent)' : 'var(--danger)';
-    output.textContent = (res.output || []).join('\n') + (res.error ? '\n' + res.error : '');
+    var res = await api('POST', '/api/executions/' + execId + '/snippet', { code: code }, _devSnippetAbortCtrl.signal);
+    if (res.error === 'abortado') {
+      status.textContent = 'abortado';
+      status.style.color = 'var(--warn)';
+    } else {
+      status.textContent = res.ok ? 'ok' : 'erro';
+      status.style.color = res.ok ? 'var(--accent)' : 'var(--danger)';
+    }
+    output.textContent = (res.output || []).join('\n') + (res.error && res.error !== 'abortado' ? '\n' + res.error : '');
   } catch(e) {
-    status.textContent = 'erro';
-    status.style.color = 'var(--danger)';
-    output.textContent = e.message;
+    if (e.name === 'AbortError') {
+      status.textContent = 'abortado';
+      status.style.color = 'var(--warn)';
+    } else {
+      status.textContent = 'erro';
+      status.style.color = 'var(--danger)';
+      output.textContent = e.message;
+    }
+  } finally {
+    _devSnippetAbortCtrl = null;
+    _devSnippetExecId = null;
+    if (abortBtn) abortBtn.style.display = 'none';
+    if (runBtn) runBtn.disabled = false;
+  }
+}
+
+async function abortDevSnippet() {
+  if (_devSnippetExecId) {
+    try { await api('DELETE', '/api/executions/' + _devSnippetExecId + '/snippet'); } catch(e) {}
+  }
+  if (_devSnippetAbortCtrl) {
+    _devSnippetAbortCtrl.abort();
   }
 }
 

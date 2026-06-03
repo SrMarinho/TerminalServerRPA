@@ -11,24 +11,36 @@ Phases
 """
 
 import asyncio
-import ctypes  # GetSystemMetrics for viewport sizing
+from datetime import datetime
 
+from src.automation.browser.browser_manager import BrowserManager
 from src.automation.pages.contas_receber.reports import REPORTS, REPORTS_BY_CODE
+from src.automation.pages.contas_receber.reports.constants import CsvRemoverEspacos, FormatoArquivo
 from src.automation.pages.contas_receber.selecao_modelos_para_execucao_page import SelecaoModelosParaExecucaoPage
+from src.automation.pages.contas_receber.valores_entrada_modelo_page import ValoresEntradaModeloPage
 from src.automation.pages.home_page import HomePage
 from src.automation.pages.senior_login_page import SeniorLoginPage
+from src.automation.pages.sidebar_navigator import SidebarNavigator
 from src.automation.pages.ts_applications_page import TsApplicationsPage
 from src.automation.pages.ts_login_page import TsLoginPage
-from src.automation.pages.valores_entrada_modelo_page import ValoresEntradaModeloPage
+from src.automation.tasks.financas.gestao_contas_receber.contas_receber.relatorios.steps import StepNames
 from src.config.settings import ASSETS_DIR
 from src.infrastructure.task_registry import TaskRegistry
 from src.infrastructure.task_runner import SkipStep
 from src.infrastructure.vault import Vault
-from src.utils.image_match import find_template
+from src.utils.image_match import MatchThreshold, find_template
 from src.utils.window_utils import maximize_window
 
 _HOME_IMG = ASSETS_DIR / "Senior" / "components" / "sidebar" / "home" / "index.png"
 _REPORT_TITLE_IMG = ASSETS_DIR / "Senior" / "pages" / "selecao_modelos_para_execucao" / "window_title.png"
+
+_SIDEBAR_ITEMS = [
+    (StepNames.GESTAO_EMPRESARIAL,    "gestao_empresarial/index.png"),
+    (StepNames.FINANCAS,              "gestao_empresarial/financas/index.png"),
+    (StepNames.GESTAO_CONTAS_RECEBER, "gestao_empresarial/financas/gestao_contas_receber/index.png"),
+    (StepNames.CONTAS_RECEBER,        "gestao_empresarial/financas/gestao_contas_receber/contas_receber/index.png"),
+    (StepNames.RELATORIOS,            "gestao_empresarial/financas/gestao_contas_receber/contas_receber/relatorios/index.png"),
+]
 
 
 async def _wait_for_home(page, runner=None, timeout_s: float = 120) -> None:
@@ -36,7 +48,7 @@ async def _wait_for_home(page, runner=None, timeout_s: float = 120) -> None:
     deadline = asyncio.get_event_loop().time() + timeout_s
     while True:
         screenshot = await page.screenshot()
-        if find_template(screenshot, _HOME_IMG, 0.8):
+        if find_template(screenshot, _HOME_IMG, MatchThreshold.DEFAULT):
             return
         if asyncio.get_event_loop().time() >= deadline:
             return
@@ -54,7 +66,7 @@ class GeracaoRelatorio:
         self._vault = vault or Vault()
 
     # ------------------------------------------------------------------
-    # Schema / metadata (unchanged)
+    # Schema / metadata
     # ------------------------------------------------------------------
 
     @staticmethod
@@ -69,27 +81,28 @@ class GeracaoRelatorio:
                 "type": "select",
                 "options": [{"value": r.code, "label": r.label} for r in REPORTS],
             },
-            *[{**field, "when": {"relatorio": r.code}} for r in REPORTS for field in r.get_fields()],
+            *[{**field, "when": {**field.get("when", {}), "relatorio": r.code}} for r in REPORTS for field in r.get_fields()],
         ]
 
     @staticmethod
     def get_steps():
         return {
-            "Login": ["Login TS", "Iniciando Senior", "Login Senior"],
+            "Login": [StepNames.LOGIN_TS, StepNames.INICIANDO_SENIOR, StepNames.LOGIN_SENIOR],
             "Processamento": [
-                "Maximizando",
-                "Carregando Senior",
-                "Gestão Empresarial",
-                "Finanças",
-                "Gestão Contas Receber",
-                "Contas Receber",
-                "Relatórios",
-                "Maximizando Relatório",
-                "Digitando Relatório",
-                "Maximizando Valores",
-                "Preenchendo Campos",
+                StepNames.MAXIMIZANDO,
+                StepNames.CARREGANDO_SENIOR,
+                StepNames.GESTAO_EMPRESARIAL,
+                StepNames.FINANCAS,
+                StepNames.GESTAO_CONTAS_RECEBER,
+                StepNames.CONTAS_RECEBER,
+                StepNames.RELATORIOS,
+                StepNames.MAXIMIZANDO_RELATORIO,
+                StepNames.DIGITANDO_RELATORIO,
+                StepNames.MAXIMIZANDO_VALORES,
+                StepNames.PREENCHENDO_ENTRADA,
+                StepNames.PREENCHENDO_SAIDA,
             ],
-            "Finalização": ["Concluido"],
+            "Finalização": [StepNames.CONCLUIDO],
         }
 
     def _resolve_creds(self, params: dict, key: str = "credentials") -> dict:
@@ -108,12 +121,7 @@ class GeracaoRelatorio:
     # ------------------------------------------------------------------
 
     async def _step(self, name: str, coro=None) -> None:
-        """Report a step to the runner (if attached). Catches SkipStep.
-
-        When *coro* is provided it is awaited inside the same try/except
-        so that a single SkipStep from either report_step or the action
-        is handled gracefully.
-        """
+        """Report a step to the runner (if attached). Catches SkipStep."""
         try:
             if self._runner:
                 await self._runner.report_step(name)
@@ -130,62 +138,14 @@ class GeracaoRelatorio:
             self._runner._page = page
 
     # ------------------------------------------------------------------
-    # Browser lifecycle
-    # ------------------------------------------------------------------
-
-    @staticmethod
-    def _get_screen_size() -> tuple[int, int]:
-        user32 = ctypes.windll.user32  # type: ignore[attr-defined]
-        return user32.GetSystemMetrics(0), user32.GetSystemMetrics(1)
-
-    @staticmethod
-    async def _maximize_cdp(context, page, screen_w: int | None = None, screen_h: int | None = None) -> None:
-        """Maximise a browser window via Chrome DevTools Protocol.
-
-        When *screen_w* and *screen_h* are provided the window is first
-        positioned at (0,0) with the full viewport size before maximising.
-        This two-step dance is needed for TS remote sessions.
-        """
-        session = await context.new_cdp_session(page)
-        win_info = await session.send("Browser.getWindowForTarget")
-        if screen_w and screen_h:
-            await session.send(
-                "Browser.setWindowBounds",
-                {
-                    "windowId": win_info["windowId"],
-                    "bounds": {"left": 0, "top": 0, "width": screen_w, "height": screen_h, "windowState": "normal"},
-                },
-            )
-        await session.send(
-            "Browser.setWindowBounds",
-            {"windowId": win_info["windowId"], "bounds": {"windowState": "maximized"}},
-        )
-        await session.detach()
-        if screen_w and screen_h:
-            await page.set_viewport_size({"width": screen_w, "height": screen_h})
-
-    async def _launch_browser(self, playwright):
-        """Launch Chromium, create context + page, maximise the local window."""
-        browser = await playwright.chromium.launch(headless=False, args=["--start-maximized"])
-        screen_w, screen_h = self._get_screen_size()
-        context = await browser.new_context(viewport=None)
-        page = await context.new_page()
-        await self._maximize_cdp(context, page)  # maximise local playback page
-        await page.bring_to_front()
-        await asyncio.sleep(1)
-        return browser, context, page, screen_w, screen_h
-
-    # ------------------------------------------------------------------
     # Phase: TS Login
     # ------------------------------------------------------------------
 
     async def _phase_login_ts(self, context, page, ts_creds: dict, base_url: str):
         """Log into Terminal Server and capture the remote application page."""
-        from playwright.async_api import async_playwright as _  # noqa: F401 — ensure importable
-
         remote_page = None
         try:
-            await self._step("Login TS")
+            await self._step(StepNames.LOGIN_TS)
             login_p = TsLoginPage(page, base_url)
             await login_p.navigate()
             async with context.expect_event("page", timeout=60000) as new_page_info:
@@ -195,9 +155,8 @@ class GeracaoRelatorio:
         except SkipStep:
             return None
 
-        # Maximize the remote TS window (two-step CDP for correct sizing)
-        screen_w, screen_h = self._get_screen_size()
-        await self._maximize_cdp(context, remote_page, screen_w, screen_h)
+        screen_w, screen_h = BrowserManager.get_screen_size()
+        await BrowserManager.maximize_cdp(context, remote_page, screen_w, screen_h)
         apps_page = TsApplicationsPage(remote_page, log=self._runner.log if self._runner else None)
         await apps_page.click_application("Gestão Empresarial", asset_folder="Senior")
         return remote_page
@@ -211,7 +170,7 @@ class GeracaoRelatorio:
         if not remote_page:
             return None
         try:
-            await self._step("Iniciando Senior")
+            await self._step(StepNames.INICIANDO_SENIOR)
             senior_login = SeniorLoginPage(
                 remote_page,
                 log=self._runner.log if self._runner else None,
@@ -225,15 +184,17 @@ class GeracaoRelatorio:
     async def _phase_senior_login(self, remote_page, senior_login, senior_creds: dict) -> None:
         """Fill and submit Senior ERP credentials."""
         if not remote_page or not senior_login:
-            await self._step("Login Senior")  # report only, no action
+            await self._step(StepNames.LOGIN_SENIOR)
             return
-        await self._step("Login Senior", senior_login.wait_for_login_screen())
+        await self._step(StepNames.LOGIN_SENIOR, senior_login.wait_for_login_screen())
         try:
             await senior_login.fill_and_submit(senior_creds["username"], senior_creds["password"])
         except SkipStep:
             from src.infrastructure.logger import get_logger
 
-            get_logger("TerminalServerRPA.report-generation").warning("step.skipped.submit", step="Login Senior")
+            get_logger("TerminalServerRPA.report-generation").warning(
+                "step.skipped.submit", step=StepNames.LOGIN_SENIOR
+            )
 
     # ------------------------------------------------------------------
     # Phase: Home page setup + sidebar navigation
@@ -244,53 +205,43 @@ class GeracaoRelatorio:
         home = None
         if remote_page:
             try:
-                await self._step("Maximizando")
+                await self._step(StepNames.MAXIMIZANDO)
                 home = HomePage(remote_page, log=self._runner.log if self._runner else None)
                 await home.maximize()
             except SkipStep:
                 pass
 
-            await self._step("Carregando Senior", _wait_for_home(remote_page, self._runner))
+            await self._step(StepNames.CARREGANDO_SENIOR, _wait_for_home(remote_page, self._runner))
         else:
-            await self._step("Maximizando")
-            await self._step("Carregando Senior")
+            await self._step(StepNames.MAXIMIZANDO)
+            await self._step(StepNames.CARREGANDO_SENIOR)
 
         return home
 
-    async def _phase_navigate_sidebar(self, home):
+    async def _phase_navigate_sidebar(self, home) -> None:
         """Click through the sidebar menu tree down to Contas Receber → Relatórios."""
-        sidebar_items = [
-            ("Gestão Empresarial", "gestao_empresarial/index.png"),
-            ("Finanças", "gestao_empresarial/financas/index.png"),
-            ("Gestão Contas Receber", "gestao_empresarial/financas/gestao_contas_receber/index.png"),
-            (
-                "Contas Receber",
-                "gestao_empresarial/financas/gestao_contas_receber/contas_receber/index.png",
-            ),
-            (
-                "Relatórios",
-                "gestao_empresarial/financas/gestao_contas_receber/contas_receber/relatorios/index.png",
-            ),
-        ]
-        for step_name, img in sidebar_items:
-            if home:
-                await self._step(step_name, home.click_sidebar_item(img))
-            else:
-                await self._step(step_name)
+        nav = SidebarNavigator()
+        await nav.navigate(home, _SIDEBAR_ITEMS, self._step)
 
     # ------------------------------------------------------------------
     # Phase: Report actions
     # ------------------------------------------------------------------
 
-    async def _phase_report_actions(self, remote_page, relatorio_code: str, params: dict) -> None:
+    async def _phase_report_actions(self, remote_page, relatorio_code: str, params: dict) -> str | None:
         """Maximise the report window, select a report template, fill fields."""
         if not remote_page:
-            for name in ("Maximizando Relatório", "Digitando Relatório", "Maximizando Valores", "Preenchendo Campos"):
+            for name in (
+                StepNames.MAXIMIZANDO_RELATORIO,
+                StepNames.DIGITANDO_RELATORIO,
+                StepNames.MAXIMIZANDO_VALORES,
+                StepNames.PREENCHENDO_ENTRADA,
+                StepNames.PREENCHENDO_SAIDA,
+            ):
                 await self._step(name)
             return
 
         await self._step(
-            "Maximizando Relatório",
+            StepNames.MAXIMIZANDO_RELATORIO,
             maximize_window(
                 remote_page,
                 self._runner.log if self._runner else None,
@@ -301,31 +252,61 @@ class GeracaoRelatorio:
 
         report = REPORTS_BY_CODE.get(relatorio_code)
         if report:
-            await self._step("Digitando Relatório")
+            await self._step(StepNames.DIGITANDO_RELATORIO)
 
             selecao = SelecaoModelosParaExecucaoPage(
                 remote_page,
                 log=self._runner.log if self._runner else None,
             )
+            valores: ValoresEntradaModeloPage | None = None
             try:
-                await selecao.open_report(report)
+                valores = await selecao.open_report(report)
             except SkipStep:
                 from src.infrastructure.logger import get_logger
 
                 get_logger("TerminalServerRPA.report-generation").warning(
-                    "step.skipped.open_report", step="Digitando Relatório"
+                    "step.skipped.open_report", step=StepNames.DIGITANDO_RELATORIO
                 )
 
-            valores = ValoresEntradaModeloPage(
-                remote_page,
-                log=self._runner.log if self._runner else None,
-            )
-            await self._step("Maximizando Valores", valores.maximize())
-            await self._step("Preenchendo Campos", valores.fill(report, params))
+            if valores is None:
+                valores = ValoresEntradaModeloPage(
+                    remote_page,
+                    log=self._runner.log if self._runner else None,
+                )
+            await self._step(StepNames.MAXIMIZANDO_VALORES, valores.maximize())
+            await self._step(StepNames.PREENCHENDO_ENTRADA, valores.fill(report, params))
+            await self._step(StepNames.PREENCHENDO_SAIDA)
+            await asyncio.sleep(0.5)
+            await valores.click_saida_tab()
+            await asyncio.sleep(0.5)
+            await valores.select_arquivo_checkbox()
+            await asyncio.sleep(0.3)
+            await valores.select_formato_arquivo(params.get("formato_arquivo", FormatoArquivo.EXCEL))
+            await asyncio.sleep(0.3)
+            await valores.fill_saida_label_field("Caminho", r"\\tsclient\WebFile")
+            await asyncio.sleep(0.2)
+            nome_arquivo = f"rel_{relatorio_code}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            await valores.fill_saida_label_field("Nome", nome_arquivo)
+            await asyncio.sleep(0.2)
+            if params.get("formato_arquivo") == FormatoArquivo.CSV:
+                await valores.fill_saida_label_field("Separador", params.get("csv_separador", ","))
+                await asyncio.sleep(0.2)
+                await valores.fill_saida_label_field("Delimitador", params.get("csv_delimitador", '"'))
+                await asyncio.sleep(0.2)
+                if params.get("csv_remover_espacos") == CsvRemoverEspacos.SIM:
+                    await valores.click_ocr_label("Remover")
+                    await asyncio.sleep(0.2)
+            await asyncio.sleep(0.3)
+            await valores.click_ok()
+            await asyncio.sleep(1)
+            await selecao.close()
+            return nome_arquivo
         else:
-            await self._step("Digitando Relatório")
-            await self._step("Maximizando Valores")
-            await self._step("Preenchendo Campos")
+            await self._step(StepNames.DIGITANDO_RELATORIO)
+            await self._step(StepNames.MAXIMIZANDO_VALORES)
+            await self._step(StepNames.PREENCHENDO_ENTRADA)
+            await self._step(StepNames.PREENCHENDO_SAIDA)
+        return None
 
     # ------------------------------------------------------------------
     # Entry-point
@@ -341,27 +322,23 @@ class GeracaoRelatorio:
         relatorio_code = params.get("relatorio", "")
 
         async with async_playwright() as p:
-            browser, context, page, _screen_w, _screen_h = await self._launch_browser(p)
+            browser, context, page, _screen_w, _screen_h = await BrowserManager.launch(p)
             try:
                 self._attach_page(page)
 
-                # Phase 1 — Terminal Server login
                 remote = await self._phase_login_ts(context, page, ts_creds, base_url)
                 self._attach_page(remote)
 
-                # Phase 2 — Senior ERP login
                 sl = await self._phase_senior_loading(remote, senior_creds)
                 await self._phase_senior_login(remote, sl, senior_creds)
 
-                # Phase 3 — Home page + sidebar
                 home = await self._phase_home_setup(remote)
                 await self._phase_navigate_sidebar(home)
 
-                # Phase 4 — Report actions
-                await self._phase_report_actions(remote, relatorio_code, params)
+                arquivo = await self._phase_report_actions(remote, relatorio_code, params)
 
-                await self._step("Concluido")
-                return {"status": "ok"}
+                await self._step(StepNames.CONCLUIDO)
+                return {"status": "ok", **({"arquivo": arquivo} if arquivo else {})}
             finally:
                 if self._runner:
                     self._runner._page = None
