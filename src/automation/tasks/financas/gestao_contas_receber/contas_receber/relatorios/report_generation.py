@@ -14,6 +14,7 @@ import asyncio
 from datetime import datetime
 
 from src.automation.browser.browser_manager import BrowserManager
+from src.config.settings import DOWNLOADS_BASE
 from src.automation.pages.contas_receber.reports import REPORTS, REPORTS_BY_CODE
 from src.automation.pages.contas_receber.reports.constants import CsvRemoverEspacos, FormatoArquivo
 from src.automation.pages.contas_receber.selecao_modelos_para_execucao_page import SelecaoModelosParaExecucaoPage
@@ -322,7 +323,8 @@ class GeracaoRelatorio:
         relatorio_code = params.get("relatorio", "")
 
         async with async_playwright() as p:
-            browser, context, page, _screen_w, _screen_h = await BrowserManager.launch(p)
+            downloads_path = DOWNLOADS_BASE / "financas" / "gestao_contas_receber" / "contas_receber" / "relatorios" / relatorio_code
+            browser, context, page, _screen_w, _screen_h = await BrowserManager.launch(p, downloads_path=downloads_path)
             try:
                 self._attach_page(page)
 

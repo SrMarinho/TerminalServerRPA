@@ -1,5 +1,6 @@
 import asyncio
 import ctypes
+from pathlib import Path
 
 
 class BrowserManager:
@@ -45,11 +46,15 @@ class BrowserManager:
             await page.set_viewport_size({"width": screen_w, "height": screen_h})
 
     @classmethod
-    async def launch(cls, playwright) -> tuple:
+    async def launch(cls, playwright, downloads_path: Path | None = None) -> tuple:
         """Launch Chromium, create context + page, maximise the local window."""
         browser = await playwright.chromium.launch(headless=False, args=["--start-maximized"])
         screen_w, screen_h = cls.get_screen_size()
-        context = await browser.new_context(viewport=None)
+        context_kwargs: dict = {"viewport": None, "accept_downloads": True}
+        if downloads_path is not None:
+            downloads_path.mkdir(parents=True, exist_ok=True)
+            context_kwargs["downloads_path"] = str(downloads_path)
+        context = await browser.new_context(**context_kwargs)
         page = await context.new_page()
         await cls.maximize_cdp(context, page)
         await page.bring_to_front()

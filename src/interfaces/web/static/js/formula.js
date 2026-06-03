@@ -156,6 +156,7 @@ function _initFormulaAutocomplete(container) {
 
       var meta = await _loadResolverMeta();
       var query = formula.slice(1);
+      if (query.includes(')')) { dropdown.classList.add('hidden'); return; }
       var suggestions = [];
 
       if (!query.includes('.')) {
