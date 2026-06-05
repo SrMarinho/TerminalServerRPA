@@ -13,7 +13,8 @@ log = get_logger("TerminalServerRPA.updater")
 
 REPO = "TerminalServerRPA"
 OWNER = "SrMarinho"
-GITHUB_TOKEN = ""  # Fine-grained PAT: Contents: Read-only
+# Fine-grained PAT: Contents: Read-only
+GITHUB_TOKEN = "***REMOVED_PAT***"
 
 
 @dataclass
