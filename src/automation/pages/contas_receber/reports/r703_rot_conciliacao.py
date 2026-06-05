@@ -16,7 +16,7 @@ from src.utils.image_match import MatchThreshold, find_template, find_text_posit
 
 _ERROR_IMG = ASSETS_DIR / "Senior" / "components" / "alert" / "error.png"
 _FORM_DIR = ASSETS_DIR / "Senior" / "pages" / "selecao_modelos_para_execucao" / "valores_entrada_modelo" / "form"
-_FIELD_OFFSET_X = 200       # px right of label centre → wide input fields (1-6)
+_FIELD_OFFSET_X = 200  # px right of label centre → wide input fields (1-6)
 _FIELD_OFFSET_X_SMALL = 35  # narrow 1-char fields (7-8: Opção, Analítico/Sintético)
 
 
@@ -49,7 +49,7 @@ class R703RotConciliacao(BaseReport):
                 "default": OpcaoRelatorio.VALIDAR,
                 "options": [
                     {"value": OpcaoRelatorio.VALIDAR, "label": "V — Validar"},
-                    {"value": OpcaoRelatorio.BAIXAR,  "label": "B — Baixar Títulos"},
+                    {"value": OpcaoRelatorio.BAIXAR, "label": "B — Baixar Títulos"},
                 ],
             },
             {
@@ -63,7 +63,7 @@ class R703RotConciliacao(BaseReport):
                 "name": "formato_arquivo",
                 "label": "Formato de Arquivo",
                 "type": "select",
-                "default": FormatoArquivo.EXCEL,
+                "default": FormatoArquivo.PADRAO,
                 "options": list(FormatoArquivo),
             },
             {
@@ -154,14 +154,50 @@ class R703RotConciliacao(BaseReport):
             _log(f"filled '{label_name}' ({target_x},{target_y}) → {value!r}")
 
         field_defs: list[FieldDef] = [
-            FieldDef(img_prefix=1,    ocr_keyword=None,    param_key="empresa",             default="",                          label="Empresa",             offset=_FIELD_OFFSET_X),
-            FieldDef(img_prefix=2,    ocr_keyword=None,    param_key="filial",              default="1",                         label="Filial",              offset=_FIELD_OFFSET_X),
-            FieldDef(img_prefix=3,    ocr_keyword=None,    param_key="cliente",             default="",                          label="Cliente",             offset=_FIELD_OFFSET_X),
-            FieldDef(img_prefix=4,    ocr_keyword=None,    param_key="titulo",              default="",                          label="Título",              offset=_FIELD_OFFSET_X),
-            FieldDef(img_prefix=5,    ocr_keyword=None,    param_key="data_emissao",        default="",                          label="Data Emissão",        offset=_FIELD_OFFSET_X),
-            FieldDef(img_prefix=6,    ocr_keyword=None,    param_key="data_movimento",      default="",                          label="Data Movimento",      offset=_FIELD_OFFSET_X),
-            FieldDef(img_prefix=None, ocr_keyword="Op",    param_key="opcao",               default=OpcaoRelatorio.VALIDAR,      label="Opção",               offset=_FIELD_OFFSET_X_SMALL),
-            FieldDef(img_prefix=None, ocr_keyword="Anali", param_key="analitico_sintetico", default=AnaliticoSintetico.ANALITICO, label="Analítico/Sintético", offset=_FIELD_OFFSET_X_SMALL),
+            FieldDef(
+                img_prefix=1, ocr_keyword=None, param_key="empresa", default="", label="Empresa", offset=_FIELD_OFFSET_X
+            ),  # noqa: E501
+            FieldDef(
+                img_prefix=2, ocr_keyword=None, param_key="filial", default="1", label="Filial", offset=_FIELD_OFFSET_X
+            ),  # noqa: E501
+            FieldDef(
+                img_prefix=3, ocr_keyword=None, param_key="cliente", default="", label="Cliente", offset=_FIELD_OFFSET_X
+            ),  # noqa: E501
+            FieldDef(
+                img_prefix=4, ocr_keyword=None, param_key="titulo", default="", label="Título", offset=_FIELD_OFFSET_X
+            ),  # noqa: E501
+            FieldDef(
+                img_prefix=5,
+                ocr_keyword=None,
+                param_key="data_emissao",
+                default="",
+                label="Data Emissão",
+                offset=_FIELD_OFFSET_X,
+            ),  # noqa: E501
+            FieldDef(
+                img_prefix=6,
+                ocr_keyword=None,
+                param_key="data_movimento",
+                default="",
+                label="Data Movimento",
+                offset=_FIELD_OFFSET_X,
+            ),  # noqa: E501
+            FieldDef(
+                img_prefix=None,
+                ocr_keyword="Op",
+                param_key="opcao",
+                default=OpcaoRelatorio.VALIDAR,
+                label="Opção",
+                offset=_FIELD_OFFSET_X_SMALL,
+            ),  # noqa: E501
+            FieldDef(
+                img_prefix=None,
+                ocr_keyword="Anali",
+                param_key="analitico_sintetico",
+                default=AnaliticoSintetico.ANALITICO,
+                label="Analítico/Sintético",
+                offset=_FIELD_OFFSET_X_SMALL,
+            ),  # noqa: E501
         ]
 
         prev_label = ""

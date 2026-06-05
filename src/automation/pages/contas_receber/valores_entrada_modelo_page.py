@@ -65,25 +65,25 @@ class ValoresEntradaModeloPage:
         return False
 
     _FORMATO_INDEX: dict[FormatoArquivo, int] = {
-        FormatoArquivo.PADRAO:                0,
-        FormatoArquivo.BITMAP:                1,
-        FormatoArquivo.JPEG:                  2,
+        FormatoArquivo.PADRAO: 0,
+        FormatoArquivo.BITMAP: 1,
+        FormatoArquivo.JPEG: 2,
         FormatoArquivo.ARQUIVO_TEXTO_WINDOWS: 3,
-        FormatoArquivo.EXPORTACAO_WINDOWS:    4,
-        FormatoArquivo.ARQUIVO_TEXTO_DOS:     5,
-        FormatoArquivo.EXPORTACAO_DOS:        6,
-        FormatoArquivo.HTML:                  7,
-        FormatoArquivo.EXPORTACAO_SAGA:       8,
-        FormatoArquivo.EXPORTACAO_EXCEL:      9,
-        FormatoArquivo.EXCEL:                10,
-        FormatoArquivo.EXCEL_OPENXML:        11,
-        FormatoArquivo.WORD_OPENXML:         12,
-        FormatoArquivo.PDF:                  13,
-        FormatoArquivo.CSV:                  14,
-        FormatoArquivo.PDF_A:                15,
+        FormatoArquivo.EXPORTACAO_WINDOWS: 4,
+        FormatoArquivo.ARQUIVO_TEXTO_DOS: 5,
+        FormatoArquivo.EXPORTACAO_DOS: 6,
+        FormatoArquivo.HTML: 7,
+        FormatoArquivo.EXPORTACAO_SAGA: 8,
+        FormatoArquivo.EXPORTACAO_EXCEL: 9,
+        FormatoArquivo.EXCEL: 10,
+        FormatoArquivo.EXCEL_OPENXML: 11,
+        FormatoArquivo.WORD_OPENXML: 12,
+        FormatoArquivo.PDF: 13,
+        FormatoArquivo.CSV: 14,
+        FormatoArquivo.PDF_A: 15,
     }
 
-    async def select_formato_arquivo(self, value: str | FormatoArquivo = FormatoArquivo.EXCEL) -> bool:
+    async def select_formato_arquivo(self, value: FormatoArquivo = FormatoArquivo.EXCEL) -> bool:
         """Click the 'Formato de Arquivo' select and navigate to option by index."""
         idx = self._FORMATO_INDEX.get(value)
         if idx is None:
@@ -146,7 +146,9 @@ class ValoresEntradaModeloPage:
     async def select_arquivo_checkbox(self) -> bool:
         """Ensure the 'Arquivo' checkbox is checked. Returns True if already/now checked."""
         shot = await self._page.screenshot()
-        if find_template(shot, _ARQUIVO_MARKED, MatchThreshold.CHECKBOX) or find_template(shot, _ARQUIVO_MARKED_FOCUSED, MatchThreshold.CHECKBOX):
+        if find_template(shot, _ARQUIVO_MARKED, MatchThreshold.CHECKBOX) or find_template(
+            shot, _ARQUIVO_MARKED_FOCUSED, MatchThreshold.CHECKBOX
+        ):
             self._log("Arquivo already checked")
             return True
         m = find_template(shot, _ARQUIVO_NOT_MARKED, MatchThreshold.CHECKBOX)

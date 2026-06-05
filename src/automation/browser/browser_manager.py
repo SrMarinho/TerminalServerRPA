@@ -50,11 +50,7 @@ class BrowserManager:
         """Launch Chromium, create context + page, maximise the local window."""
         browser = await playwright.chromium.launch(headless=False, args=["--start-maximized"])
         screen_w, screen_h = cls.get_screen_size()
-        context_kwargs: dict = {"viewport": None, "accept_downloads": True}
-        if downloads_path is not None:
-            downloads_path.mkdir(parents=True, exist_ok=True)
-            context_kwargs["downloads_path"] = str(downloads_path)
-        context = await browser.new_context(**context_kwargs)
+        context = await browser.new_context(viewport=None, accept_downloads=True)
         page = await context.new_page()
         await cls.maximize_cdp(context, page)
         await page.bring_to_front()

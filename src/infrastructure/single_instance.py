@@ -19,9 +19,16 @@ def _create_mutex(name: str):
     return mutex, last_error
 
 
+_mutex_handle = None  # kept alive for process lifetime
+
+
 def is_first_instance() -> bool:
-    _, last_error = _create_mutex(_MUTEX_NAME)
-    return last_error != 0xDE  # ERROR_ALREADY_EXISTS
+    global _mutex_handle
+    handle, last_error = _create_mutex(_MUTEX_NAME)
+    if last_error != 0xDE:  # ERROR_ALREADY_EXISTS
+        _mutex_handle = handle  # prevent GC from releasing the mutex
+        return True
+    return False
 
 
 def _get_app_dir() -> Path:

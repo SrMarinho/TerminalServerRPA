@@ -1,11 +1,13 @@
 import typer
 
 from src.infrastructure.logger import configure_logger
+from src.infrastructure.playwright_setup import configure_playwright_env
 from src.interfaces.cli.cli import vault_app
 
 app = typer.Typer(no_args_is_help=True)
 app.add_typer(vault_app)
 configure_logger()
+configure_playwright_env()
 
 
 @app.command()
@@ -44,4 +46,8 @@ def shutdown():
 
 
 if __name__ == "__main__":
+    import sys
+
+    if getattr(sys, "frozen", False) and len(sys.argv) == 1:
+        sys.argv.append("gui")
     app()

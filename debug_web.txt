@@ -1,0 +1,28 @@
+Started server process [26548]
+Waiting for application startup.
+LIFESPAN ERROR: Traceback (most recent call last):
+  File "C:\Users\matheus.silva\Documents\projects\terminal-server-rpa\src\interfaces\web\server.py", line 70, in lifespan
+    TaskRegistry.auto_discover()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\matheus.silva\Documents\projects\terminal-server-rpa\src\infrastructure\task_registry.py", line 64, in auto_discover
+    import src.automation.tasks as pkg
+  File "C:\Users\matheus.silva\Documents\projects\terminal-server-rpa\src\automation\tasks\__init__.py", line 2, in <module>
+    from src.automation.tasks.financas.gestao_contas_receber.contas_receber.relatorios.report_generation import (  # noqa: F401
+        GeracaoRelatorio,
+    )
+  File "C:\Users\matheus.silva\Documents\projects\terminal-server-rpa\src\automation\tasks\financas\__init__.py", line 2, in <module>
+    from .gestao_contas_receber import *  # noqa: F401, F403
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\matheus.silva\Documents\projects\terminal-server-rpa\src\automation\tasks\financas\gestao_contas_receber\__init__.py", line 2, in <module>
+    from .contas_receber import *  # noqa: F401, F403
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\matheus.silva\Documents\projects\terminal-server-rpa\src\automation\tasks\financas\gestao_contas_receber\contas_receber\__init__.py", line 2, in <module>
+    from .relatorios import *  # noqa: F401, F403
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\matheus.silva\Documents\projects\terminal-server-rpa\src\automation\tasks\financas\gestao_contas_receber\contas_receber\relatorios\__init__.py", line 2, in <module>
+    from .report_generation import GeracaoRelatorio  # noqa: F401
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ImportError: cannot import name 'GeracaoRelatorio' from 'src.automation.tasks.financas.gestao_contas_receber.contas_receber.relatorios.report_generation' (C:\Users\matheus.silva\Documents\projects\terminal-server-rpa\src\automation\tasks\financas\gestao_contas_receber\contas_receber\relatorios\report_generation.py)
+
+Application startup complete.
+Uvicorn running on http://127.0.0.1:8080 (Press CTRL+C to quit)

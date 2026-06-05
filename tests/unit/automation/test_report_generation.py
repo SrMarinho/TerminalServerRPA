@@ -1,10 +1,8 @@
 from unittest.mock import patch
 
-from src.automation.tasks.financas.gestao_contas_receber.contas_receber.relatorios.report_generation import (
-    GeracaoRelatorio,
-)
+from relatorio_contas_receber.task import GeracaoRelatorio
 
-_PATCH_PATH = "src.automation.tasks.financas.gestao_contas_receber.contas_receber.relatorios.report_generation"
+_PATCH_PATH = "relatorio_contas_receber.task"
 
 
 class TestSchema:
@@ -21,8 +19,6 @@ class TestSchema:
         assert isinstance(relatorio["options"], list)
 
     def test_conditional_fields_carry_when_clause(self):
-        # report-specific fields are tagged with a `when` so the UI shows them
-        # only for the matching report.
         conditional = [f for f in GeracaoRelatorio.get_schema() if "when" in f]
         assert conditional, "expected at least one report-specific field"
         assert all("relatorio" in f["when"] for f in conditional)
@@ -39,7 +35,6 @@ class TestSteps:
 
 class TestResolveCreds:
     def _make_task(self, vault):
-        """Create GeracaoRelatorio with an injected vault mock."""
         return GeracaoRelatorio(runner=None, vault=vault)
 
     def test_resolves_from_vault_when_service_given(self):
@@ -76,5 +71,4 @@ class TestResolveCreds:
             v.list_credentials.return_value = []
             task = self._make_task(v)
             out = task._resolve_creds({"TS Credenciais": {"service": "svc"}}, "TS Credenciais")
-        # no users → returns the raw dict unchanged
         assert out == {"service": "svc"}

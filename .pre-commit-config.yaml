@@ -3,19 +3,19 @@ repos:
     hooks:
       - id: ruff
         name: ruff (legacy alias)
-        entry: python -m ruff check --fix
+        entry: C:/Users/matheus.silva/Documents/projects/terminal-server-rpa/.venv/Scripts/python.exe -m ruff check --fix
         language: system
         types: [python]
         # Pinned below 0.15: ruff-format 0.15.x rewrites `except (A, B):` into the
         # invalid Python-2 form `except A, B:`. 0.14.x is unaffected.
       - id: ruff-format
         name: ruff format
-        entry: python -m ruff format
+        entry: C:/Users/matheus.silva/Documents/projects/terminal-server-rpa/.venv/Scripts/python.exe -m ruff format
         language: system
         types: [python]
       - id: pyright
         name: pyright
-        entry: python -m pyright src
+        entry: C:/Users/matheus.silva/Documents/projects/terminal-server-rpa/.venv/Scripts/python.exe -m pyright src
         language: system
         types: [python]
         pass_filenames: false

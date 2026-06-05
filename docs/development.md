@@ -3,7 +3,6 @@
 ## Setup
 
 ```bash
-# Clonar e instalar
 git clone <repo-url>
 cd TerminalServerRPA
 uv sync
@@ -25,10 +24,10 @@ uv run playwright install chromium
 |      | `uv run ruff format` | Formatar código |
 | pyright | `uv run pyright src` | Checagem de tipos |
 | pytest | `uv run pytest` | Rodar todos os testes |
-|        | `uv run pytest tests/unit/infrastructure/test_vault.py -v` | Arquivo de teste único |
+|        | `uv run pytest tests/unit/infrastructure/test_vault.py -v` | Arquivo único |
 |        | `uv run pytest -k "test_login"` | Filtrar por nome |
 |        | `uv run pytest --cov=src` | Com cobertura |
-| pyinstaller | `uv run pyinstaller main.spec` | Gerar .exe |
+| pyinstaller | `uv run pyinstaller main.spec --noconfirm` | Gerar bundle |
 
 ## Convenções do projeto
 
@@ -66,49 +65,62 @@ Privados: _prefixo_underscore
 ```
 tests/
 ├── unit/                    # Testes unitários (dependências mockadas)
-│   ├── infrastructure/      # vault, task_runner, logger, updater, ...
-│   ├── interfaces/          # web (router, server, websocket), cli
-│   └── automation/          # pages, tasks
+│   ├── infrastructure/
+│   ├── interfaces/
+│   └── automation/
 ├── integration/             # Testes de integração (keyring real)
 │   └── infrastructure/
-└── e2e/                     # Ponta a ponta (CLI + cofre)
+└── e2e/
     └── test_vault_flow.py
 ```
-
-- Mockar dependências externas (keyring, playwright, rede)
-- Usar `@pytest.mark.asyncio` para testes assíncronos (`asyncio_mode = "auto"` já configurado)
-- Priorizar cobertura dos caminhos de produção e de segurança
-
-## Testando tarefas baseadas em Playwright
-
-As tarefas em `src/automation/tasks/` abrem um Chromium real. Em testes:
-
-- **Testes unitários:** mockar `Page` com `AsyncMock` (veja `tests/unit/automation/test_pages.py`)
-- Mockar os Page Objects para validar a sequência de passos sem subir o navegador
 
 ## Build
 
 ```bash
-# Executável principal
-uv run pyinstaller main.spec
-
-# Executável do atualizador (pequeno, standalone)
-uv run pyinstaller updater.spec
+# Limpar build anterior e gerar bundle onedir
+rm -rf dist/TerminalServerRPA dist/TerminalServerRPA.exe
+uv run pyinstaller main.spec --noconfirm
 ```
 
-Os arquivos `.spec` são versionados no git. O padrão `*.spec` está no `.gitignore`, então force a adição com `git add -f main.spec` ao modificá-los.
+Gera `dist/TerminalServerRPA/` com:
+- `TerminalServerRPA.exe` — bootloader + bytecode
+- `_internal/` — Python runtime, DLLs, extensões
+
+O driver do Playwright **não** é incluído no bundle — é baixado automaticamente na primeira execução.
+
+### Gerar installer (Inno Setup)
+
+Requer [Inno Setup](https://jrsoftware.org/isinfo.php) instalado:
+
+```bash
+ISCC installer.iss
+```
+
+Gera `dist/TerminalServerRPA_Setup.exe`.
 
 ### Passos de release
 
-1. Atualizar a versão em `pyproject.toml`
-2. Rodar os testes: `uv run pytest`
-3. Build: `uv run pyinstaller main.spec`
-4. Testar o `.exe`: `dist/TerminalServerRPA.exe web`
+1. Atualizar versão em `src/config/version.py` e `pyproject.toml`
+2. Rodar testes: `uv run pytest`
+3. Build: `uv run pyinstaller main.spec --noconfirm`
+4. Testar: `dist\TerminalServerRPA\TerminalServerRPA.exe gui`
+5. Build installer: `ISCC installer.iss`
+6. Publicar release no GitHub com os assets:
+   - `TerminalServerRPA_Setup.exe` — para instalação inicial
+   - `TerminalServerRPA_Setup.exe.sha256` — checksum (opcional, valida integridade no auto-update)
+
+## GitHub Token (repo privado)
+
+O auto-update usa um PAT fine-grained com permissão `Contents: Read-only`.
+Configurar em `src/infrastructure/updater.py`:
+
+```python
+GITHUB_TOKEN = "github_pat_..."
+```
 
 ## CI
 
 Workflow do GitHub Actions (`.github/workflows/ci.yml`):
 
-- Matriz: Python 3.10–3.13
 - Passos: ruff check → pyright → pytest com cobertura
 - Chromium do Playwright instalado para a suíte de testes

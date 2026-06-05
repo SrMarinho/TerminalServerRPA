@@ -48,3 +48,4 @@ after_*.png
 
 # Diagnostic screenshots
 logs/diag/
+debug_web*.txt

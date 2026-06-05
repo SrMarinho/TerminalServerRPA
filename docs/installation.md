@@ -1,5 +1,37 @@
 # Instalação
 
+## Instalador (recomendado)
+
+Baixe `TerminalServerRPA_Setup.exe` em [GitHub Releases](https://github.com/SrMarinho/TerminalServerRPA/releases).
+
+- Instala em `%LocalAppData%\TerminalServerRPA\` (sem privilégio de administrador)
+- Cria atalho no desktop e no menu iniciar
+- Abre automaticamente após a instalação
+
+### Primeira execução
+
+1. Dê duplo clique no atalho ou em `TerminalServerRPA.exe`
+2. Na primeira execução, o app baixa o driver do Playwright automaticamente (~90MB)
+3. A janela abre em `http://127.0.0.1:8080`
+4. Se a porta 8080 estiver ocupada, a aplicação seleciona automaticamente a próxima livre
+5. Se a aplicação já estiver rodando, a instância existente recebe foco
+
+### Atualização automática
+
+Ao abrir e a cada 60 segundos, o app verifica se há nova versão no GitHub.
+Se houver, um dialog aparece pedindo confirmação. Ao aceitar:
+
+1. Baixa o novo installer em segundo plano
+2. Fecha o app
+3. Roda o installer silenciosamente (`/VERYSILENT`)
+4. Reinicia na nova versão
+
+### System tray
+
+Fechar a janela minimiza para o system tray. Clique duplo no ícone para restaurar. Menu "Sair" encerra completamente.
+
+---
+
 ## A partir do código-fonte
 
 ### Pré-requisitos
@@ -10,33 +42,17 @@
 ### Passos
 
 ```bash
-# Clonar o repositório
 git clone <repo-url>
 cd TerminalServerRPA
 
-# Criar o ambiente virtual e instalar dependências
 uv sync
 
 # Instalar o navegador do Playwright (necessário para tarefas RPA)
 uv run playwright install chromium
 
-# Rodar a aplicação
+# Rodar a interface GUI
+uv run python main.py gui
+
+# Ou interface web pura (abre no navegador padrão)
 uv run python main.py web
 ```
-
-## .exe portátil
-
-Baixe o `TerminalServerRPA.exe` mais recente em [GitHub Releases](https://github.com/SrMarinho/TerminalServerRPA/releases). Não requer instalação — dê duplo clique para executar.
-
-O executável é autocontido (empacota Python + dependências + Chromium via Playwright).
-
-### Primeira execução
-
-1. Inicie o `TerminalServerRPA.exe`
-2. Seu navegador padrão abre em `http://127.0.0.1:8080`
-3. Se a porta 8080 estiver ocupada, a aplicação seleciona automaticamente a próxima porta livre
-4. Se a aplicação já estiver rodando, a instância existente recebe foco
-
-### Atualização
-
-Na inicialização, a aplicação verifica no GitHub se há releases mais recentes. Se houver atualização, ela baixa o novo `.exe` para um diretório temporário e propõe aplicá-la no próximo reinício.

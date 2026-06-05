@@ -1,0 +1,27 @@
+[2m2026-06-05T15:05:50.007437[0m [[32m[1minfo     [0m] [1mserver.starting               [0m [36m_from_structlog[0m=[35mTrue[0m [36m_record[0m=[35m<LogRecord: TerminalServerRPA.server, 20, C:\Users\matheus.silva\Documents\projects\terminal-server-rpa\src\interfaces\web\server.py, 36, "{'port': 8080, 'event': 'server.starting', 'level': 'info', 'timestamp': '2026-06-05T15:05:50.006990'}">[0m [36mport[0m=[35m8080[0m
+C:\Users\matheus.silva\Documents\projects\terminal-server-rpa\.venv\Lib\site-packages\structlog\stdlib.py:1166: UserWarning: Remove `format_exc_info` from your processor chain if you want pretty exceptions.
+  ed = p(logger, meth_name, ed)  # type: ignore[arg-type]
+[2m2026-06-05T15:05:50.076562[0m [[31m[1merror    [0m] [1mlifespan.auto_discover_failed [0m [36m_from_structlog[0m=[35mTrue[0m [36m_record[0m=[35m<LogRecord: TerminalServerRPA.server, 40, C:\Users\matheus.silva\Documents\projects\terminal-server-rpa\src\interfaces\web\server.py, 73, "{'event': 'lifespan.auto_discover_failed', 'level': 'error', 'timestamp': '2026-06-05T15:05:50.075090', 'exception': 'Traceback (most recent call last):\n  File "C:\\Users\\matheus.silva\\Documents\\projects\\terminal-server-rpa\\src\\interfaces\\web\\server.py", line 70, in lifespan\n    TaskRegistry.auto_discover()\n    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^\n  File "C:\\Users\\matheus.silva\\Documents\\projects\\terminal-server-rpa\\src\\infrastructure\\task_registry.py", line 64, in auto_discover\n    import src.automation.tasks as pkg\n  File "C:\\Users\\matheus.silva\\Documents\\projects\\terminal-server-rpa\\src\\automation\\tasks\\__init__.py", line 2, in <module>\n    from src.automation.tasks.financas.gestao_contas_receber.contas_receber.relatorios.report_generation import (  # noqa: F401\n        GeracaoRelatorio,\n    )\n  File "C:\\Users\\matheus.silva\\Documents\\projects\\terminal-server-rpa\\src\\automation\\tasks\\financas\\__init__.py", line 2, in <module>\n    from .gestao_contas_receber import *  # noqa: F401, F403\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "C:\\Users\\matheus.silva\\Documents\\projects\\terminal-server-rpa\\src\\automation\\tasks\\financas\\gestao_contas_receber\\__init__.py", line 2, in <module>\n    from .contas_receber import *  # noqa: F401, F403\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "C:\\Users\\matheus.silva\\Documents\\projects\\terminal-server-rpa\\src\\automation\\tasks\\financas\\gestao_contas_receber\\contas_receber\\__init__.py", line 2, in <module>\n    from .relatorios import *  # noqa: F401, F403\n    ^^^^^^^^^^^^^^^^^^^^^^^^^\n  File "C:\\Users\\matheus.silva\\Documents\\projects\\terminal-server-rpa\\src\\automation\\tasks\\financas\\gestao_contas_receber\\contas_receber\\relatorios\\__init__.py", line 2, in <module>\n    from .report_generation import GeracaoRelatorio  # noqa: F401\n    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nImportError: cannot import name \'GeracaoRelatorio\' from \'src.automation.tasks.financas.gestao_contas_receber.contas_receber.relatorios.report_generation\' (C:\\Users\\matheus.silva\\Documents\\projects\\terminal-server-rpa\\src\\automation\\tasks\\financas\\gestao_contas_receber\\contas_receber\\relatorios\\report_generation.py)'}">[0m
+Traceback (most recent call last):
+  File "C:\Users\matheus.silva\Documents\projects\terminal-server-rpa\src\interfaces\web\server.py", line 70, in lifespan
+    TaskRegistry.auto_discover()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "C:\Users\matheus.silva\Documents\projects\terminal-server-rpa\src\infrastructure\task_registry.py", line 64, in auto_discover
+    import src.automation.tasks as pkg
+  File "C:\Users\matheus.silva\Documents\projects\terminal-server-rpa\src\automation\tasks\__init__.py", line 2, in <module>
+    from src.automation.tasks.financas.gestao_contas_receber.contas_receber.relatorios.report_generation import (  # noqa: F401
+        GeracaoRelatorio,
+    )
+  File "C:\Users\matheus.silva\Documents\projects\terminal-server-rpa\src\automation\tasks\financas\__init__.py", line 2, in <module>
+    from .gestao_contas_receber import *  # noqa: F401, F403
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\matheus.silva\Documents\projects\terminal-server-rpa\src\automation\tasks\financas\gestao_contas_receber\__init__.py", line 2, in <module>
+    from .contas_receber import *  # noqa: F401, F403
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\matheus.silva\Documents\projects\terminal-server-rpa\src\automation\tasks\financas\gestao_contas_receber\contas_receber\__init__.py", line 2, in <module>
+    from .relatorios import *  # noqa: F401, F403
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\matheus.silva\Documents\projects\terminal-server-rpa\src\automation\tasks\financas\gestao_contas_receber\contas_receber\relatorios\__init__.py", line 2, in <module>
+    from .report_generation import GeracaoRelatorio  # noqa: F401
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ImportError: cannot import name 'GeracaoRelatorio' from 'src.automation.tasks.financas.gestao_contas_receber.contas_receber.relatorios.report_generation' (C:\Users\matheus.silva\Documents\projects\terminal-server-rpa\src\automation\tasks\financas\gestao_contas_receber\contas_receber\relatorios\report_generation.py)
