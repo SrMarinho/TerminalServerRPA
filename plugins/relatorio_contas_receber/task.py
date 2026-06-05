@@ -122,9 +122,7 @@ class GeracaoRelatorio:
         if self._runner:
             self._runner._page = page
 
-    async def _wait_loading(
-        self, page, img_path, step_name, appear_timeout: float = 5.0, vanish_timeout: float = 120.0
-    ) -> None:
+    async def _wait_loading(self, page, img_path, step_name, appear_timeout: float = 5.0) -> None:
         await self._step(step_name)
         deadline_appear = asyncio.get_event_loop().time() + appear_timeout
         while asyncio.get_event_loop().time() < deadline_appear:
@@ -132,8 +130,7 @@ class GeracaoRelatorio:
             if find_template(shot, img_path, MatchThreshold.DEFAULT):
                 break
             await asyncio.sleep(0.3)
-        deadline_vanish = asyncio.get_event_loop().time() + vanish_timeout
-        while asyncio.get_event_loop().time() < deadline_vanish:
+        while True:
             shot = await page.screenshot()
             if not find_template(shot, img_path, MatchThreshold.DEFAULT):
                 return
