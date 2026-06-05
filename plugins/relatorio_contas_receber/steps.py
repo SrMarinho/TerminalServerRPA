@@ -17,6 +17,8 @@ class StepNames(str, Enum):
     MAXIMIZANDO_VALORES = "Maximizando Valores"
     PREENCHENDO_ENTRADA = "Preenchendo Entrada"
     PREENCHENDO_SAIDA = "Preenchendo Saída"
+    SELECIONANDO_INFORMACOES = "Selecionando Informações"
+    AGUARDANDO_SOLICITACAO = "Aguardando Solicitação"
     CONCLUIDO = "Concluido"
 
     def __str__(self) -> str:
