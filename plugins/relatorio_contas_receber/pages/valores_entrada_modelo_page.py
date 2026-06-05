@@ -1,18 +1,19 @@
 import asyncio
 from collections.abc import Callable
+from pathlib import Path
 
 from playwright.async_api import Page
 
-from src.automation.pages.contas_receber.reports.base_report import BaseReport
-from src.automation.pages.contas_receber.reports.constants import FormatoArquivo
 from src.config.settings import ASSETS_DIR
 from src.utils.image_match import MatchThreshold, find_template, find_text_position
 
-_TITLE_IMG = ASSETS_DIR / "Senior" / "pages" / "selecao_modelos_para_execucao" / "valores_entrada_modelo" / "index.png"
+from .reports.base_report import BaseReport
+from .reports.constants import FormatoArquivo
+
+_PLUGIN_ASSETS = Path(__file__).parent.parent / "assets"
+_TITLE_IMG = _PLUGIN_ASSETS / "selecao_modelos_para_execucao" / "valores_entrada_modelo" / "index.png"
 _MAXIMIZAR_IMG = ASSETS_DIR / "Senior" / "components" / "context_menu" / "maximizar.png"
-_SAIDA_DIR = (
-    ASSETS_DIR / "Senior" / "pages" / "selecao_modelos_para_execucao" / "valores_entrada_modelo" / "form" / "saida"
-)
+_SAIDA_DIR = _PLUGIN_ASSETS / "selecao_modelos_para_execucao" / "valores_entrada_modelo" / "form" / "saida"
 _ARQUIVO_NOT_MARKED = _SAIDA_DIR / "arquivo_not_marked.png"
 _ARQUIVO_MARKED = _SAIDA_DIR / "arquivo_marked.png"
 _ARQUIVO_MARKED_FOCUSED = _SAIDA_DIR / "arquivo_marked_focused.png"
