@@ -59,9 +59,8 @@ class TaskRunner:
         if task_cls is None:
             await self.checkpoint("unknown")
             return
-        from src.infrastructure.vault import Vault
-
         from src.automation.param_resolvers import resolve_params
+        from src.infrastructure.vault import Vault
 
         task = task_cls(runner=self, vault=Vault())
         self._result = await task.execute(resolve_params(params or {}))

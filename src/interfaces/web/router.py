@@ -1,3 +1,4 @@
+import asyncio
 from functools import lru_cache
 from pathlib import Path
 
@@ -58,11 +59,16 @@ async def index():
     return HTMLResponse(html)
 
 
+@router.get("/_health")
+async def health():
+    return {"status": "ok"}
+
+
 @router.get("/_focus")
-async def focus():
-    # Liveness check for the single-instance protocol.  The second instance
-    # sends this request and then exits; the user already has the browser tab
-    # open from the first instance.
+async def focus(request: Request):
+    window = getattr(request.app.state, "window", None)
+    if window is not None:
+        window.show()
     return {"status": "focused"}
 
 
@@ -205,12 +211,14 @@ async def get_task_schema(task_name: str):
 @api_router.get("/api/resolvers")
 async def get_resolvers():
     from src.automation.param_resolvers import resolver_meta
+
     return resolver_meta()
 
 
 @api_router.post("/api/resolvers/preview")
 async def preview_formula(data: dict):
     from src.automation.param_resolvers import _parse_formula
+
     formula = data.get("formula", "")
     result = _parse_formula(formula)
     return {"result": result}
@@ -227,9 +235,7 @@ async def get_task_form(task_name: str, wrap_class: str = "", vault: Vault = Dep
         loader=FileSystemLoader(str(TEMPLATES_DIR)),
         autoescape=select_autoescape(["html"]),
     )
-    html = env.get_template("form_fields.html").render(
-        fields=schema, config=config, creds=creds, wrap_class=wrap_class
-    )
+    html = env.get_template("form_fields.html").render(fields=schema, config=config, creds=creds, wrap_class=wrap_class)
     return {"html": html}
 
 
@@ -331,18 +337,16 @@ async def trigger_update():
     if current_exe.suffix != ".exe" or "TerminalServerRPA" not in current_exe.name:
         return {"status": "skipped", "reason": "not a packaged build (dev mode)"}
 
-    apply_update(current_exe, current_exe)
+    apply_update(release)
     # apply_update calls sys.exit(0) — never reaches here
     return {"status": "restarting"}
 
 
-_snippet_tasks: dict[str, "asyncio.Task"] = {}
+_snippet_tasks: dict[str, asyncio.Task] = {}
 
 
 @dev_router.delete("/api/executions/{exec_id}/snippet", status_code=204)
 async def cancel_snippet(exec_id: str):
-    import asyncio
-
     task = _snippet_tasks.get(exec_id)
     if task and not task.done():
         task.cancel()

@@ -74,6 +74,10 @@ class TaskRegistry:
             importlib.import_module("src.automation.tasks")
         cls._discovered = True
 
+        from src.infrastructure.plugin_loader import load_plugins
+
+        load_plugins()
+
     @classmethod
     def get_schema(cls, name: str) -> list:
         task_cls = cls.get(name)

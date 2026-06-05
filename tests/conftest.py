@@ -3,7 +3,9 @@ from pathlib import Path
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).parent.parent))
+_ROOT = Path(__file__).parent.parent
+sys.path.insert(0, str(_ROOT))
+sys.path.insert(0, str(_ROOT / "plugins"))
 
 
 @pytest.fixture(autouse=True)
