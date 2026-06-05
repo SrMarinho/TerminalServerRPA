@@ -9,6 +9,13 @@ configure_logger()
 
 
 @app.command()
+def gui(port: int = 8080, dev: bool = False):
+    from src.interfaces.gui.server import run_server
+
+    run_server(port=port, dev=dev)
+
+
+@app.command()
 def web(port: int = 8080, browser: bool = True, dev: bool = False):
     from src.interfaces.web.server import run_server
 
