@@ -1,20 +1,21 @@
 import asyncio
 from collections.abc import Callable
+from pathlib import Path
 
 from playwright.async_api import Page
 
-from src.automation.pages.contas_receber.reports.base_report import BaseReport
-from src.automation.pages.contas_receber.valores_entrada_modelo_page import ValoresEntradaModeloPage
 from src.config.settings import ASSETS_DIR
 from src.utils.image_match import MatchThreshold, find_template
 from src.utils.window_utils import maximize_window
 
-_TITLE_IMG = ASSETS_DIR / "Senior" / "pages" / "selecao_modelos_para_execucao" / "window_title.png"
-_COL_NUMERO_IMG = ASSETS_DIR / "Senior" / "pages" / "selecao_modelos_para_execucao" / "coluna_numero.png"
+from .reports.base_report import BaseReport
+from .valores_entrada_modelo_page import ValoresEntradaModeloPage
+
+_PLUGIN_ASSETS = Path(__file__).parent.parent / "assets"
+_TITLE_IMG = _PLUGIN_ASSETS / "selecao_modelos_para_execucao" / "window_title.png"
+_COL_NUMERO_IMG = _PLUGIN_ASSETS / "selecao_modelos_para_execucao" / "coluna_numero.png"
 _MAXIMIZAR_IMG = ASSETS_DIR / "Senior" / "components" / "context_menu" / "maximizar.png"
-_FORM_TITLE_IMG = (
-    ASSETS_DIR / "Senior" / "pages" / "selecao_modelos_para_execucao" / "valores_entrada_modelo" / "index.png"
-)
+_FORM_TITLE_IMG = _PLUGIN_ASSETS / "selecao_modelos_para_execucao" / "valores_entrada_modelo" / "index.png"
 
 
 class SelecaoModelosParaExecucaoPage:

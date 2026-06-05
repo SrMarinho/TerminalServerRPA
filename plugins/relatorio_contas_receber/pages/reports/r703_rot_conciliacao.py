@@ -4,18 +4,15 @@ from pathlib import Path
 
 from playwright.async_api import Page
 
-from src.automation.pages.contas_receber.reports.base_report import BaseReport, FieldDef
-from src.automation.pages.contas_receber.reports.constants import (
-    AnaliticoSintetico,
-    CsvRemoverEspacos,
-    FormatoArquivo,
-    OpcaoRelatorio,
-)
 from src.config.settings import ASSETS_DIR
 from src.utils.image_match import MatchThreshold, find_template, find_text_position
 
+from .base_report import BaseReport, FieldDef
+from .constants import AnaliticoSintetico, CsvRemoverEspacos, FormatoArquivo, OpcaoRelatorio
+
+_PLUGIN_ASSETS = Path(__file__).parent.parent.parent / "assets"
 _ERROR_IMG = ASSETS_DIR / "Senior" / "components" / "alert" / "error.png"
-_FORM_DIR = ASSETS_DIR / "Senior" / "pages" / "selecao_modelos_para_execucao" / "valores_entrada_modelo" / "form"
+_FORM_DIR = _PLUGIN_ASSETS / "selecao_modelos_para_execucao" / "valores_entrada_modelo" / "form"
 _FIELD_OFFSET_X = 200  # px right of label centre → wide input fields (1-6)
 _FIELD_OFFSET_X_SMALL = 35  # narrow 1-char fields (7-8: Opção, Analítico/Sintético)
 

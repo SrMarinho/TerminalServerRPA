@@ -1,10 +1,7 @@
 import asyncio
 from datetime import datetime
+from pathlib import Path
 
-from src.automation.pages.contas_receber.reports import REPORTS, REPORTS_BY_CODE
-from src.automation.pages.contas_receber.reports.constants import CsvRemoverEspacos, FormatoArquivo
-from src.automation.pages.contas_receber.selecao_modelos_para_execucao_page import SelecaoModelosParaExecucaoPage
-from src.automation.pages.contas_receber.valores_entrada_modelo_page import ValoresEntradaModeloPage
 from src.automation.pages.home_page import HomePage
 from src.automation.pages.senior_login_page import SeniorLoginPage
 from src.automation.pages.sidebar_navigator import SidebarNavigator
@@ -13,13 +10,16 @@ from src.automation.pages.ts_login_page import TsLoginPage
 from src.config.settings import ASSETS_DIR, DOWNLOADS_BASE
 from tsrpa import BrowserManager, MatchThreshold, SkipStep, Vault, find_template, maximize_window, register
 
+from .pages.reports import REPORTS, REPORTS_BY_CODE
+from .pages.reports.constants import CsvRemoverEspacos, FormatoArquivo
+from .pages.selecao_modelos_para_execucao_page import SelecaoModelosParaExecucaoPage
+from .pages.valores_entrada_modelo_page import ValoresEntradaModeloPage
 from .steps import StepNames
 
+_PLUGIN_ASSETS = Path(__file__).parent / "assets"
 _HOME_IMG = ASSETS_DIR / "Senior" / "components" / "sidebar" / "home" / "index.png"
-_REPORT_TITLE_IMG = ASSETS_DIR / "Senior" / "pages" / "selecao_modelos_para_execucao" / "window_title.png"
-_OUTPUT_LOADING_DIR = (
-    ASSETS_DIR / "Senior" / "pages" / "selecao_modelos_para_execucao" / "valores_entrada_modelo" / "output_loading"
-)
+_REPORT_TITLE_IMG = _PLUGIN_ASSETS / "selecao_modelos_para_execucao" / "window_title.png"
+_OUTPUT_LOADING_DIR = _PLUGIN_ASSETS / "selecao_modelos_para_execucao" / "valores_entrada_modelo" / "output_loading"
 _IMG_SELECIONANDO = _OUTPUT_LOADING_DIR / "selecionando_informacoes.png"
 _IMG_AGUARDANDO = _OUTPUT_LOADING_DIR / "aguarde_preparando_solicitacao.png"
 
