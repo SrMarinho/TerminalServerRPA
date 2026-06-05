@@ -122,7 +122,7 @@ class GeracaoRelatorio:
         if self._runner:
             self._runner._page = page
 
-    async def _wait_loading(self, page, img_path, step_name, appear_timeout: float = 5.0) -> None:
+    async def _wait_loading(self, page, img_path, step_name, appear_timeout: float = 5.0, next_img_path=None) -> None:
         await self._step(step_name)
         deadline_appear = asyncio.get_event_loop().time() + appear_timeout
         while asyncio.get_event_loop().time() < deadline_appear:
@@ -133,6 +133,8 @@ class GeracaoRelatorio:
         while True:
             shot = await page.screenshot()
             if not find_template(shot, img_path, MatchThreshold.DEFAULT):
+                return
+            if next_img_path and find_template(shot, next_img_path, MatchThreshold.DEFAULT):
                 return
             await asyncio.sleep(0.5)
 
@@ -275,7 +277,9 @@ class GeracaoRelatorio:
                     await asyncio.sleep(0.2)
             await asyncio.sleep(0.3)
             await valores.click_ok()
-            await self._wait_loading(remote_page, _IMG_SELECIONANDO, StepNames.SELECIONANDO_INFORMACOES)
+            await self._wait_loading(
+                remote_page, _IMG_SELECIONANDO, StepNames.SELECIONANDO_INFORMACOES, next_img_path=_IMG_AGUARDANDO
+            )
             await self._wait_loading(remote_page, _IMG_AGUARDANDO, StepNames.AGUARDANDO_SOLICITACAO)
             await selecao.close()
             return nome_arquivo
