@@ -1,4 +1,0 @@
-Started server process [19972]
-Waiting for application startup.
-Application startup complete.
-Uvicorn running on http://127.0.0.1:8081 (Press CTRL+C to quit)
