@@ -118,7 +118,7 @@ async function runSnippet(execId) {
   }
 }
 
-function _renderExecDetail(id, exec) {
+async function _renderExecDetail(id, exec) {
   var statusText = STATUS_PT[exec.status] || exec.status;
   var stepsHtml = renderFlowChart(exec.steps, id);
 
@@ -134,14 +134,31 @@ function _renderExecDetail(id, exec) {
   var paramsRows = '';
   var displayParams = exec.params_display && Object.keys(exec.params_display).length ? exec.params_display : exec.params;
   if (exec.params && Object.keys(exec.params).length) {
-    paramsRows = Object.entries(exec.params).map(function(kv) {
+    var schema = [], visibility = {};
+    try {
+      var results = await Promise.all([
+        api('GET', '/api/tasks/' + encodeURIComponent(exec.task_name) + '/schema'),
+        api('POST', '/api/tasks/' + encodeURIComponent(exec.task_name) + '/visibility', { params: exec.params }),
+      ]);
+      schema = results[0] || [];
+      visibility = results[1] || {};
+    } catch(e) {}
+
+    var labelMap = {};
+    schema.forEach(function(f) { if (f.name && f.label) labelMap[f.name] = f.label; });
+
+    paramsRows = Object.entries(exec.params).filter(function(kv) {
+      var k = kv[0];
+      return !(k in visibility) || visibility[k];
+    }).map(function(kv) {
       var k = kv[0], v = kv[1];
       var resolved = displayParams[k];
+      var label = labelMap[k] || k;
       var display = (v && typeof v === 'object' && v.service)
         ? '<span style="color:var(--text-3);font-size:10px">credential</span> <span style="color:var(--text-1)">' + esc(v.service) + '</span>'
         : '<span style="color:var(--text-1)">' + esc(typeof resolved === 'object' ? JSON.stringify(resolved) : String(resolved ?? v)) + '</span>';
       return '<div style="display:flex;gap:12px;padding:5px 0;border-bottom:1px solid var(--line)">'
-        + '<span style="color:var(--text-3);flex:0 0 160px;font-size:11px">' + esc(k) + '</span>'
+        + '<span style="color:var(--text-3);flex:0 0 160px;font-size:11px">' + esc(label) + '</span>'
         + display + '</div>';
     }).join('');
   }
@@ -210,7 +227,7 @@ async function openExecutionDetail(id) {
   try {
     const exec = await api('GET', '/api/executions/' + id);
     _backFn = function() { openTaskDetail(exec.task_name); };
-    _renderExecDetail(id, exec);
+    await _renderExecDetail(id, exec);
 
     if (!['completed', 'failed', 'cancelled'].includes(exec.status)) {
       _stopCurrentWatch = _watchExec(id, function(data) {
@@ -256,8 +273,8 @@ async function openExecutionDetail(id) {
             }
           }
         } else {
-          api('GET', '/api/executions/' + id).then(function(updated) {
-            _renderExecDetail(id, updated);
+          api('GET', '/api/executions/' + id).then(async function(updated) {
+            await _renderExecDetail(id, updated);
             if (['completed', 'failed', 'cancelled'].includes(updated.status)) {
               if (_stopCurrentWatch) { _stopCurrentWatch(); _stopCurrentWatch = null; }
             }
