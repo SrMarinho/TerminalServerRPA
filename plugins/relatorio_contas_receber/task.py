@@ -2,13 +2,22 @@ import asyncio
 from datetime import datetime
 from pathlib import Path
 
-from src.automation.pages.home_page import HomePage
-from src.automation.pages.senior_login_page import SeniorLoginPage
-from src.automation.pages.sidebar_navigator import SidebarNavigator
-from src.automation.pages.ts_applications_page import TsApplicationsPage
-from src.automation.pages.ts_login_page import TsLoginPage
-from src.config.settings import ASSETS_DIR, DOWNLOADS_BASE
-from tsrpa import BrowserManager, MatchThreshold, SkipStep, Vault, find_template, maximize_window, register
+from tsrpa import (
+    ASSETS_DIR,
+    DOWNLOADS_BASE,
+    BrowserManager,
+    HomePage,
+    MatchThreshold,
+    SeniorLoginPage,
+    SidebarNavigator,
+    SkipStep,
+    TsApplicationsPage,
+    TsLoginPage,
+    Vault,
+    find_template,
+    maximize_window,
+    register,
+)
 
 from .pages.reports import REPORTS, REPORTS_BY_CODE
 from .pages.reports.constants import CsvRemoverEspacos, FormatoArquivo
@@ -118,6 +127,10 @@ class GeracaoRelatorio:
 
             get_logger("TerminalServerRPA.report-generation").warning("step.skipped", step=name)
 
+    async def _replay_steps(self, *names: str) -> None:
+        for name in names:
+            await self._step(name)
+
     def _attach_page(self, page) -> None:
         if self._runner:
             self._runner._page = page
@@ -207,7 +220,7 @@ class GeracaoRelatorio:
 
     async def _phase_report_actions(self, remote_page, relatorio_code: str, params: dict) -> str | None:
         if not remote_page:
-            for name in (
+            await self._replay_steps(
                 StepNames.MAXIMIZANDO_RELATORIO,
                 StepNames.DIGITANDO_RELATORIO,
                 StepNames.MAXIMIZANDO_VALORES,
@@ -215,8 +228,7 @@ class GeracaoRelatorio:
                 StepNames.PREENCHENDO_SAIDA,
                 StepNames.SELECIONANDO_INFORMACOES,
                 StepNames.AGUARDANDO_SOLICITACAO,
-            ):
-                await self._step(name)
+            )
             return
 
         await self._step(
@@ -284,10 +296,12 @@ class GeracaoRelatorio:
             await selecao.close()
             return nome_arquivo
         else:
-            await self._step(StepNames.DIGITANDO_RELATORIO)
-            await self._step(StepNames.MAXIMIZANDO_VALORES)
-            await self._step(StepNames.PREENCHENDO_ENTRADA)
-            await self._step(StepNames.PREENCHENDO_SAIDA)
+            await self._replay_steps(
+                StepNames.DIGITANDO_RELATORIO,
+                StepNames.MAXIMIZANDO_VALORES,
+                StepNames.PREENCHENDO_ENTRADA,
+                StepNames.PREENCHENDO_SAIDA,
+            )
         return None
 
     async def execute(self, params: dict) -> dict:

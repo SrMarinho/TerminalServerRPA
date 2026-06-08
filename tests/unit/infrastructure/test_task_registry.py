@@ -17,35 +17,47 @@ class TestTaskRegistry:
     def test_register_class(self):
         @TaskRegistry.register()
         class MyTask:
-            pass
+            async def execute(self, params: dict) -> dict:
+                return {}
 
         assert "my" in TaskRegistry.list()
 
     def test_register_with_custom_name(self):
         @TaskRegistry.register("custom-name")
         class Something:
-            pass
+            async def execute(self, params: dict) -> dict:
+                return {}
 
         assert "custom-name" in TaskRegistry.list()
 
     def test_get_returns_class(self):
         @TaskRegistry.register("get-test")
         class GetTest:
-            pass
+            async def execute(self, params: dict) -> dict:
+                return {}
 
         assert TaskRegistry.get("get-test") is GetTest
 
     def test_get_returns_none_for_missing(self):
         assert TaskRegistry.get("nonexistent") is None
 
+    def test_register_rejects_missing_execute(self):
+        @TaskRegistry.register("no-execute")
+        class BadTask:
+            pass
+
+        assert "no-execute" not in TaskRegistry.list()
+
     def test_multiple_tasks(self):
         @TaskRegistry.register("task-a")
         class A:
-            pass
+            async def execute(self, params: dict) -> dict:
+                return {}
 
         @TaskRegistry.register("task-b")
         class B:
-            pass
+            async def execute(self, params: dict) -> dict:
+                return {}
 
         names = TaskRegistry.list()
         assert "task-a" in names

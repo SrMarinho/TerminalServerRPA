@@ -1,6 +1,10 @@
+import asyncio
 from typing import Protocol
 
+from src.infrastructure.logger import get_logger
 from src.infrastructure.models import TaskInfo
+
+log = get_logger("TerminalServerRPA.registry")
 
 
 class Task(Protocol):
@@ -14,6 +18,10 @@ class TaskRegistry:
     @classmethod
     def register(cls, name: str = ""):
         def decorator(task_cls: type):
+            execute = getattr(task_cls, "execute", None)
+            if execute is None or not asyncio.iscoroutinefunction(execute):
+                log.error("registry.invalid_task", cls=task_cls.__name__, reason="missing async execute method")
+                return task_cls
             task_name = name or task_cls.__name__.replace("Task", "").lower()
             cls._tasks[task_name] = task_cls
             return task_cls
@@ -43,10 +51,11 @@ class TaskRegistry:
             schema: list[dict] = []
             if hasattr(task_cls, "get_schema"):
                 schema = task_cls.get_schema()
+            display_name = name.split(":", 1)[-1] if ":" in name else name
             result.append(
                 TaskInfo(
                     name=name,
-                    display_name=name,
+                    display_name=display_name,
                     steps=steps,
                     schema_fields=schema,
                 )

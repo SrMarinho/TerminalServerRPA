@@ -1,0 +1,5 @@
+[plugin]
+name = "relatorio_contas_receber"
+version = "0.1.0"
+min_app_version = "0.1.0"
+entrypoint = "relatorio_contas_receber"
