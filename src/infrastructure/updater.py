@@ -142,7 +142,7 @@ if not errorlevel 1 (
     timeout /t 2 /nobreak >nul
     goto wait
 )
-start /wait "" "{dest}"
+start /wait "" "{dest}" /SILENT
 del /q "{dest}" 2>nul
 del /q "%~f0"
 start "" "{current_exe}"
