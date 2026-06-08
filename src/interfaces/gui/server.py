@@ -14,6 +14,9 @@ from src.interfaces.web.server import WebServer
 
 log = get_logger("TerminalServerRPA.gui")
 
+_UPDATE_INITIAL_DELAY_S = 5
+_UPDATE_POLL_INTERVAL_S = 60
+
 _LOADING_HTML = """<!DOCTYPE html>
 <html>
 <head>
@@ -123,24 +126,34 @@ class GuiServer(BaseServer):
         self._window.load_url(url)
 
     def _check_and_prompt_update(self) -> None:
+        """Scheduling: poll for updates, delegating decision/UI/apply to helpers."""
         from src.config.version import VERSION
-        from src.infrastructure.updater import apply_update, check_for_update
+        from src.infrastructure.updater import check_for_update
 
-        time.sleep(5)
-        last_rejected: str | None = None
+        time.sleep(_UPDATE_INITIAL_DELAY_S)
+        rejected: set[str] = set()
 
         while True:
             release = check_for_update(VERSION)
-            if release and release.version != last_rejected:
-                confirmed = self._window.create_confirmation_dialog(
-                    "Atualização disponível",
-                    f"Nova versão {release.version} disponível. Atualizar agora?",
-                )
-                if confirmed:
-                    apply_update(release)
+            if release and release.version not in rejected:
+                if self._prompt_update(release.version):
+                    self._apply_update(release)
                     return
-                last_rejected = release.version
-            time.sleep(60)
+                rejected.add(release.version)
+            time.sleep(_UPDATE_POLL_INTERVAL_S)
+
+    def _prompt_update(self, version: str) -> bool:
+        """Presentation: ask the user whether to update now."""
+        return self._window.create_confirmation_dialog(
+            "Atualização disponível",
+            f"Nova versão {version} disponível. Atualizar agora?",
+        )
+
+    def _apply_update(self, release: Any) -> None:
+        """Action: download, verify and install the release."""
+        from src.infrastructure.updater import apply_update
+
+        apply_update(release)
 
     def _on_closing(self) -> bool:
         if self._tray_started:
