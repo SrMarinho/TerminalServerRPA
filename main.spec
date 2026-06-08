@@ -60,11 +60,14 @@ a = Analysis(
     noarchive=False,
 )
 
-_CV2_GUI_PREFIXES = ("Qt5", "Qt6", "libQt", "opengl32sw")
-a.binaries = [b for b in a.binaries if not b[0].startswith(_CV2_GUI_PREFIXES)]
-
+# opencv-python-headless already ships without Qt/GUI libs, so no manual strip.
+# Drop the bundled playwright driver (downloaded at runtime to APP_DATA), and any
+# committed bytecode/test artifacts that slipped into the data globs.
 a.datas = [entry for entry in a.datas if "playwright" not in entry[1] or "driver" not in entry[1]]
 a.binaries = [entry for entry in a.binaries if "playwright" not in entry[1] or "driver" not in entry[1]]
+
+_JUNK = ("__pycache__", ".pyc", ".pyo")
+a.datas = [entry for entry in a.datas if not any(j in entry[0] for j in _JUNK)]
 
 pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 
