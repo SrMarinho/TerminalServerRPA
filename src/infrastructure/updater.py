@@ -158,7 +158,7 @@ if not errorlevel 1 (
 start /wait "" "{dest}" /SILENT
 del /q "{dest}" 2>nul
 del /q "%~f0"
-start "" "{current_exe}"
+start "" "{current_exe}" gui
 """,
         encoding="utf-8",
     )
