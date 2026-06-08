@@ -9,6 +9,7 @@ _FMT = "%d/%m/%Y"
 # DateRange — objeto retornável por resolvers com suporte a chaining
 # ---------------------------------------------------------------------------
 
+
 class DateRange:
     def __init__(self, start: date, end: date):
         self._start = start
@@ -33,6 +34,7 @@ class DateRange:
 # Helpers internos
 # ---------------------------------------------------------------------------
 
+
 def _subtract_months(d: date, months: int) -> date:
     total = d.month - months
     year = d.year + (total - 1) // 12
@@ -53,22 +55,26 @@ RESOLVERS: dict = {
     "date": {
         "today": {
             "label": "Hoje",
-            "description": "Range de um único dia: hoje.",
+            "description": "Data de hoje: dd/mm/yyyy.",
             "params": [],
-            "fn": lambda: DateRange(date.today(), date.today()),
+            "fn": lambda: date.today().strftime(_FMT),
+        },
+        "yesterday": {
+            "label": "Ontem",
+            "description": "Data de ontem: dd/mm/yyyy.",
+            "params": [],
+            "fn": lambda: (date.today() - timedelta(days=1)).strftime(_FMT),
         },
         "back": {
             "label": "N dias/meses atrás",
-            "description": "Intervalo desde N dias ou meses atrás até hoje (ou ontem).",
+            "description": "Data de início do lookback (N dias ou meses atrás). Use concat para compor ranges.",
             "params": [
-                {"name": "days",          "type": "number", "label": "Dias",                "default": 0},
-                {"name": "include_today", "type": "number", "label": "Incluir hoje (1/0)",  "default": 1},
-                {"name": "months",        "type": "number", "label": "Meses",               "default": 0},
+                {"name": "days", "type": "number", "label": "Dias", "default": 0},
+                {"name": "months", "type": "number", "label": "Meses", "default": 0},
             ],
-            "fn": lambda days=0, include_today=1, months=0: DateRange(
-                _subtract_months(date.today(), int(months)) - timedelta(days=int(days)),
-                date.today() if int(include_today) else date.today() - timedelta(days=1),
-            ),
+            "fn": lambda days=0, months=0: (
+                _subtract_months(date.today(), int(months)) - timedelta(days=int(days))
+            ).strftime(_FMT),
         },
         "month": {
             "label": "Mês atual",
@@ -80,21 +86,23 @@ RESOLVERS: dict = {
             "label": "Mês anterior",
             "description": "Do primeiro ao último dia do mês anterior.",
             "params": [],
-            "fn": lambda: (
-                lambda f: DateRange(f, _end_of_month(f))
-            )((date.today().replace(day=1) - timedelta(days=1)).replace(day=1)),
+            "fn": lambda: (lambda f: DateRange(f, _end_of_month(f)))(
+                (date.today().replace(day=1) - timedelta(days=1)).replace(day=1)
+            ),
         },
     }
+}
+
+
+FUNCTIONS: dict = {
+    "concat": lambda *args: "".join(str(a) for a in args),
 }
 
 
 def resolver_meta() -> dict:
     """Metadados sem 'fn' — seguro para expor via API."""
     return {
-        ns: {
-            fn: {k: v for k, v in meta.items() if k != "fn"}
-            for fn, meta in fns.items()
-        }
+        ns: {fn: {k: v for k, v in meta.items() if k != "fn"} for fn, meta in fns.items()}
         for ns, fns in RESOLVERS.items()
     }
 
@@ -102,6 +110,7 @@ def resolver_meta() -> dict:
 # ---------------------------------------------------------------------------
 # Parser recursivo
 # ---------------------------------------------------------------------------
+
 
 def _split_args(s: str) -> list[str]:
     """Divide args por vírgula respeitando parênteses aninhados."""
@@ -142,6 +151,16 @@ def _parse_expr(s: str):
         key = kw_match.group(1)
         val = _parse_chained(kw_match.group(2).strip())
         return ("__kw__", key, val)
+
+    # bare fn(args...) — lookup in FUNCTIONS
+    bare_match = re.match(r"^(\w+)\((.*)\)$", s, re.DOTALL)
+    if bare_match:
+        fn_name, args_raw = bare_match.group(1), bare_match.group(2).strip()
+        fn = FUNCTIONS.get(fn_name)
+        if fn:
+            raw_args = _split_args(args_raw) if args_raw else []
+            resolved_args = [_parse_chained(a.strip()) for a in raw_args]
+            return fn(*resolved_args)
 
     # ns.fn(args...)
     fn_match = re.match(r"^(\w+)\.(\w+)\((.*)\)$", s, re.DOTALL)
@@ -204,8 +223,8 @@ def _parse_chained(s: str):
     if close == -1:
         return _parse_expr(s)
 
-    base_str = s[:close + 1]
-    chain_str = s[close + 1:]  # ex: ".first()" ou ".first().last()"
+    base_str = s[: close + 1]
+    chain_str = s[close + 1 :]  # ex: ".first()" ou ".first().last()"
     result = _parse_expr(base_str)
 
     # aplica métodos encadeados
@@ -226,7 +245,4 @@ def _parse_formula(s: str):
 
 
 def resolve_params(params: dict) -> dict:
-    return {
-        k: _parse_formula(v) if isinstance(v, str) and v.startswith("=") else v
-        for k, v in params.items()
-    }
+    return {k: _parse_formula(v) if isinstance(v, str) and v.startswith("=") else v for k, v in params.items()}
