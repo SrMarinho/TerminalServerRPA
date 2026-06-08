@@ -132,12 +132,14 @@ function _renderExecDetail(id, exec) {
 
   _execParamsCache[id] = { taskName: exec.task_name, params: exec.params };
   var paramsRows = '';
+  var displayParams = exec.params_display && Object.keys(exec.params_display).length ? exec.params_display : exec.params;
   if (exec.params && Object.keys(exec.params).length) {
     paramsRows = Object.entries(exec.params).map(function(kv) {
       var k = kv[0], v = kv[1];
+      var resolved = displayParams[k];
       var display = (v && typeof v === 'object' && v.service)
         ? '<span style="color:var(--text-3);font-size:10px">credential</span> <span style="color:var(--text-1)">' + esc(v.service) + '</span>'
-        : '<span style="color:var(--text-1)">' + esc(typeof v === 'object' ? JSON.stringify(v) : String(v)) + '</span>';
+        : '<span style="color:var(--text-1)">' + esc(typeof resolved === 'object' ? JSON.stringify(resolved) : String(resolved ?? v)) + '</span>';
       return '<div style="display:flex;gap:12px;padding:5px 0;border-bottom:1px solid var(--line)">'
         + '<span style="color:var(--text-3);flex:0 0 160px;font-size:11px">' + esc(k) + '</span>'
         + display + '</div>';

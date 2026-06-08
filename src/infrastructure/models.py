@@ -96,6 +96,7 @@ class Execution(BaseModel):
     task_name: str = ""
     status: ExecutionStatus = ExecutionStatus.IDLE
     params: dict[str, Any] = Field(default_factory=dict)
+    params_display: dict[str, Any] = Field(default_factory=dict)
     result: dict[str, Any] | None = None
     started_at: str = ""
     finished_at: str | None = None
