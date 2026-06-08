@@ -357,6 +357,7 @@ function _initFormulaAutocomplete(container) {
     });
 
     _updateFormulaStyle();
+    if (input.value.startsWith('=')) _updatePreview();
 
     input.addEventListener('keydown', function(e) {
       var dropdownOpen = !dropdown.classList.contains('hidden');
