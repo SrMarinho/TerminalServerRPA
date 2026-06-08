@@ -44,6 +44,12 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
+          # Publish to the public releases-only repo so clients can auto-update
+          # without any embedded token. Requires a PAT secret with Contents:
+          # write on SrMarinho/TerminalServerRPA-releases.
+          repository: SrMarinho/TerminalServerRPA-releases
+          token: ${{ secrets.RELEASES_REPO_TOKEN }}
+          tag_name: ${{ github.ref_name }}
           name: TerminalServerRPA ${{ github.ref_name }}
           body: |
             ## TerminalServerRPA ${{ github.ref_name }}
