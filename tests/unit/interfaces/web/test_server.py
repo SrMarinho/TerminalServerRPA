@@ -40,27 +40,32 @@ class TestFindFreePort:
 
 class TestBuildApp:
     def test_returns_fastapi_app(self):
-        from src.interfaces.web.server import _build_app
+        from src.interfaces.web.server import WebServer
 
-        app = _build_app()
+        app = WebServer._build_app()
         assert isinstance(app, FastAPI)
         assert app.title == "TerminalServerRPA"
 
     def test_includes_router(self):
-        from src.interfaces.web.server import _build_app
+        from src.interfaces.web.server import WebServer
 
-        app = _build_app()
+        app = WebServer._build_app()
         routes = [r.path for r in app.routes]
         assert "/api/credentials" in routes
         assert "/" in routes
 
 
+# run_server delegates to WebServer.start(), which runs BaseServer._setup().
+# The single-instance / port helpers are resolved in base_server, so patches
+# target that module; uvicorn/webbrowser are imported into the server module.
 class TestRunServer:
     @patch("src.interfaces.web.server.uvicorn")
     @patch("src.interfaces.web.server.webbrowser")
-    @patch("src.interfaces.web.server.find_free_port", return_value=8080)
-    @patch("src.interfaces.web.server.is_first_instance", return_value=True)
-    def test_starts_uvicorn(self, mock_first, mock_port, mock_web, mock_uvicorn):
+    @patch("src.interfaces.base_server.save_port")
+    @patch("src.interfaces.base_server.configure_logger")
+    @patch("src.interfaces.base_server.find_free_port", return_value=8080)
+    @patch("src.interfaces.base_server.is_first_instance", return_value=True)
+    def test_starts_uvicorn(self, mock_first, mock_port, mock_log, mock_save, mock_web, mock_uvicorn):
         from src.interfaces.web.server import run_server
 
         run_server(port=8080, open_browser=False)
@@ -70,9 +75,11 @@ class TestRunServer:
 
     @patch("src.interfaces.web.server.uvicorn")
     @patch("src.interfaces.web.server.webbrowser")
-    @patch("src.interfaces.web.server.find_free_port", return_value=8080)
-    @patch("src.interfaces.web.server.is_first_instance", return_value=True)
-    def test_opens_browser(self, mock_first, mock_port, mock_web, mock_uvicorn):
+    @patch("src.interfaces.base_server.save_port")
+    @patch("src.interfaces.base_server.configure_logger")
+    @patch("src.interfaces.base_server.find_free_port", return_value=8080)
+    @patch("src.interfaces.base_server.is_first_instance", return_value=True)
+    def test_opens_browser(self, mock_first, mock_port, mock_log, mock_save, mock_web, mock_uvicorn):
         from src.interfaces.web.server import run_server
 
         run_server(port=8080, open_browser=True)
@@ -80,9 +87,11 @@ class TestRunServer:
 
     @patch("src.interfaces.web.server.uvicorn")
     @patch("src.interfaces.web.server.webbrowser")
-    @patch("src.interfaces.web.server.find_free_port", return_value=8081)
-    @patch("src.interfaces.web.server.is_first_instance", return_value=True)
-    def test_uses_fallback_port(self, mock_first, mock_port, mock_web, mock_uvicorn):
+    @patch("src.interfaces.base_server.save_port")
+    @patch("src.interfaces.base_server.configure_logger")
+    @patch("src.interfaces.base_server.find_free_port", return_value=8081)
+    @patch("src.interfaces.base_server.is_first_instance", return_value=True)
+    def test_uses_fallback_port(self, mock_first, mock_port, mock_log, mock_save, mock_web, mock_uvicorn):
         from src.interfaces.web.server import run_server
 
         run_server(port=8080, open_browser=False)
@@ -91,8 +100,8 @@ class TestRunServer:
         mock_uvicorn.Server.return_value.run.assert_called_once()
 
     @patch("src.interfaces.web.server.uvicorn")
-    @patch("src.interfaces.web.server.focus_existing_instance")
-    @patch("src.interfaces.web.server.is_first_instance", return_value=False)
+    @patch("src.interfaces.base_server.focus_existing_instance", return_value=True)
+    @patch("src.interfaces.base_server.is_first_instance", return_value=False)
     def test_focuses_existing_when_duplicate(self, mock_first, mock_focus, mock_uvicorn):
         from src.interfaces.web.server import run_server
 
