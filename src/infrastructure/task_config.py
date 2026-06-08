@@ -1,8 +1,7 @@
 import json
 import sqlite3
-from pathlib import Path
 
-_DB_PATH = Path(".local") / "executions.db"
+from src.config.settings import DB_PATH as _DB_PATH
 
 
 def _conn() -> sqlite3.Connection:

@@ -70,6 +70,10 @@ class TestCheckpoint:
 class TestRun:
     @pytest.mark.asyncio
     async def test_run_marks_completed(self, runner):
+        async def noop(*a, **kw):
+            return None
+
+        runner._execute = noop
         await runner.run("noop-task")
         assert runner.status == ExecutionStatus.COMPLETED
 
@@ -81,7 +85,11 @@ class TestRun:
             runner._cancel_requested = True
             return await original_checkpoint(name)
 
+        async def execute_with_checkpoint(*a, **kw):
+            await runner.checkpoint("step")
+
         runner.checkpoint = cancel_on_first_checkpoint
+        runner._execute = execute_with_checkpoint
         await runner.run("noop-task")
         assert runner.status == ExecutionStatus.CANCELLED
 

@@ -57,8 +57,7 @@ class TaskRunner:
         TaskRegistry.auto_discover()
         task_cls = TaskRegistry.get(task_name)
         if task_cls is None:
-            await self.checkpoint("unknown")
-            return
+            raise ValueError(f"Unknown task: {task_name}")
         from src.automation.param_resolvers import resolve_params
         from src.infrastructure.vault import Vault
 
@@ -129,6 +128,9 @@ class TaskRunner:
                 self._task.cancel()
 
 
+MAX_RUNNERS = 50
+
+
 class TaskPool:
     def __init__(self):
         self._runners: dict[str, TaskRunner] = {}
@@ -136,12 +138,28 @@ class TaskPool:
     def is_busy(self) -> bool:
         return any(r.status in (ExecutionStatus.RUNNING, ExecutionStatus.PAUSED) for r in self._runners.values())
 
+    def _prune_finished(self) -> None:
+        """Drop the oldest finished runners once the pool exceeds MAX_RUNNERS.
+
+        Active (running/paused) runners are always kept; permanent history lives
+        in the DB, so dropping finished runners only frees in-memory state.
+        """
+        if len(self._runners) <= MAX_RUNNERS:
+            return
+        finished = [
+            tid for tid, r in self._runners.items() if r.status not in (ExecutionStatus.RUNNING, ExecutionStatus.PAUSED)
+        ]
+        # dict preserves insertion order → oldest first
+        for tid in finished[: len(self._runners) - MAX_RUNNERS]:
+            del self._runners[tid]
+
     def start(self, task_name: str, params: dict | None = None, breakpoints: list[str] | None = None) -> str:
         from src.infrastructure.execution_manager import set_breakpoint
 
         if self.is_busy():
             raise RuntimeError("Uma execução já está em andamento. Aguarde ou cancele antes de iniciar.")
 
+        self._prune_finished()
         mgr = get_manager()
         exec_id = mgr.create(task_name, params)
         runner = TaskRunner(execution_id=exec_id)
