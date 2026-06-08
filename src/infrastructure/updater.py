@@ -143,4 +143,4 @@ del /q "%~f0"
         ["cmd.exe", "/c", str(batch)],
         creationflags=subprocess.CREATE_NO_WINDOW | subprocess.CREATE_NEW_PROCESS_GROUP,
     )
-    sys.exit(0)
+    os._exit(0)
