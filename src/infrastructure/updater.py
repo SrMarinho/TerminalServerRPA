@@ -38,6 +38,9 @@ def _parse_version(v: str) -> tuple[int, ...]:
 
 
 def check_for_update(current_version: str) -> Release | None:
+    if os.environ.get("TSRPA_FAKE_UPDATE"):
+        log.info("update.fake_mode")
+        return Release(tag_name="v99.0.0", html_url="", assets=[])
     url = f"https://api.github.com/repos/{OWNER}/{REPO}/releases/latest"
     try:
         resp = httpx.get(url, timeout=10)
@@ -104,6 +107,14 @@ def _verify_checksum(file: Path, release: Release) -> bool:
 
 
 def apply_update(release: Release) -> None:
+    if os.environ.get("TSRPA_FAKE_UPDATE"):
+        log.info("update.fake_apply", version=release.version)
+        import time
+
+        time.sleep(3)
+        log.info("update.fake_exit")
+        os._exit(0)
+
     current_exe = Path(sys.executable)
     setup_name = "TerminalServerRPA_Setup.exe"
 
