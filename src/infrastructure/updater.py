@@ -2,6 +2,7 @@ import hashlib
 import os
 import subprocess
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -63,15 +64,24 @@ def check_for_update(current_version: str) -> Release | None:
     return None
 
 
-def _download_asset(asset: dict, dest: Path) -> Path | None:
+def _download_asset(
+    asset: dict,
+    dest: Path,
+    progress_cb: Callable[[int, int], None] | None = None,
+) -> Path | None:
     headers = {"Accept": "application/octet-stream"}
     try:
         with httpx.stream("GET", asset["url"], headers=headers, follow_redirects=True, timeout=120) as resp:
             resp.raise_for_status()
+            total = int(resp.headers.get("content-length", 0))
             dest.parent.mkdir(parents=True, exist_ok=True)
+            downloaded = 0
             with open(dest, "wb") as f:
                 for chunk in resp.iter_bytes(chunk_size=8192):
                     f.write(chunk)
+                    downloaded += len(chunk)
+                    if progress_cb:
+                        progress_cb(downloaded, total)
         log.info("update.downloaded", path=str(dest))
         return dest
     except Exception as e:
@@ -106,7 +116,10 @@ def _verify_checksum(file: Path, release: Release) -> bool:
         tmp.unlink(missing_ok=True)
 
 
-def apply_update(release: Release) -> None:
+def apply_update(
+    release: Release,
+    progress_cb: Callable[[int, int], None] | None = None,
+) -> None:
     if os.environ.get("TSRPA_FAKE_UPDATE"):
         log.info("update.fake_apply", version=release.version)
         import time
@@ -123,7 +136,7 @@ def apply_update(release: Release) -> None:
         log.error("update.asset_not_found", expected=setup_name, available=[a["name"] for a in release.assets])
         return
 
-    dest = _download_asset(asset, current_exe.parent / setup_name)
+    dest = _download_asset(asset, current_exe.parent / setup_name, progress_cb)
     if dest is None:
         return
 

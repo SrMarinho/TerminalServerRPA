@@ -202,18 +202,32 @@ class GuiServer(BaseServer):
 
         self._window.evaluate_js(
             "document.body.insertAdjacentHTML('beforeend',"
-            '\'<div id="_upd_overlay" style="'
-            "position:fixed;inset:0;background:rgba(0,0,0,.88);"
+            '\'<div id="_upd_overlay" style="position:fixed;inset:0;background:rgba(0,0,0,.88);'
             "display:flex;flex-direction:column;align-items:center;justify-content:center;"
             'z-index:9999;font-family:monospace;color:#4ade80;gap:16px">'
-            '<div style=\\"font-size:1.1rem\\">Baixando atualização...</div>'
-            '<div style=\\"width:200px;height:2px;background:#2a2e36;position:relative;overflow:hidden\\">'
-            '<div style=\\"position:absolute;top:0;left:0;height:100%;width:40%;background:#4ade80;'
-            'animation:_upd_slide 1.2s ease-in-out infinite\\"></div></div>'
-            "<style>@keyframes _upd_slide{0%{left:-40%}100%{left:100%}}</style>"
+            '<div id="_upd_label" style="font-size:1.1rem">Baixando atualização...</div>'
+            '<div style="width:240px;height:4px;background:#2a2e36;border-radius:2px">'
+            '<div id="_upd_bar" style="height:100%;width:0%;background:#4ade80;'
+            'border-radius:2px;transition:width .15s"></div></div>'
+            '<div id="_upd_pct" style="font-size:.75rem;color:#5a5f6b">0%</div>'
             "</div>')"
         )
-        apply_update(release)
+
+        def _on_progress(downloaded: int, total: int) -> None:
+            if total > 0:
+                pct = int(downloaded * 100 / total)
+                mb_done = downloaded / 1_048_576
+                mb_total = total / 1_048_576
+                self._window.evaluate_js(
+                    f"(function(){{"
+                    f"var b=document.getElementById('_upd_bar');"
+                    f"var p=document.getElementById('_upd_pct');"
+                    f"if(b)b.style.width='{pct}%';"
+                    f"if(p)p.textContent='{pct}% — {mb_done:.1f} / {mb_total:.1f} MB';"
+                    f"}})()"
+                )
+
+        apply_update(release, progress_cb=_on_progress)
 
     def _on_closing(self) -> bool:
         # Never actually close on the window's X button — just hide to tray.
