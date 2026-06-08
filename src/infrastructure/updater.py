@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import httpx
+import keyring
 
 from src.infrastructure.logger import get_logger
 
@@ -13,8 +14,16 @@ log = get_logger("TerminalServerRPA.updater")
 
 REPO = "TerminalServerRPA"
 OWNER = "SrMarinho"
-# Fine-grained PAT: Contents: Read-only
-GITHUB_TOKEN = "***REMOVED_PAT***"
+
+# GitHub token (fine-grained PAT, Contents: Read-only) for the private releases
+# repo. NEVER hardcode it — it leaks via git history and the shipped binary.
+# Provide it via env var or the OS keyring instead.
+_TOKEN_SERVICE = "TerminalServerRPA"
+_TOKEN_KEY = "_github_token"
+
+
+def _github_token() -> str:
+    return os.environ.get("TERMINALSERVERRPA_GITHUB_TOKEN") or (keyring.get_password(_TOKEN_SERVICE, _TOKEN_KEY) or "")
 
 
 @dataclass
@@ -29,9 +38,10 @@ class Release:
 
 
 def _auth_headers() -> dict:
-    if not GITHUB_TOKEN:
+    token = _github_token()
+    if not token:
         return {}
-    return {"Authorization": f"Bearer {GITHUB_TOKEN}"}
+    return {"Authorization": f"Bearer {token}"}
 
 
 def _parse_version(v: str) -> tuple[int, ...]:
@@ -82,15 +92,19 @@ def _download_asset(asset: dict, dest: Path) -> Path | None:
 
 
 def _verify_checksum(file: Path, release: Release) -> bool:
+    # Fail closed: a missing or undownloadable checksum aborts the update.
+    # Accepting an unverified binary would let a compromised release run as us.
     exe_name = file.name
     checksum_asset = next((a for a in release.assets if a["name"] == f"{exe_name}.sha256"), None)
     if checksum_asset is None:
-        return True  # no checksum asset → skip
+        log.error("update.checksum_missing", expected=f"{exe_name}.sha256")
+        return False
 
     tmp = file.parent / f"{exe_name}.sha256_tmp"
     downloaded = _download_asset(checksum_asset, tmp)
     if downloaded is None:
-        return True  # can't download checksum → skip
+        log.error("update.checksum_download_failed")
+        return False
 
     try:
         expected = downloaded.read_text(encoding="utf-8").split()[0].strip()
