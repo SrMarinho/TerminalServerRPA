@@ -138,7 +138,7 @@ class GuiServer(BaseServer):
         threading.Thread(target=self._wait_and_navigate, args=(app_url, actual_port), daemon=True).start()
         threading.Thread(target=self._check_and_prompt_update, daemon=True).start()
         threading.Thread(target=self._start_tray, daemon=True).start()
-        webview.start(icon=str(ASSETS_DIR / "icon.ico"))
+        webview.start(icon=str(ASSETS_DIR / "icon.ico"), debug=self._dev)
 
     def _wait_and_navigate(self, url: str, port: int) -> None:
         import httpx
