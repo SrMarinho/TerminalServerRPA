@@ -71,6 +71,25 @@ def _loading_html(version: str) -> str:
     return _LOADING_HTML.replace("__VERSION__", f"v{version}")
 
 
+_UPDATE_MODAL_HTML = (
+    '<div id="_upd_dlg" style="position:fixed;inset:0;background:rgba(0,0,0,.88);'
+    "display:flex;align-items:center;justify-content:center;z-index:9998;"
+    'font-family:JetBrains Mono,ui-monospace,monospace">'
+    '<div style="background:#0d0f13;border:1px solid #2a2e36;padding:32px 40px;max-width:420px;width:90%">'
+    '<div style="color:#4ade80;font-size:.7rem;letter-spacing:.1em;'
+    'text-transform:uppercase;margin-bottom:16px">atualização disponível</div>'
+    '<div style="color:#fff;font-size:1.1rem;font-weight:700;margin-bottom:8px">__VERSION__</div>'
+    '<div style="color:#a3a8b5;font-size:.85rem;margin-bottom:28px">'
+    "Uma nova versão está disponível. Deseja atualizar agora?</div>"
+    '<div style="display:flex;gap:12px">'
+    '<button id="_upd_yes" style="flex:1;padding:10px;background:#4ade80;color:#000;'
+    'border:none;cursor:pointer;font-family:inherit;font-weight:700;font-size:.85rem">Atualizar</button>'
+    '<button id="_upd_no" style="flex:1;padding:10px;background:transparent;color:#a3a8b5;'
+    'border:1px solid #2a2e36;cursor:pointer;font-family:inherit;font-size:.85rem">Agora não</button>'
+    "</div></div></div>"
+)
+
+
 class GuiServer(BaseServer):
     def __init__(self, port: int = 8080, dev: bool = False) -> None:
         super().__init__(port=port, dev=dev)
@@ -150,17 +169,32 @@ class GuiServer(BaseServer):
             time.sleep(_UPDATE_POLL_INTERVAL_S)
 
     def _prompt_update(self, version: str) -> bool:
-        """Presentation: ask the user whether to update now.
+        """Inject a styled HTML modal into the webview and poll for user response.
 
-        Uses an in-page confirm() instead of the native confirmation dialog:
-        the native MessageBox is created without an owner window, so it can
-        appear behind the maximized window and block the GUI loop (the window
-        looks frozen). The browser confirm() is owned by the webview and always
-        renders in front.
+        Native MessageBox appears behind the maximized window and freezes the GUI
+        loop. window.confirm() is functional but visually inconsistent. An injected
+        modal is always in-front, styled to match the app, and non-blocking for the
+        webview main thread.
         """
         self._window.show()
-        answer = self._window.evaluate_js(f"window.confirm('Nova versão {version} disponível. Atualizar agora?')")
-        return bool(answer)
+        html = _UPDATE_MODAL_HTML.replace("__VERSION__", f"versão {version}")
+        escaped = html.replace("\\", "\\\\").replace("'", "\\'")
+        self._window.evaluate_js(
+            f"(function(){{"
+            f"var e=document.getElementById('_upd_dlg');if(e)e.remove();"
+            f"window._upd_choice=null;"
+            f"document.body.insertAdjacentHTML('beforeend','{escaped}');"
+            f"document.getElementById('_upd_yes').onclick=function(){{"
+            f"window._upd_choice='yes';document.getElementById('_upd_dlg').remove();}};"
+            f"document.getElementById('_upd_no').onclick=function(){{"
+            f"window._upd_choice='no';document.getElementById('_upd_dlg').remove();}};"
+            f"}})()"
+        )
+        while True:
+            choice = self._window.evaluate_js("window._upd_choice")
+            if choice is not None:
+                return choice == "yes"
+            time.sleep(0.2)
 
     def _apply_update(self, release: Any) -> None:
         """Action: download, verify and install the release."""
