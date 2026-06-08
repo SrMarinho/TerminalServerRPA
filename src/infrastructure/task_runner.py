@@ -243,6 +243,7 @@ async def _screenshot_loop(exec_id: str):
     finally:
         _screenshot_tasks.pop(exec_id, None)
         _screenshot_last_hash.pop(exec_id, None)
+        _screenshot_last.pop(exec_id, None)
 
 
 def subscribe_screenshot(exec_id: str):

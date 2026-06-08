@@ -1,13 +1,18 @@
 from enum import Enum
 from pathlib import Path
+from typing import Any
 
 import cv2
 import numpy as np
 
+cv2.setNumThreads(1)
+
+_template_cache: dict[tuple[Path, float], Any] = {}
+
 
 class MatchThreshold(float, Enum):
-    FIELD    = 0.75  # field image templates
-    DEFAULT  = 0.80  # window titles, error alert, coluna
+    FIELD = 0.75  # field image templates
+    DEFAULT = 0.80  # window titles, error alert, coluna
     CHECKBOX = 0.90  # marked/unmarked checkbox states
 
     def __float__(self) -> float:
@@ -78,6 +83,20 @@ def find_text_position(
     return None
 
 
+def _load_template(path: Path) -> Any:
+    mtime = path.stat().st_mtime
+    key = (path, mtime)
+    if key not in _template_cache:
+        needle = cv2.imdecode(np.fromfile(str(path), dtype=np.uint8), cv2.IMREAD_COLOR)
+        if needle is None:
+            raise FileNotFoundError(f"Template not found: {path}")
+        _template_cache[key] = needle
+        # Evict stale entries for the same path (different mtime)
+        for k in [k for k in _template_cache if k[0] == path and k[1] != mtime]:
+            del _template_cache[k]
+    return _template_cache[key]
+
+
 def find_template(
     screenshot_bytes: bytes,
     template_path: Path,
@@ -85,7 +104,7 @@ def find_template(
 ) -> tuple[tuple[int, int], float] | None:
     """Return ((cx, cy), score) if template matched, None if below confidence."""
     haystack = cv2.imdecode(np.frombuffer(screenshot_bytes, np.uint8), cv2.IMREAD_COLOR)
-    needle = cv2.imdecode(np.fromfile(str(template_path), dtype=np.uint8), cv2.IMREAD_COLOR)
+    needle = _load_template(template_path)
     if needle is None:
         raise FileNotFoundError(f"Template not found: {template_path}")
     result = cv2.matchTemplate(haystack, needle, cv2.TM_CCOEFF_NORMED)  # type: ignore[arg-type]
