@@ -59,11 +59,16 @@ _LOADING_HTML = """<!DOCTYPE html>
     <div class="tick"></div>
     <div class="logo">Terminal<span class="dot">&middot;</span>RPA</div>
     <div class="sub">automa&ccedil;&atilde;o rpa para terminal server</div>
+    <div class="sub" style="margin-top:4px;font-size:.7rem;color:var(--text-3)">__VERSION__</div>
     <div class="bar"></div>
     <div class="msg">iniciando servidor...</div>
   </div>
 </body>
 </html>"""
+
+
+def _loading_html(version: str) -> str:
+    return _LOADING_HTML.replace("__VERSION__", f"v{version}")
 
 
 class GuiServer(BaseServer):
@@ -94,7 +99,7 @@ class GuiServer(BaseServer):
 
         self._window = webview.create_window(
             f"Terminal Server RPA v{VERSION}",
-            html=_LOADING_HTML,
+            html=_loading_html(VERSION),
             width=1280,
             height=800,
             min_size=(900, 600),

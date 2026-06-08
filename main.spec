@@ -1,8 +1,12 @@
 # -*- mode: python ; coding: utf-8 -*-
 import sys
+import tomllib
 from pathlib import Path
 
 block_cipher = None
+
+with open("pyproject.toml", "rb") as _f:
+    _VERSION = tomllib.load(_f)["project"]["version"]
 
 a = Analysis(
     ["main.py"],
@@ -79,7 +83,7 @@ splash = Splash(
     text_pos=(260, 296),
     text_size=10,
     text_color="#5a5f6b",
-    text_default="carregando...",
+    text_default=f"v{_VERSION} — carregando...",
     minify_script=True,
 )
 
