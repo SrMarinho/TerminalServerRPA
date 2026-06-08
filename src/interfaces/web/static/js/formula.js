@@ -392,7 +392,6 @@ function _initFormulaAutocomplete(container) {
       clearTimeout(previewTimer);
       clearTimeout(tooltipHideTimer);
       if (tooltip) tooltip.classList.add('hidden');
-      ghost.style.display = 'none';
       setTimeout(function() { dropdown.classList.add('hidden'); state.items = []; state.selectedIndex = -1; }, 150);
     });
   });
