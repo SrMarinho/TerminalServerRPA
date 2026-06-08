@@ -13,6 +13,7 @@ a = Analysis(
         ("src/interfaces/web/static", "src/interfaces/web/static"),
         ("assets", "assets"),
         ("plugins", "plugins"),
+        ("pyproject.toml", "."),
     ],
     hiddenimports=[
         "tsrpa",
