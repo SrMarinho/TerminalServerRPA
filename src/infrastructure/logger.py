@@ -1,13 +1,16 @@
 import logging
 import sys
 from logging.handlers import RotatingFileHandler
-from pathlib import Path
 
 import structlog
 import structlog.processors
 from structlog.processors import JSONRenderer, TimeStamper
 
-LOG_DIR = Path("logs")
+from src.config.settings import APP_DATA_DIR
+
+# Under APP_DATA_DIR (not a CWD-relative path) so a packaged build always
+# writes logs to a stable, writable location regardless of working directory.
+LOG_DIR = APP_DATA_DIR / "logs"
 LOG_FILE = LOG_DIR / "TerminalServerRPA.jsonl"
 
 LOG_DIR.mkdir(parents=True, exist_ok=True)
