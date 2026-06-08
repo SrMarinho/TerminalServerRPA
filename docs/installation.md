@@ -2,7 +2,7 @@
 
 ## Instalador (recomendado)
 
-Baixe `TerminalServerRPA_Setup.exe` em [GitHub Releases](https://github.com/SrMarinho/TerminalServerRPA/releases).
+Baixe `TerminalServerRPA_Setup.exe` em [GitHub Releases](https://github.com/SrMarinho/TerminalServerRPA-releases/releases).
 
 - Instala em `%LocalAppData%\TerminalServerRPA\` (sem privilégio de administrador)
 - Cria atalho no desktop e no menu iniciar

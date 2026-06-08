@@ -6,24 +6,16 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import httpx
-import keyring
 
 from src.infrastructure.logger import get_logger
 
 log = get_logger("TerminalServerRPA.updater")
 
-REPO = "TerminalServerRPA"
+# Public releases-only repo (source stays in the private repo). Being public,
+# the GitHub API and asset downloads need no auth token — nothing to embed or
+# leak in the shipped binary. Integrity is enforced via the .sha256 checksum.
 OWNER = "SrMarinho"
-
-# GitHub token (fine-grained PAT, Contents: Read-only) for the private releases
-# repo. NEVER hardcode it — it leaks via git history and the shipped binary.
-# Provide it via env var or the OS keyring instead.
-_TOKEN_SERVICE = "TerminalServerRPA"
-_TOKEN_KEY = "_github_token"
-
-
-def _github_token() -> str:
-    return os.environ.get("TERMINALSERVERRPA_GITHUB_TOKEN") or (keyring.get_password(_TOKEN_SERVICE, _TOKEN_KEY) or "")
+REPO = "TerminalServerRPA-releases"
 
 
 @dataclass
@@ -37,13 +29,6 @@ class Release:
         return self.tag_name.lstrip("v")
 
 
-def _auth_headers() -> dict:
-    token = _github_token()
-    if not token:
-        return {}
-    return {"Authorization": f"Bearer {token}"}
-
-
 def _parse_version(v: str) -> tuple[int, ...]:
     parts = []
     for chunk in v.split("."):
@@ -55,7 +40,7 @@ def _parse_version(v: str) -> tuple[int, ...]:
 def check_for_update(current_version: str) -> Release | None:
     url = f"https://api.github.com/repos/{OWNER}/{REPO}/releases/latest"
     try:
-        resp = httpx.get(url, headers=_auth_headers(), timeout=10)
+        resp = httpx.get(url, timeout=10)
         if resp.status_code == 404:
             log.debug("update.no_releases")
             return None
@@ -76,7 +61,7 @@ def check_for_update(current_version: str) -> Release | None:
 
 
 def _download_asset(asset: dict, dest: Path) -> Path | None:
-    headers = {**_auth_headers(), "Accept": "application/octet-stream"}
+    headers = {"Accept": "application/octet-stream"}
     try:
         with httpx.stream("GET", asset["url"], headers=headers, follow_redirects=True, timeout=120) as resp:
             resp.raise_for_status()
