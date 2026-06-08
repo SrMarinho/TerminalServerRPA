@@ -145,6 +145,7 @@ if not errorlevel 1 (
 start /wait "" "{dest}" /VERYSILENT /SUPPRESSMSGBOXES
 del /q "{dest}" 2>nul
 del /q "%~f0"
+start "" "{current_exe}"
 """,
         encoding="utf-8",
     )
