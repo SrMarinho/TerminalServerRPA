@@ -1,6 +1,6 @@
 [project]
 name = "terminalserverrpa"
-version = "0.1.4"
+version = "0.1.5"
 description = "RPA application with encrypted credential vault"
 readme = "README.md"
 requires-python = ">=3.10"
