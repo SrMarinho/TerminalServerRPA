@@ -8,6 +8,7 @@ import webview
 from PIL import Image
 
 from src.config.settings import ASSETS_DIR
+from src.config.version import VERSION
 from src.infrastructure.logger import get_logger
 from src.interfaces.base_server import BaseServer
 from src.interfaces.web.server import WebServer
@@ -92,7 +93,7 @@ class GuiServer(BaseServer):
         app.state.server = uvicorn_server
 
         self._window = webview.create_window(
-            "Terminal Server RPA",
+            f"Terminal Server RPA v{VERSION}",
             html=_LOADING_HTML,
             width=1280,
             height=800,
@@ -112,6 +113,7 @@ class GuiServer(BaseServer):
         self._install_ctrl_c_handler()
         threading.Thread(target=self._wait_and_navigate, args=(app_url, actual_port), daemon=True).start()
         threading.Thread(target=self._check_and_prompt_update, daemon=True).start()
+        threading.Thread(target=self._start_tray, daemon=True).start()
         webview.start(icon=str(ASSETS_DIR / "icon.ico"))
 
     def _wait_and_navigate(self, url: str, port: int) -> None:
@@ -143,11 +145,17 @@ class GuiServer(BaseServer):
             time.sleep(_UPDATE_POLL_INTERVAL_S)
 
     def _prompt_update(self, version: str) -> bool:
-        """Presentation: ask the user whether to update now."""
-        return self._window.create_confirmation_dialog(
-            "Atualização disponível",
-            f"Nova versão {version} disponível. Atualizar agora?",
-        )
+        """Presentation: ask the user whether to update now.
+
+        Uses an in-page confirm() instead of the native confirmation dialog:
+        the native MessageBox is created without an owner window, so it can
+        appear behind the maximized window and block the GUI loop (the window
+        looks frozen). The browser confirm() is owned by the webview and always
+        renders in front.
+        """
+        self._window.show()
+        answer = self._window.evaluate_js(f"window.confirm('Nova versão {version} disponível. Atualizar agora?')")
+        return bool(answer)
 
     def _apply_update(self, release: Any) -> None:
         """Action: download, verify and install the release."""
@@ -156,14 +164,16 @@ class GuiServer(BaseServer):
         apply_update(release)
 
     def _on_closing(self) -> bool:
-        if self._tray_started:
-            return False
-        self._tray_started = True
+        # Never actually close on the window's X button — just hide to tray.
+        # The tray runs for the whole app lifetime; quitting is done from its
+        # "Sair" menu item.
         self._window.hide()
-        threading.Thread(target=self._start_tray, daemon=True).start()
         return False
 
     def _start_tray(self) -> None:
+        if self._tray_started:
+            return
+        self._tray_started = True
         image = Image.open(str(ASSETS_DIR / "icon.png"))
         menu = pystray.Menu(
             pystray.MenuItem("Abrir", self._show_window, default=True),
@@ -172,8 +182,8 @@ class GuiServer(BaseServer):
         self._tray = pystray.Icon("TerminalServerRPA", image, "Terminal Server RPA", menu)
         self._tray.run()
 
-    def _show_window(self, icon: Any, _item: Any) -> None:
-        icon.stop()
+    def _show_window(self, _icon: Any, _item: Any) -> None:
+        # Keep the tray alive; only restore the window.
         self._window.show()
 
     @staticmethod
