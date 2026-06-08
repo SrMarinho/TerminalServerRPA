@@ -166,6 +166,7 @@ function _initFormulaAutocomplete(container) {
 
       var parenContext = _parseParenContext();
       if (parenContext) {
+        if (parenContext.isBare) { dropdown.classList.add('hidden'); return; }
         await _showParamHint(
           parenContext.namespace,
           parenContext.fnName,
@@ -225,8 +226,52 @@ function _initFormulaAutocomplete(container) {
       if (duration) tooltipHideTimer = setTimeout(function() { tooltip.classList.add('hidden'); }, duration);
     }
 
+    function _getCharPosFromMouseX(mouseX, inputEl) {
+      var canvas = document.createElement('canvas');
+      var ctx = canvas.getContext('2d');
+      var style = window.getComputedStyle(inputEl);
+      ctx.font = style.fontSize + ' ' + style.fontFamily;
+      var rect = inputEl.getBoundingClientRect();
+      var paddingLeft = parseFloat(style.paddingLeft) || 0;
+      var relX = mouseX - rect.left - paddingLeft;
+      var text = inputEl.value;
+      for (var i = 0; i <= text.length; i++) {
+        if (ctx.measureText(text.slice(0, i)).width >= relX) return i;
+      }
+      return text.length;
+    }
+
+    function _fnAtCursor(formula, pos) {
+      var s = formula.slice(1); // strip leading '='
+      pos = Math.max(0, pos - 1);
+      // walk backwards from pos to find innermost function call
+      var depth = 0;
+      for (var i = pos; i >= 0; i--) {
+        if (s[i] === ')') { depth++; continue; }
+        if (s[i] === '(') {
+          if (depth > 0) { depth--; continue; }
+          // found opening paren for innermost function — get name before it
+          var fnEnd = i;
+          var fnStart = fnEnd;
+          while (fnStart > 0 && /\w/.test(s[fnStart - 1])) fnStart--;
+          var fn = s.slice(fnStart, fnEnd);
+          if (!fn) return null;
+          if (fnStart > 0 && s[fnStart - 1] === '.') {
+            var nsEnd = fnStart - 1, nsStart = nsEnd;
+            while (nsStart > 0 && /\w/.test(s[nsStart - 1])) nsStart--;
+            return { namespace: s.slice(nsStart, nsEnd), fnName: fn };
+          }
+          return { namespace: '__fn__', fnName: fn };
+        }
+      }
+      return null;
+    }
+
     function _buildRichHint(namespace, fnName, fnInfo, resolvedValue) {
-      var sig = namespace + '.' + fnName + '(' + (fnInfo ? fnInfo.params.map(function(p) { return p.name; }).join(', ') : '') + ')';
+      var isBare = namespace === '__fn__';
+      var sig = isBare
+        ? fnName + '(...)'
+        : namespace + '.' + fnName + '(' + (fnInfo ? fnInfo.params.map(function(p) { return p.name; }).join(', ') : '') + ')';
       var html = '<div style="padding:6px 10px 4px;font-family:\'JetBrains Mono\',monospace;font-size:11px">'
         + '<code style="color:var(--accent)">' + esc(sig) + '</code></div>';
       if (fnInfo && fnInfo.description) {
@@ -249,22 +294,24 @@ function _initFormulaAutocomplete(container) {
       return html;
     }
 
-    async function _showRichHint() {
+    async function _showRichHint(mouseX) {
       var formula = input.value;
       if (!formula.startsWith('=') || !tooltip) return;
-      var fnMatch = formula.match(/^=(\w+)\.(\w+)/);
-      if (!fnMatch) return;
+      var charPos = mouseX !== undefined ? _getCharPosFromMouseX(mouseX, input) : input.selectionStart;
+      var ctx = _fnAtCursor(formula, charPos);
+      if (!ctx) { tooltip.classList.add('hidden'); return; }
       try {
         var meta = await _loadResolverMeta();
-        var namespace = fnMatch[1], fnName = fnMatch[2];
-        var fnInfo = (meta[namespace] || {})[fnName];
+        var fnInfo = (meta[ctx.namespace] || {})[ctx.fnName];
+        if (!fnInfo) { tooltip.classList.add('hidden'); return; }
         var resolvedValue = null;
+        // only fetch preview for the specific sub-expression around cursor
         try {
           var preview = await api('POST', '/api/resolvers/preview', { formula: formula });
           resolvedValue = preview.result;
         } catch(e) {}
         var rect = input.getBoundingClientRect();
-        tooltip.innerHTML = _buildRichHint(namespace, fnName, fnInfo, resolvedValue);
+        tooltip.innerHTML = _buildRichHint(ctx.namespace, ctx.fnName, fnInfo, resolvedValue);
         _positionTooltip(rect);
         _showTooltipFor(0);
       } catch(e) {}
@@ -298,10 +345,14 @@ function _initFormulaAutocomplete(container) {
       previewTimer = setTimeout(_updatePreview, 400);
     });
 
-    input.addEventListener('mouseenter', function() {
-      if (input.value.startsWith('=')) _showRichHint();
+    var hintTimer = null;
+    input.addEventListener('mousemove', function(e) {
+      if (!input.value.startsWith('=')) return;
+      clearTimeout(hintTimer);
+      hintTimer = setTimeout(function() { _showRichHint(e.clientX); }, 120);
     });
     input.addEventListener('mouseleave', function() {
+      clearTimeout(hintTimer);
       if (tooltip) tooltip.classList.add('hidden');
     });
 
@@ -319,7 +370,7 @@ function _initFormulaAutocomplete(container) {
         var parenContext = _parseParenContext();
         if (parenContext) {
           _showParamHint(parenContext.namespace, parenContext.fnName, parenContext.partial !== null ? parenContext.partial : undefined, parenContext.usedParams);
-        } else if (/^=\w+\.\w+$/.test(input.value.trim())) {
+        } else if (input.value.startsWith('=')) {
           _showRichHint();
         } else {
           _showDropdown();
