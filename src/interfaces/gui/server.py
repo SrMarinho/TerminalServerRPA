@@ -161,6 +161,19 @@ class GuiServer(BaseServer):
         """Action: download, verify and install the release."""
         from src.infrastructure.updater import apply_update
 
+        self._window.evaluate_js(
+            "document.body.insertAdjacentHTML('beforeend',"
+            '\'<div id="_upd_overlay" style="'
+            "position:fixed;inset:0;background:rgba(0,0,0,.88);"
+            "display:flex;flex-direction:column;align-items:center;justify-content:center;"
+            'z-index:9999;font-family:monospace;color:#4ade80;gap:16px">'
+            '<div style=\\"font-size:1.1rem\\">Baixando atualização...</div>'
+            '<div style=\\"width:200px;height:2px;background:#2a2e36;position:relative;overflow:hidden\\">'
+            '<div style=\\"position:absolute;top:0;left:0;height:100%;width:40%;background:#4ade80;'
+            'animation:_upd_slide 1.2s ease-in-out infinite\\"></div></div>'
+            "<style>@keyframes _upd_slide{0%{left:-40%}100%{left:100%}}</style>"
+            "</div>')"
+        )
         apply_update(release)
 
     def _on_closing(self) -> bool:
