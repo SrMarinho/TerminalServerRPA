@@ -1,399 +1,447 @@
-var _resolverMeta = null;
+// ─── ResolverMetaService ──────────────────────────────────────────────────────
 
-async function _loadResolverMeta() {
-  if (_resolverMeta) return _resolverMeta;
-  try { _resolverMeta = await api('GET', '/api/resolvers'); } catch(e) { _resolverMeta = {}; }
-  return _resolverMeta;
+class ResolverMetaService {
+  #cache = null;
+
+  async load() {
+    if (this.#cache) return this.#cache;
+    try { this.#cache = await api('GET', '/api/resolvers'); }
+    catch (e) { this.#cache = {}; }
+    return this.#cache;
+  }
 }
 
-function _initFormulaAutocomplete(container) {
-  var dropdown = document.getElementById('formula-dropdown');
-  if (!dropdown) return;
+const resolverMeta = new ResolverMetaService();
 
-  container.querySelectorAll('input[type="text"]').forEach(function(input) {
-    var state = { items: [], selectedIndex: -1, currentPartial: '' };
-    var tooltip = document.getElementById('formula-tooltip');
-    var previewTimer = null;
-    var tooltipHideTimer = null;
+// ─── FormulaParser ────────────────────────────────────────────────────────────
 
-    var ghost = document.createElement('div');
-    ghost.className = 'formula-ghost';
-    ghost.style.cssText = 'display:none;font-size:10px;color:var(--text-3);'
+class FormulaParser {
+  static parseParenContext(value, cursorPos) {
+    const before = value.slice(0, cursorPos);
+
+    const bareMatch = before.match(/^=(\w+)\(([^)]*)$/);
+    if (bareMatch) {
+      return { namespace: '__fn__', fnName: bareMatch[1], partial: null, usedParams: [], isBare: true };
+    }
+
+    const nsMatch = before.match(/^=(\w+)\.(\w+)\(([^)]*)$/);
+    if (!nsMatch) return null;
+
+    const [, namespace, fnName, argsStr] = nsMatch;
+    const lastArg = argsStr.split(',').pop().trim();
+    const partialMatch = lastArg.match(/^(\w*)$/);
+    const usedParams = argsStr.split(',').slice(0, -1)
+      .flatMap(arg => { const m = arg.trim().match(/^(\w+)=/); return m ? [m[1]] : []; });
+
+    return { namespace, fnName, partial: partialMatch ? partialMatch[1] : null, usedParams, isBare: false };
+  }
+
+  static fnAtCursor(formula, pos) {
+    const s = formula.slice(1);
+    pos = Math.max(0, pos - 1);
+    let depth = 0;
+
+    for (let i = pos; i >= 0; i--) {
+      if (s[i] === ')') { depth++; continue; }
+      if (s[i] === '(') {
+        if (depth > 0) { depth--; continue; }
+        let fnEnd = i, fnStart = fnEnd;
+        while (fnStart > 0 && /\w/.test(s[fnStart - 1])) fnStart--;
+        const fn = s.slice(fnStart, fnEnd);
+        if (!fn) return null;
+        if (fnStart > 0 && s[fnStart - 1] === '.') {
+          let nsEnd = fnStart - 1, nsStart = nsEnd;
+          while (nsStart > 0 && /\w/.test(s[nsStart - 1])) nsStart--;
+          return { namespace: s.slice(nsStart, nsEnd), fnName: fn };
+        }
+        return { namespace: '__fn__', fnName: fn };
+      }
+    }
+    return null;
+  }
+
+  static charPosFromMouseX(mouseX, inputEl) {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const style = window.getComputedStyle(inputEl);
+    ctx.font = `${style.fontSize} ${style.fontFamily}`;
+    const rect = inputEl.getBoundingClientRect();
+    const relX = mouseX - rect.left - (parseFloat(style.paddingLeft) || 0);
+    const text = inputEl.value;
+    for (let i = 0; i <= text.length; i++) {
+      if (ctx.measureText(text.slice(0, i)).width >= relX) return i;
+    }
+    return text.length;
+  }
+}
+
+// ─── FormulaDropdown ──────────────────────────────────────────────────────────
+
+class FormulaDropdown {
+  #el;
+  #items = [];
+  #selectedIndex = -1;
+  #currentPartial = '';
+
+  constructor(el) { this.#el = el; }
+
+  get el() { return this.#el; }
+  get isOpen() { return !this.#el.classList.contains('hidden'); }
+  get selectedItem() { return this.#selectedIndex >= 0 ? this.#items[this.#selectedIndex] : null; }
+  get firstItem() { return this.#items.length === 1 ? this.#items[0] : null; }
+  get currentPartial() { return this.#currentPartial; }
+  set currentPartial(v) { this.#currentPartial = v; }
+
+  hide() { this.#el.classList.add('hidden'); this.#items = []; this.#selectedIndex = -1; }
+
+  position(rect) {
+    this.#el.style.left = `${rect.left + window.scrollX}px`;
+    this.#el.style.top = `${rect.bottom + window.scrollY + 2}px`;
+    this.#el.style.minWidth = `${rect.width}px`;
+  }
+
+  populate(items, onApply) {
+    this.#items = items;
+    this.#selectedIndex = -1;
+    this.#el.innerHTML = items.map((item, i) =>
+      `<div class="formula-item" data-i="${i}" style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:6px 10px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:11px">`
+      + `<code style="color:var(--accent)">${esc(item.text)}</code>`
+      + `<span style="color:var(--text-3);font-size:10px">${esc(item.hint)}</span>`
+      + `</div>`
+    ).join('');
+    this.#el.classList.remove('hidden');
+    this.#el.querySelectorAll('.formula-item').forEach((el, i) => {
+      el.addEventListener('mousedown', e => { e.preventDefault(); onApply(items[i]); });
+      el.addEventListener('mouseenter', () => this.highlight(i));
+    });
+  }
+
+  showRaw(html, rect) {
+    this.#items = [];
+    this.#selectedIndex = -1;
+    this.#el.innerHTML = html;
+    this.position(rect);
+    this.#el.classList.remove('hidden');
+  }
+
+  highlight(index) {
+    this.#selectedIndex = index;
+    this.#el.querySelectorAll('.formula-item').forEach((el, i) => {
+      el.style.background = i === index ? 'var(--bg-2)' : '';
+    });
+    if (index >= 0) {
+      const el = this.#el.querySelectorAll('.formula-item')[index];
+      if (el) el.scrollIntoView({ block: 'nearest' });
+    }
+  }
+
+  navigateDown() { if (this.#items.length) this.highlight((this.#selectedIndex + 1) % this.#items.length); }
+  navigateUp() { if (this.#items.length) this.highlight((this.#selectedIndex - 1 + this.#items.length) % this.#items.length); }
+}
+
+// ─── FormulaTooltip ───────────────────────────────────────────────────────────
+
+class FormulaTooltip {
+  #el;
+  #hideTimer = null;
+
+  constructor(el) { this.#el = el; }
+
+  hide() {
+    clearTimeout(this.#hideTimer);
+    this.#el.classList.add('hidden');
+  }
+
+  show(html, rect, duration = 0) {
+    clearTimeout(this.#hideTimer);
+    this.#el.innerHTML = html;
+    this.#el.style.left = `${rect.left + window.scrollX}px`;
+    this.#el.style.top = `${rect.bottom + window.scrollY + 4}px`;
+    this.#el.style.minWidth = `${rect.width}px`;
+    this.#el.classList.remove('hidden');
+    if (duration) this.#hideTimer = setTimeout(() => this.#el.classList.add('hidden'), duration);
+  }
+
+  buildHtml(namespace, fnName, fnInfo, resolvedValue) {
+    const sig = namespace === '__fn__'
+      ? `${fnName}(...)`
+      : `${namespace}.${fnName}(${fnInfo?.params.map(p => p.name).join(', ') ?? ''})`;
+
+    let html = `<div style="padding:6px 10px 4px;font-family:'JetBrains Mono',monospace;font-size:11px">`
+      + `<code style="color:var(--accent)">${esc(sig)}</code></div>`;
+
+    if (fnInfo?.description) {
+      html += `<div style="padding:2px 10px 6px;font-size:11px;color:var(--text-2)">${esc(fnInfo.description)}</div>`;
+    }
+    if (fnInfo?.params?.length) {
+      html += `<div style="border-top:1px solid var(--line);padding:4px 10px">`
+        + fnInfo.params.map(p =>
+            `<div style="display:flex;justify-content:space-between;padding:2px 0;font-family:'JetBrains Mono',monospace;font-size:10px">`
+            + `<code style="color:var(--text-1)">${esc(p.name)}</code>`
+            + `<span style="color:var(--text-3)">${esc(p.type)}${p.default !== undefined ? ' = ' + p.default : ''}</span>`
+            + `</div>`
+          ).join('') + `</div>`;
+    }
+    if (resolvedValue) {
+      html += `<div style="border-top:1px solid var(--line);padding:5px 10px;font-family:'JetBrains Mono',monospace;font-size:11px">`
+        + `<span style="color:var(--accent)">${esc(resolvedValue)}</span></div>`;
+    }
+    return html;
+  }
+}
+
+// ─── FormulaInput ─────────────────────────────────────────────────────────────
+
+class FormulaInput {
+  #input;
+  #dropdown;
+  #tooltip;
+  #meta;
+  #ghost;
+  #previewTimer = null;
+  #hintTimer = null;
+
+  constructor(inputEl, dropdown, tooltip, metaService) {
+    this.#input = inputEl;
+    this.#dropdown = dropdown;
+    this.#tooltip = tooltip;
+    this.#meta = metaService;
+  }
+
+  init() {
+    this.#injectGhost();
+    this.#bindEvents();
+    this.#updateStyle();
+    if (this.#input.value.startsWith('=')) this.#updatePreview();
+  }
+
+  #injectGhost() {
+    this.#ghost = document.createElement('div');
+    this.#ghost.className = 'formula-ghost';
+    this.#ghost.style.cssText = 'display:none;font-size:10px;color:var(--text-3);'
       + "font-family:'JetBrains Mono',ui-monospace,monospace;margin-top:3px;letter-spacing:.02em";
-    input.parentNode.insertBefore(ghost, input.nextSibling);
+    this.#input.parentNode.insertBefore(this.#ghost, this.#input.nextSibling);
+  }
 
-    function _highlightItem(index) {
-      state.selectedIndex = index;
-      dropdown.querySelectorAll('.formula-item').forEach(function(el, i) {
-        el.style.background = i === index ? 'var(--bg-2)' : '';
-      });
-      if (index >= 0) {
-        var el = dropdown.querySelectorAll('.formula-item')[index];
-        if (el) el.scrollIntoView({ block: 'nearest' });
-      }
+  #bindEvents() {
+    this.#input.addEventListener('input', () => {
+      this.#updateStyle();
+      this.#showDropdown();
+      clearTimeout(this.#previewTimer);
+      this.#previewTimer = setTimeout(() => this.#updatePreview(), 400);
+    });
+
+    this.#input.addEventListener('mousemove', e => {
+      if (!this.#input.value.startsWith('=')) return;
+      clearTimeout(this.#hintTimer);
+      this.#hintTimer = setTimeout(() => this.#showRichHint(e.clientX), 120);
+    });
+
+    this.#input.addEventListener('mouseleave', () => {
+      clearTimeout(this.#hintTimer);
+      this.#tooltip.hide();
+    });
+
+    this.#input.addEventListener('keydown', e => this.#onKeyDown(e));
+
+    this.#input.addEventListener('blur', () => {
+      clearTimeout(this.#previewTimer);
+      this.#tooltip.hide();
+      setTimeout(() => this.#dropdown.hide(), 150);
+    });
+  }
+
+  #onKeyDown(e) {
+    if (e.key === 'Escape') {
+      this.#dropdown.hide();
+      this.#tooltip.hide();
+      return;
     }
-
-    function _positionDropdown(rect) {
-      dropdown.style.left = rect.left + window.scrollX + 'px';
-      dropdown.style.top = (rect.bottom + window.scrollY + 2) + 'px';
-      dropdown.style.minWidth = rect.width + 'px';
-    }
-
-    function _populateDropdown(items) {
-      state.items = items;
-      state.selectedIndex = -1;
-      dropdown.innerHTML = items.map(function(item, i) {
-        return '<div class="formula-item" data-i="' + i + '" style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:6px 10px;cursor:pointer;font-family:\'JetBrains Mono\',monospace;font-size:11px">'
-          + '<code style="color:var(--accent)">' + esc(item.text) + '</code>'
-          + '<span style="color:var(--text-3);font-size:10px">' + esc(item.hint) + '</span>'
-          + '</div>';
-      }).join('');
-      dropdown.classList.remove('hidden');
-      dropdown.querySelectorAll('.formula-item').forEach(function(el, i) {
-        el.addEventListener('mousedown', function(e) { e.preventDefault(); _applyItem(items[i]); });
-        el.addEventListener('mouseenter', function() { _highlightItem(i); });
-      });
-    }
-
-    function _applyItem(item) {
-      if (!item) return;
-      dropdown.classList.add('hidden');
-      state.items = [];
-      state.selectedIndex = -1;
-
-      if (item.insert_kwarg !== undefined) {
-        var cursorPos = input.selectionStart;
-        var beforeCursor = input.value.slice(0, cursorPos);
-        var afterCursor = input.value.slice(cursorPos);
-        var replaced = beforeCursor.slice(0, beforeCursor.length - state.currentPartial.length) + item.insert_kwarg;
-        input.value = replaced + afterCursor;
-        input.setSelectionRange(replaced.length, replaced.length);
-        state.currentPartial = '';
-        input.focus();
-        _showDropdown();
-        return;
-      }
-
-      input.value = item.insert;
-      input.focus();
-      input.setSelectionRange(input.value.length, input.value.length);
-      if (item.params_count === 0) {
-        input.value += ')';
-        input.setSelectionRange(input.value.length, input.value.length);
+    if ((e.ctrlKey || e.metaKey) && e.key === ' ') {
+      e.preventDefault();
+      const ctx = FormulaParser.parseParenContext(this.#input.value, this.#input.selectionStart);
+      if (ctx && !ctx.isBare) {
+        this.#showParamHint(ctx.namespace, ctx.fnName, ctx.partial ?? undefined, ctx.usedParams);
+      } else if (this.#input.value.startsWith('=')) {
+        this.#showRichHint();
       } else {
-        _showDropdown();
+        this.#showDropdown();
       }
+      return;
+    }
+    if (!this.#dropdown.isOpen) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); this.#dropdown.navigateDown(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); this.#dropdown.navigateUp(); }
+    else if (e.key === 'Enter' || e.key === 'Tab') {
+      const item = this.#dropdown.selectedItem ?? this.#dropdown.firstItem;
+      if (item) { e.preventDefault(); this.#applyItem(item); }
+    }
+  }
+
+  #applyItem(item) {
+    this.#dropdown.hide();
+    if (item.insert_kwarg !== undefined) {
+      const pos = this.#input.selectionStart;
+      const before = this.#input.value.slice(0, pos);
+      const after = this.#input.value.slice(pos);
+      const replaced = before.slice(0, before.length - this.#dropdown.currentPartial.length) + item.insert_kwarg;
+      this.#input.value = replaced + after;
+      this.#input.setSelectionRange(replaced.length, replaced.length);
+      this.#dropdown.currentPartial = '';
+      this.#input.focus();
+      this.#showDropdown();
+      return;
+    }
+    this.#input.value = item.insert;
+    this.#input.focus();
+    if (item.params_count === 0) this.#input.value += ')';
+    else this.#showDropdown();
+    this.#input.setSelectionRange(this.#input.value.length, this.#input.value.length);
+  }
+
+  async #showDropdown() {
+    const formula = this.#input.value;
+    if (!formula.startsWith('=')) { this.#dropdown.hide(); return; }
+
+    const ctx = FormulaParser.parseParenContext(formula, this.#input.selectionStart);
+    if (ctx) {
+      if (ctx.isBare) { this.#dropdown.hide(); return; }
+      await this.#showParamHint(ctx.namespace, ctx.fnName, ctx.partial ?? undefined, ctx.usedParams);
+      return;
     }
 
-    async function _showParamHint(namespace, fnName, partialParam, usedParams) {
-      var meta = await _loadResolverMeta();
-      var fnInfo = (meta[namespace] || {})[fnName];
-      if (!fnInfo) { dropdown.classList.add('hidden'); return; }
+    const meta = await this.#meta.load();
+    const query = formula.slice(1);
+    if (query.includes(')')) { this.#dropdown.hide(); return; }
 
-      var rect = input.getBoundingClientRect();
-      _positionDropdown(rect);
+    const suggestions = this.#buildSuggestions(meta, query);
+    if (!suggestions.length) { this.#dropdown.hide(); return; }
 
-      // bare variadic function — show description hint only
-      if (fnInfo.variadic) {
-        var header = '<div style="padding:6px 10px 4px;font-size:10px;color:var(--text-3);letter-spacing:.05em">' + esc(fnName) + '</div>';
-        dropdown.innerHTML = header + '<div style="padding:2px 10px 6px;font-family:\'JetBrains Mono\',monospace;font-size:11px;color:var(--text-2)">' + esc(fnInfo.description || '') + '</div>';
-        dropdown.classList.remove('hidden');
+    const rect = this.#input.getBoundingClientRect();
+    this.#dropdown.position(rect);
+    this.#dropdown.populate(suggestions, item => this.#applyItem(item));
+  }
+
+  #buildSuggestions(meta, query) {
+    const suggestions = [];
+    if (!query.includes('.')) {
+      Object.keys(meta)
+        .filter(ns => ns !== '__fn__' && ns.startsWith(query))
+        .forEach(ns => suggestions.push({ text: ns + '.', hint: 'namespace', insert: '=' + ns + '.', params_count: -1 }));
+
+      Object.entries(meta['__fn__'] || {})
+        .filter(([name]) => name.startsWith(query))
+        .forEach(([name, info]) => suggestions.push({
+          text: info.variadic ? `${name}(...)` : `${name}()`,
+          hint: info.label,
+          insert: `=${name}(`,
+          params_count: info.variadic ? -1 : 0,
+        }));
+    } else {
+      const dot = query.indexOf('.');
+      const ns = query.slice(0, dot);
+      const fnQuery = query.slice(dot + 1).split('(')[0];
+      Object.entries(meta[ns] || {})
+        .filter(([name]) => name.startsWith(fnQuery))
+        .forEach(([name, info]) => suggestions.push({
+          text: `${name}(${info.params.map(p => p.label || p.name).join(', ')})`,
+          hint: info.label,
+          insert: `=${ns}.${name}(`,
+          params_count: info.params.length,
+        }));
+    }
+    return suggestions;
+  }
+
+  async #showParamHint(namespace, fnName, partialParam, usedParams) {
+    const meta = await this.#meta.load();
+    const fnInfo = (meta[namespace] || {})[fnName];
+    if (!fnInfo) { this.#dropdown.hide(); return; }
+
+    const rect = this.#input.getBoundingClientRect();
+    const excluded = usedParams || [];
+
+    if (partialParam !== undefined && fnInfo.params?.length) {
+      const matching = fnInfo.params.filter(p => p.name.startsWith(partialParam) && !excluded.includes(p.name));
+      if (matching.length) {
+        this.#dropdown.currentPartial = partialParam;
+        this.#dropdown.position(rect);
+        this.#dropdown.populate(matching.map(p => ({
+          text: p.name + '=',
+          hint: p.type + (p.default !== undefined ? ' = ' + p.default : ''),
+          insert_kwarg: p.name + '=',
+          params_count: 0,
+        })), item => this.#applyItem(item));
         return;
       }
-
-      var excluded = usedParams || [];
-
-      if (partialParam !== undefined && fnInfo.params.length) {
-        var matchingParams = fnInfo.params.filter(function(p) {
-          return p.name.startsWith(partialParam) && excluded.indexOf(p.name) === -1;
-        });
-        if (matchingParams.length) {
-          state.currentPartial = partialParam;
-          var kwargItems = matchingParams.map(function(p) {
-            return {
-              text: p.name + '=',
-              hint: p.type + (p.default !== undefined ? ' = ' + p.default : ''),
-              insert_kwarg: p.name + '=',
-              params_count: 0,
-            };
-          });
-          _populateDropdown(kwargItems);
-          return;
-        }
-      }
-
-      state.items = [];
-      state.selectedIndex = -1;
-      var header = '<div style="padding:4px 10px 2px;font-size:10px;color:var(--text-3);letter-spacing:.05em">'
-        + esc(namespace + '.' + fnName) + (fnInfo.description ? ' — ' + esc(fnInfo.description) : '') + '</div>';
-      dropdown.innerHTML = fnInfo.params.length
-        ? header + fnInfo.params.map(function(p) {
-            return '<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:5px 10px;font-family:\'JetBrains Mono\',monospace;font-size:11px">'
-              + '<code style="color:var(--accent)">' + esc(p.name) + '</code>'
-              + '<span style="color:var(--text-2);font-size:10px">' + esc(p.type) + (p.default !== undefined ? ' = ' + p.default : '') + '</span>'
-              + '</div>';
-          }).join('')
-        : header + '<div style="padding:4px 10px 6px;font-family:\'JetBrains Mono\',monospace;font-size:11px;color:var(--text-3)">sem parâmetros</div>';
-      dropdown.classList.remove('hidden');
     }
 
-    function _parseParenContext() {
-      var cursorPos = input.selectionStart;
-      var beforeCursor = input.value.slice(0, cursorPos);
+    const label = `${namespace}.${fnName}${fnInfo.description ? ' — ' + fnInfo.description : ''}`;
+    const header = `<div style="padding:4px 10px 2px;font-size:10px;color:var(--text-3);letter-spacing:.05em">${esc(label)}</div>`;
+    const body = fnInfo.params?.length
+      ? fnInfo.params.map(p =>
+          `<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;padding:5px 10px;font-family:'JetBrains Mono',monospace;font-size:11px">`
+          + `<code style="color:var(--accent)">${esc(p.name)}</code>`
+          + `<span style="color:var(--text-2);font-size:10px">${esc(p.type)}${p.default !== undefined ? ' = ' + p.default : ''}</span>`
+          + `</div>`
+        ).join('')
+      : `<div style="padding:4px 10px 6px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-3)">sem parâmetros</div>`;
 
-      // bare fn( — e.g. =concat(
-      var bareMatch = beforeCursor.match(/^=(\w+)\(([^)]*)$/);
-      if (bareMatch) {
-        return { namespace: '__fn__', fnName: bareMatch[1], partial: null, usedParams: [], isBare: true };
-      }
+    this.#dropdown.showRaw(header + body, rect);
+  }
 
-      var parenMatch = beforeCursor.match(/^=(\w+)\.(\w+)\(([^)]*)$/);
-      if (!parenMatch) return null;
-      var namespace = parenMatch[1], fnName = parenMatch[2], argsStr = parenMatch[3];
-      var lastArg = argsStr.split(',').pop().trim();
-      var partialMatch = lastArg.match(/^(\w*)$/);
-      var usedParams = [];
-      argsStr.split(',').slice(0, -1).forEach(function(arg) {
-        var kwargMatch = arg.trim().match(/^(\w+)=/);
-        if (kwargMatch) usedParams.push(kwargMatch[1]);
-      });
-      return { namespace: namespace, fnName: fnName, partial: partialMatch ? partialMatch[1] : null, usedParams: usedParams, isBare: false };
-    }
+  async #showRichHint(mouseX) {
+    const formula = this.#input.value;
+    if (!formula.startsWith('=')) return;
+    const charPos = mouseX !== undefined
+      ? FormulaParser.charPosFromMouseX(mouseX, this.#input)
+      : this.#input.selectionStart;
+    const ctx = FormulaParser.fnAtCursor(formula, charPos);
+    if (!ctx) { this.#tooltip.hide(); return; }
+    try {
+      const meta = await this.#meta.load();
+      const fnInfo = (meta[ctx.namespace] || {})[ctx.fnName];
+      if (!fnInfo) { this.#tooltip.hide(); return; }
+      let resolvedValue = null;
+      try {
+        const preview = await api('POST', '/api/resolvers/preview', { formula });
+        resolvedValue = preview.result;
+      } catch (e) {}
+      const html = this.#tooltip.buildHtml(ctx.namespace, ctx.fnName, fnInfo, resolvedValue);
+      this.#tooltip.show(html, this.#input.getBoundingClientRect());
+    } catch (e) {}
+  }
 
-    async function _showDropdown() {
-      var formula = input.value;
-      if (!formula.startsWith('=')) { dropdown.classList.add('hidden'); state.items = []; return; }
-
-      var parenContext = _parseParenContext();
-      if (parenContext) {
-        if (parenContext.isBare) { dropdown.classList.add('hidden'); return; }
-        await _showParamHint(
-          parenContext.namespace,
-          parenContext.fnName,
-          parenContext.partial !== null ? parenContext.partial : undefined,
-          parenContext.usedParams
-        );
-        return;
-      }
-
-      var meta = await _loadResolverMeta();
-      var query = formula.slice(1);
-      if (query.includes(')')) { dropdown.classList.add('hidden'); return; }
-      var suggestions = [];
-
-      if (!query.includes('.')) {
-        Object.keys(meta).filter(function(ns) { return ns !== '__fn__' && ns.startsWith(query); })
-          .forEach(function(ns) {
-            suggestions.push({ text: ns + '.', hint: 'namespace', insert: '=' + ns + '.', params_count: -1 });
-          });
-        // bare functions (no namespace)
-        var bareFns = meta['__fn__'] || {};
-        Object.entries(bareFns).filter(function(e) { return e[0].startsWith(query); })
-          .forEach(function(e) {
-            var fnName = e[0], fnInfo = e[1];
-            var sig = fnInfo.variadic ? fnName + '(...)' : fnName + '()';
-            suggestions.push({ text: sig, hint: fnInfo.label, insert: '=' + fnName + '(', params_count: fnInfo.variadic ? -1 : 0 });
-          });
+  async #updatePreview() {
+    const formula = this.#input.value;
+    if (!formula.startsWith('=')) { this.#ghost.style.display = 'none'; return; }
+    try {
+      const preview = await api('POST', '/api/resolvers/preview', { formula });
+      if (preview.result) {
+        this.#ghost.textContent = '→ ' + preview.result;
+        this.#ghost.style.display = 'block';
       } else {
-        var dotIndex = query.indexOf('.');
-        var namespace = query.slice(0, dotIndex);
-        var fnQuery = query.slice(dotIndex + 1).split('(')[0];
-        var namespaceFns = meta[namespace] || {};
-        Object.entries(namespaceFns)
-          .filter(function(entry) { return entry[0].startsWith(fnQuery); })
-          .forEach(function(entry) {
-            var fnName = entry[0], fnInfo = entry[1];
-            var sig = fnName + '(' + fnInfo.params.map(function(p) { return p.label || p.name; }).join(', ') + ')';
-            suggestions.push({ text: sig, hint: fnInfo.label, insert: '=' + namespace + '.' + fnName + '(', params_count: fnInfo.params.length });
-          });
+        this.#ghost.style.display = 'none';
       }
+    } catch (e) { this.#ghost.style.display = 'none'; }
+  }
 
-      if (!suggestions.length) { dropdown.classList.add('hidden'); return; }
-      var rect = input.getBoundingClientRect();
-      _positionDropdown(rect);
-      _populateDropdown(suggestions);
-    }
+  #updateStyle() {
+    const isFormula = this.#input.value.startsWith('=');
+    this.#input.classList.toggle('formula-active', isFormula);
+    this.#input.spellcheck = !isFormula;
+    if (!isFormula) { this.#ghost.style.display = 'none'; this.#ghost.textContent = ''; }
+  }
+}
 
-    function _positionTooltip(rect) {
-      tooltip.style.left = rect.left + window.scrollX + 'px';
-      tooltip.style.top = (rect.bottom + window.scrollY + 4) + 'px';
-      tooltip.style.minWidth = rect.width + 'px';
-    }
+// ─── Entry point ──────────────────────────────────────────────────────────────
 
-    function _showTooltipFor(duration) {
-      tooltip.classList.remove('hidden');
-      clearTimeout(tooltipHideTimer);
-      if (duration) tooltipHideTimer = setTimeout(function() { tooltip.classList.add('hidden'); }, duration);
-    }
-
-    function _getCharPosFromMouseX(mouseX, inputEl) {
-      var canvas = document.createElement('canvas');
-      var ctx = canvas.getContext('2d');
-      var style = window.getComputedStyle(inputEl);
-      ctx.font = style.fontSize + ' ' + style.fontFamily;
-      var rect = inputEl.getBoundingClientRect();
-      var paddingLeft = parseFloat(style.paddingLeft) || 0;
-      var relX = mouseX - rect.left - paddingLeft;
-      var text = inputEl.value;
-      for (var i = 0; i <= text.length; i++) {
-        if (ctx.measureText(text.slice(0, i)).width >= relX) return i;
-      }
-      return text.length;
-    }
-
-    function _fnAtCursor(formula, pos) {
-      var s = formula.slice(1); // strip leading '='
-      pos = Math.max(0, pos - 1);
-      // walk backwards from pos to find innermost function call
-      var depth = 0;
-      for (var i = pos; i >= 0; i--) {
-        if (s[i] === ')') { depth++; continue; }
-        if (s[i] === '(') {
-          if (depth > 0) { depth--; continue; }
-          // found opening paren for innermost function — get name before it
-          var fnEnd = i;
-          var fnStart = fnEnd;
-          while (fnStart > 0 && /\w/.test(s[fnStart - 1])) fnStart--;
-          var fn = s.slice(fnStart, fnEnd);
-          if (!fn) return null;
-          if (fnStart > 0 && s[fnStart - 1] === '.') {
-            var nsEnd = fnStart - 1, nsStart = nsEnd;
-            while (nsStart > 0 && /\w/.test(s[nsStart - 1])) nsStart--;
-            return { namespace: s.slice(nsStart, nsEnd), fnName: fn };
-          }
-          return { namespace: '__fn__', fnName: fn };
-        }
-      }
-      return null;
-    }
-
-    function _buildRichHint(namespace, fnName, fnInfo, resolvedValue) {
-      var isBare = namespace === '__fn__';
-      var sig = isBare
-        ? fnName + '(...)'
-        : namespace + '.' + fnName + '(' + (fnInfo ? fnInfo.params.map(function(p) { return p.name; }).join(', ') : '') + ')';
-      var html = '<div style="padding:6px 10px 4px;font-family:\'JetBrains Mono\',monospace;font-size:11px">'
-        + '<code style="color:var(--accent)">' + esc(sig) + '</code></div>';
-      if (fnInfo && fnInfo.description) {
-        html += '<div style="padding:2px 10px 6px;font-size:11px;color:var(--text-2)">' + esc(fnInfo.description) + '</div>';
-      }
-      if (fnInfo && fnInfo.params.length) {
-        html += '<div style="border-top:1px solid var(--line);padding:4px 10px">';
-        html += fnInfo.params.map(function(p) {
-          return '<div style="display:flex;justify-content:space-between;padding:2px 0;font-family:\'JetBrains Mono\',monospace;font-size:10px">'
-            + '<code style="color:var(--text-1)">' + esc(p.name) + '</code>'
-            + '<span style="color:var(--text-3)">' + esc(p.type) + (p.default !== undefined ? ' = ' + p.default : '') + '</span>'
-            + '</div>';
-        }).join('');
-        html += '</div>';
-      }
-      if (resolvedValue) {
-        html += '<div style="border-top:1px solid var(--line);padding:5px 10px;font-family:\'JetBrains Mono\',monospace;font-size:11px">'
-          + '<span style="color:var(--accent)">' + esc(resolvedValue) + '</span></div>';
-      }
-      return html;
-    }
-
-    async function _showRichHint(mouseX) {
-      var formula = input.value;
-      if (!formula.startsWith('=') || !tooltip) return;
-      var charPos = mouseX !== undefined ? _getCharPosFromMouseX(mouseX, input) : input.selectionStart;
-      var ctx = _fnAtCursor(formula, charPos);
-      if (!ctx) { tooltip.classList.add('hidden'); return; }
-      try {
-        var meta = await _loadResolverMeta();
-        var fnInfo = (meta[ctx.namespace] || {})[ctx.fnName];
-        if (!fnInfo) { tooltip.classList.add('hidden'); return; }
-        var resolvedValue = null;
-        // only fetch preview for the specific sub-expression around cursor
-        try {
-          var preview = await api('POST', '/api/resolvers/preview', { formula: formula });
-          resolvedValue = preview.result;
-        } catch(e) {}
-        var rect = input.getBoundingClientRect();
-        tooltip.innerHTML = _buildRichHint(ctx.namespace, ctx.fnName, fnInfo, resolvedValue);
-        _positionTooltip(rect);
-        _showTooltipFor(0);
-      } catch(e) {}
-    }
-
-    async function _updatePreview() {
-      var formula = input.value;
-      if (!formula.startsWith('=')) { ghost.style.display = 'none'; return; }
-      try {
-        var preview = await api('POST', '/api/resolvers/preview', { formula: formula });
-        if (preview.result) {
-          ghost.textContent = '→ ' + preview.result;
-          ghost.style.display = 'block';
-        } else {
-          ghost.style.display = 'none';
-        }
-      } catch(e) { ghost.style.display = 'none'; }
-    }
-
-    function _updateFormulaStyle() {
-      var isFormula = input.value.startsWith('=');
-      input.classList.toggle('formula-active', isFormula);
-      input.spellcheck = !isFormula;
-      if (!isFormula) { ghost.style.display = 'none'; ghost.textContent = ''; }
-    }
-
-    input.addEventListener('input', function() {
-      _updateFormulaStyle();
-      _showDropdown();
-      clearTimeout(previewTimer);
-      previewTimer = setTimeout(_updatePreview, 400);
-    });
-
-    var hintTimer = null;
-    input.addEventListener('mousemove', function(e) {
-      if (!input.value.startsWith('=')) return;
-      clearTimeout(hintTimer);
-      hintTimer = setTimeout(function() { _showRichHint(e.clientX); }, 120);
-    });
-    input.addEventListener('mouseleave', function() {
-      clearTimeout(hintTimer);
-      if (tooltip) tooltip.classList.add('hidden');
-    });
-
-    _updateFormulaStyle();
-    if (input.value.startsWith('=')) _updatePreview();
-
-    input.addEventListener('keydown', function(e) {
-      var dropdownOpen = !dropdown.classList.contains('hidden');
-      if (e.key === 'Escape') {
-        dropdown.classList.add('hidden'); state.items = [];
-        if (tooltip) tooltip.classList.add('hidden');
-        return;
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === ' ') {
-        e.preventDefault();
-        var parenContext = _parseParenContext();
-        if (parenContext) {
-          _showParamHint(parenContext.namespace, parenContext.fnName, parenContext.partial !== null ? parenContext.partial : undefined, parenContext.usedParams);
-        } else if (input.value.startsWith('=')) {
-          _showRichHint();
-        } else {
-          _showDropdown();
-        }
-        return;
-      }
-      if (!dropdownOpen || !state.items.length) return;
-      if (e.key === 'ArrowDown') {
-        e.preventDefault(); _highlightItem((state.selectedIndex + 1) % state.items.length);
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault(); _highlightItem((state.selectedIndex - 1 + state.items.length) % state.items.length);
-      } else if (e.key === 'Enter' || e.key === 'Tab') {
-        if (state.selectedIndex >= 0) { e.preventDefault(); _applyItem(state.items[state.selectedIndex]); }
-        else if (state.items.length === 1) { e.preventDefault(); _applyItem(state.items[0]); }
-      }
-    });
-
-    input.addEventListener('blur', function() {
-      clearTimeout(previewTimer);
-      clearTimeout(tooltipHideTimer);
-      if (tooltip) tooltip.classList.add('hidden');
-      setTimeout(function() { dropdown.classList.add('hidden'); state.items = []; state.selectedIndex = -1; }, 150);
-    });
+function _initFormulaAutocomplete(container) {
+  const dropdownEl = document.getElementById('formula-dropdown');
+  if (!dropdownEl) return;
+  const dropdown = new FormulaDropdown(dropdownEl);
+  const tooltip = new FormulaTooltip(document.getElementById('formula-tooltip'));
+  container.querySelectorAll('input[type="text"]').forEach(el => {
+    new FormulaInput(el, dropdown, tooltip, resolverMeta).init();
   });
 }
