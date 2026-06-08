@@ -42,7 +42,7 @@ jobs:
           "$hash  TerminalServerRPA_Setup.exe" | Out-File -Encoding ascii "dist\TerminalServerRPA_Setup.exe.sha256"
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           # Publish to the public releases-only repo so clients can auto-update
           # without any embedded token. Requires a PAT secret with Contents:
