@@ -31,29 +31,33 @@ class TestCheckForUpdate:
 
 class TestDownloadAsset:
     def test_downloads_file(self, tmp_path):
-        from src.infrastructure.updater import download_asset
+        from src.infrastructure.updater import _download_asset
 
+        dest = tmp_path / "test.exe"
+        asset = {"url": "https://api.github.com/.../assets/1", "name": "test.exe"}
         mock_resp = MagicMock()
         mock_resp.__enter__.return_value = mock_resp
         mock_resp.iter_bytes.return_value = [b"hello", b"world"]
         with patch("httpx.stream", return_value=mock_resp):
-            result = download_asset("test.exe", tmp_path)
-            assert result is not None
-            assert (tmp_path / "test.exe").read_bytes() == b"helloworld"
+            result = _download_asset(asset, dest)
+            assert result == dest
+            assert dest.read_bytes() == b"helloworld"
 
     def test_returns_none_on_failure(self, tmp_path):
-        from src.infrastructure.updater import download_asset
+        from src.infrastructure.updater import _download_asset
 
+        asset = {"url": "https://api.github.com/.../assets/1", "name": "test.exe"}
         with patch("httpx.stream", side_effect=Exception("download failed")):
-            result = download_asset("test.exe", tmp_path)
+            result = _download_asset(asset, tmp_path / "test.exe")
             assert result is None
 
     def test_raises_on_http_error(self, tmp_path):
-        from src.infrastructure.updater import download_asset
+        from src.infrastructure.updater import _download_asset
 
+        asset = {"url": "https://api.github.com/.../assets/1", "name": "test.exe"}
         mock_resp = MagicMock()
         mock_resp.__enter__.return_value = mock_resp
         mock_resp.raise_for_status.side_effect = Exception("HTTP 404")
         with patch("httpx.stream", return_value=mock_resp):
-            result = download_asset("test.exe", tmp_path)
+            result = _download_asset(asset, tmp_path / "test.exe")
             assert result is None
