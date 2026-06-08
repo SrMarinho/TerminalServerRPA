@@ -10,6 +10,11 @@ DOWNLOADS_BASE = Path.home() / ".local" / "downloads"
 
 APP_DATA_DIR = Path(os.environ.get("LOCALAPPDATA", Path.home() / "AppData" / "Local")) / "TerminalServerRPA"
 
+# Single source of truth for the SQLite DB (execution history + task configs).
+# Lives under APP_DATA_DIR so a packaged build never tries to write next to the
+# read-only install dir, and the location is stable regardless of the CWD.
+DB_PATH = APP_DATA_DIR / "executions.db"
+
 if getattr(sys, "frozen", False):
     # frozen: bundled plugins ship inside _internal/plugins/, user plugins in LOCALAPPDATA
     PLUGINS_DIRS: list[Path] = [Path(sys._MEIPASS) / "plugins", APP_DATA_DIR / "plugins"]  # type: ignore[attr-defined]
