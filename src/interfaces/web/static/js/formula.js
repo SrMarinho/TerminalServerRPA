@@ -87,6 +87,14 @@ function _initFormulaAutocomplete(container) {
       var rect = input.getBoundingClientRect();
       _positionDropdown(rect);
 
+      // bare variadic function — show description hint only
+      if (fnInfo.variadic) {
+        var header = '<div style="padding:6px 10px 4px;font-size:10px;color:var(--text-3);letter-spacing:.05em">' + esc(fnName) + '</div>';
+        dropdown.innerHTML = header + '<div style="padding:2px 10px 6px;font-family:\'JetBrains Mono\',monospace;font-size:11px;color:var(--text-2)">' + esc(fnInfo.description || '') + '</div>';
+        dropdown.classList.remove('hidden');
+        return;
+      }
+
       var excluded = usedParams || [];
 
       if (partialParam !== undefined && fnInfo.params.length) {
@@ -126,6 +134,13 @@ function _initFormulaAutocomplete(container) {
     function _parseParenContext() {
       var cursorPos = input.selectionStart;
       var beforeCursor = input.value.slice(0, cursorPos);
+
+      // bare fn( — e.g. =concat(
+      var bareMatch = beforeCursor.match(/^=(\w+)\(([^)]*)$/);
+      if (bareMatch) {
+        return { namespace: '__fn__', fnName: bareMatch[1], partial: null, usedParams: [], isBare: true };
+      }
+
       var parenMatch = beforeCursor.match(/^=(\w+)\.(\w+)\(([^)]*)$/);
       if (!parenMatch) return null;
       var namespace = parenMatch[1], fnName = parenMatch[2], argsStr = parenMatch[3];
@@ -136,7 +151,7 @@ function _initFormulaAutocomplete(container) {
         var kwargMatch = arg.trim().match(/^(\w+)=/);
         if (kwargMatch) usedParams.push(kwargMatch[1]);
       });
-      return { namespace: namespace, fnName: fnName, partial: partialMatch ? partialMatch[1] : null, usedParams: usedParams };
+      return { namespace: namespace, fnName: fnName, partial: partialMatch ? partialMatch[1] : null, usedParams: usedParams, isBare: false };
     }
 
     async function _showDropdown() {
@@ -160,9 +175,17 @@ function _initFormulaAutocomplete(container) {
       var suggestions = [];
 
       if (!query.includes('.')) {
-        Object.keys(meta).filter(function(ns) { return ns.startsWith(query); })
+        Object.keys(meta).filter(function(ns) { return ns !== '__fn__' && ns.startsWith(query); })
           .forEach(function(ns) {
             suggestions.push({ text: ns + '.', hint: 'namespace', insert: '=' + ns + '.', params_count: -1 });
+          });
+        // bare functions (no namespace)
+        var bareFns = meta['__fn__'] || {};
+        Object.entries(bareFns).filter(function(e) { return e[0].startsWith(query); })
+          .forEach(function(e) {
+            var fnName = e[0], fnInfo = e[1];
+            var sig = fnInfo.variadic ? fnName + '(...)' : fnName + '()';
+            suggestions.push({ text: sig, hint: fnInfo.label, insert: '=' + fnName + '(', params_count: fnInfo.variadic ? -1 : 0 });
           });
       } else {
         var dotIndex = query.indexOf('.');

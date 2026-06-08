@@ -99,12 +99,24 @@ FUNCTIONS: dict = {
 }
 
 
+FUNCTIONS_META: dict = {
+    "concat": {
+        "label": "Concatenar",
+        "description": "Junta múltiplos valores em string. Ex: =concat(date.back(30), '-', date.today())",
+        "params": [],
+        "variadic": True,
+    },
+}
+
+
 def resolver_meta() -> dict:
     """Metadados sem 'fn' — seguro para expor via API."""
-    return {
+    result: dict = {
         ns: {fn: {k: v for k, v in meta.items() if k != "fn"} for fn, meta in fns.items()}
         for ns, fns in RESOLVERS.items()
     }
+    result["__fn__"] = {name: {k: v for k, v in meta.items()} for name, meta in FUNCTIONS_META.items()}
+    return result
 
 
 # ---------------------------------------------------------------------------
