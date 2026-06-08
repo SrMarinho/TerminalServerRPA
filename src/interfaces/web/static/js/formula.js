@@ -16,6 +16,12 @@ function _initFormulaAutocomplete(container) {
     var previewTimer = null;
     var tooltipHideTimer = null;
 
+    var ghost = document.createElement('div');
+    ghost.className = 'formula-ghost';
+    ghost.style.cssText = 'display:none;font-size:10px;color:var(--text-3);'
+      + "font-family:'JetBrains Mono',ui-monospace,monospace;margin-top:3px;letter-spacing:.02em";
+    input.parentNode.insertBefore(ghost, input.nextSibling);
+
     function _highlightItem(index) {
       state.selectedIndex = index;
       dropdown.querySelectorAll('.formula-item').forEach(function(el, i) {
@@ -266,23 +272,23 @@ function _initFormulaAutocomplete(container) {
 
     async function _updatePreview() {
       var formula = input.value;
-      if (!formula.startsWith('=') || !tooltip) { if (tooltip) tooltip.classList.add('hidden'); return; }
+      if (!formula.startsWith('=')) { ghost.style.display = 'none'; return; }
       try {
         var preview = await api('POST', '/api/resolvers/preview', { formula: formula });
         if (preview.result) {
-          var rect = input.getBoundingClientRect();
-          tooltip.innerHTML = '<div style="padding:5px 10px;font-family:\'JetBrains Mono\',monospace;font-size:11px">'
-            + '<span style="color:var(--accent)">' + esc(preview.result) + '</span></div>';
-          _positionTooltip(rect);
-          _showTooltipFor(2000);
+          ghost.textContent = '→ ' + preview.result;
+          ghost.style.display = 'block';
+        } else {
+          ghost.style.display = 'none';
         }
-      } catch(e) {}
+      } catch(e) { ghost.style.display = 'none'; }
     }
 
     function _updateFormulaStyle() {
       var isFormula = input.value.startsWith('=');
       input.classList.toggle('formula-active', isFormula);
       input.spellcheck = !isFormula;
+      if (!isFormula) { ghost.style.display = 'none'; ghost.textContent = ''; }
     }
 
     input.addEventListener('input', function() {
@@ -335,6 +341,7 @@ function _initFormulaAutocomplete(container) {
       clearTimeout(previewTimer);
       clearTimeout(tooltipHideTimer);
       if (tooltip) tooltip.classList.add('hidden');
+      ghost.style.display = 'none';
       setTimeout(function() { dropdown.classList.add('hidden'); state.items = []; state.selectedIndex = -1; }, 150);
     });
   });
