@@ -3,6 +3,7 @@ import sys
 from logging.handlers import RotatingFileHandler
 
 import structlog
+import structlog.contextvars
 import structlog.processors
 from structlog.processors import JSONRenderer, TimeStamper
 
@@ -26,6 +27,7 @@ def configure_logger(level=logging.INFO):
     timestamper = TimeStamper(fmt="iso", utc=False)
 
     shared_processors = [
+        structlog.contextvars.merge_contextvars,
         structlog.stdlib.add_log_level,
         structlog.stdlib.PositionalArgumentsFormatter(),
         timestamper,
@@ -72,6 +74,7 @@ def configure_logger(level=logging.INFO):
 
     structlog.configure(
         processors=[
+            structlog.contextvars.merge_contextvars,
             structlog.stdlib.add_log_level,
             structlog.stdlib.PositionalArgumentsFormatter(),
             timestamper,

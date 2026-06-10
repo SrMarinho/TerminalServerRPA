@@ -11,10 +11,11 @@ from tsrpa import (
     SeniorLoginPage,
     SidebarNavigator,
     SkipStep,
+    TaskBase,
     TsApplicationsPage,
     TsLoginPage,
-    Vault,
     find_template,
+    get_logger,
     maximize_window,
     register,
 )
@@ -25,6 +26,7 @@ from .pages.selecao_modelos_para_execucao_page import SelecaoModelosParaExecucao
 from .pages.valores_entrada_modelo_page import ValoresEntradaModeloPage
 from .steps import StepNames
 
+_log = get_logger("TerminalServerRPA.report-generation")
 _PLUGIN_ASSETS = Path(__file__).parent / "assets"
 _HOME_IMG = ASSETS_DIR / "Senior" / "components" / "sidebar" / "home" / "index.png"
 _REPORT_TITLE_IMG = _PLUGIN_ASSETS / "selecao_modelos_para_execucao" / "window_title.png"
@@ -58,11 +60,7 @@ async def _wait_for_home(page, runner=None, timeout_s: float = 120) -> None:
 
 
 @register("Relatório Contas Receber")
-class GeracaoRelatorio:
-    def __init__(self, runner=None, vault=None):
-        self._runner = runner
-        self._vault = vault or Vault()
-
+class GeracaoRelatorio(TaskBase):
     @staticmethod
     def get_schema():
         return [
@@ -123,9 +121,7 @@ class GeracaoRelatorio:
             if coro is not None:
                 await coro
         except SkipStep:
-            from src.infrastructure.logger import get_logger
-
-            get_logger("TerminalServerRPA.report-generation").warning("step.skipped", step=name)
+            _log.warning("step.skipped", step=name)
 
     async def _replay_steps(self, *names: str) -> None:
         for name in names:
@@ -133,7 +129,7 @@ class GeracaoRelatorio:
 
     def _attach_page(self, page) -> None:
         if self._runner:
-            self._runner._page = page
+            self._runner.page = page
 
     async def _wait_loading(self, page, img_path, step_name, appear_timeout: float = 5.0, next_img_path=None) -> None:
         await self._step(step_name)
@@ -193,11 +189,7 @@ class GeracaoRelatorio:
         try:
             await senior_login.fill_and_submit(senior_creds["username"], senior_creds["password"])
         except SkipStep:
-            from src.infrastructure.logger import get_logger
-
-            get_logger("TerminalServerRPA.report-generation").warning(
-                "step.skipped.submit", step=StepNames.LOGIN_SENIOR
-            )
+            _log.warning("step.skipped.submit", step=StepNames.LOGIN_SENIOR)
 
     async def _phase_home_setup(self, remote_page):
         home = None
@@ -253,11 +245,7 @@ class GeracaoRelatorio:
             try:
                 valores = await selecao.open_report(report)
             except SkipStep:
-                from src.infrastructure.logger import get_logger
-
-                get_logger("TerminalServerRPA.report-generation").warning(
-                    "step.skipped.open_report", step=StepNames.DIGITANDO_RELATORIO
-                )
+                _log.warning("step.skipped.open_report", step=StepNames.DIGITANDO_RELATORIO)
 
             if valores is None:
                 valores = ValoresEntradaModeloPage(
@@ -316,7 +304,13 @@ class GeracaoRelatorio:
             downloads_path = (
                 DOWNLOADS_BASE / "financas" / "gestao_contas_receber" / "contas_receber" / "relatorios" / relatorio_code
             )
-            browser, context, page, _w, _h = await BrowserManager.launch(p, downloads_path=downloads_path)
+            downloads_path.mkdir(parents=True, exist_ok=True)
+            browser, context, page, _w, _h = await BrowserManager.launch(p)
+
+            async def _save_download(dl) -> None:
+                await dl.save_as(downloads_path / dl.suggested_filename)
+
+            context.on("download", _save_download)
             try:
                 self._attach_page(page)
                 remote = await self._phase_login_ts(context, page, ts_creds, base_url)
@@ -330,6 +324,6 @@ class GeracaoRelatorio:
                 return {"status": "ok", **({"arquivo": arquivo} if arquivo else {})}
             finally:
                 if self._runner:
-                    self._runner._page = None
+                    self._runner.page = None
                 await context.close()
                 await browser.close()

@@ -4,9 +4,7 @@ from pathlib import Path
 
 from playwright.async_api import Page
 
-from src.config.settings import ASSETS_DIR
-from src.utils.image_match import MatchThreshold, find_template
-from src.utils.window_utils import maximize_window
+from tsrpa import ASSETS_DIR, MatchThreshold, find_template, maximize_window
 
 from .reports.base_report import BaseReport
 from .valores_entrada_modelo_page import ValoresEntradaModeloPage

@@ -1,6 +1,5 @@
 import asyncio
 import ctypes
-from pathlib import Path
 
 
 class BrowserManager:
@@ -46,7 +45,7 @@ class BrowserManager:
             await page.set_viewport_size({"width": screen_w, "height": screen_h})
 
     @classmethod
-    async def launch(cls, playwright, downloads_path: Path | None = None) -> tuple:
+    async def launch(cls, playwright) -> tuple:
         """Launch Chromium, create context + page, maximise the local window."""
         browser = await playwright.chromium.launch(headless=False, args=["--start-maximized"])
         screen_w, screen_h = cls.get_screen_size()

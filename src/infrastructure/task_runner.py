@@ -1,9 +1,14 @@
 import asyncio
 import traceback
+from typing import TYPE_CHECKING
 
 from src.infrastructure.execution_manager import _broadcast_exec_event, get_manager, has_breakpoint
 from src.infrastructure.models import ExecutionStatus
+from src.infrastructure.screenshot_manager import ScreenshotManager
 from src.infrastructure.task_registry import TaskRegistry
+
+if TYPE_CHECKING:
+    from playwright.async_api import Page
 
 
 class SkipStep(Exception):  # noqa: N818
@@ -21,7 +26,15 @@ class TaskRunner:
         self._status = ExecutionStatus.IDLE
         self._result = None
         self._task: asyncio.Task | None = None
-        self._page: object | None = None
+        self._page: Page | None = None
+
+    @property
+    def page(self) -> Page | None:
+        return self._page
+
+    @page.setter
+    def page(self, value: Page | None) -> None:
+        self._page = value
 
     @property
     def status(self) -> ExecutionStatus:
@@ -54,15 +67,22 @@ class TaskRunner:
             get_manager().fail(self._execution_id, str(e) + "\n" + traceback.format_exc())
 
     async def _execute(self, task_name: str, params: dict):
-        TaskRegistry.auto_discover()
-        task_cls = TaskRegistry.get(task_name)
-        if task_cls is None:
-            raise ValueError(f"Unknown task: {task_name}")
-        from src.automation.param_resolvers import resolve_params
-        from src.infrastructure.vault import Vault
+        from structlog.contextvars import bind_contextvars, clear_contextvars
 
-        task = task_cls(runner=self, vault=Vault())
-        self._result = await task.execute(resolve_params(params or {}))
+        if self._execution_id:
+            bind_contextvars(execution_id=self._execution_id)
+        try:
+            TaskRegistry.auto_discover()
+            task_cls = TaskRegistry.get(task_name)
+            if task_cls is None:
+                raise ValueError(f"Unknown task: {task_name}")
+            from src.automation.param_resolvers import resolve_params
+            from src.infrastructure.vault import get_vault
+
+            task = task_cls(runner=self, vault=get_vault())
+            self._result = await task.execute(resolve_params(params or {}))
+        finally:
+            clear_contextvars()
 
     def log(self, message: str, level: str = "info"):
         if self._execution_id:
@@ -197,77 +217,22 @@ class TaskPool:
 
 
 _pool = TaskPool()
-_screenshot_subscribers: dict[str, int] = {}
-_screenshot_tasks: dict[str, asyncio.Task] = {}
-_screenshot_last: dict[str, tuple[str, str]] = {}  # exec_id -> (mime, b64)
-_screenshot_last_hash: dict[str, int] = {}
 
 
-async def _screenshot_loop(exec_id: str):
-    import base64
-
-    import cv2  # type: ignore[import-untyped]
-    import numpy as np  # type: ignore[import-untyped]
-
-    try:
-        while _screenshot_subscribers.get(exec_id, 0) > 0:
-            runner = _pool.get(exec_id)
-            if runner and runner._page:
-                try:
-                    raw = await runner._page.screenshot()  # type: ignore[attr-defined]
-                    h = hash(raw)
-                    if h != _screenshot_last_hash.get(exec_id):
-                        _screenshot_last_hash[exec_id] = h
-                        img = cv2.imdecode(np.frombuffer(raw, np.uint8), cv2.IMREAD_COLOR)
-                        if img is None:
-                            continue
-                        ih, iw = img.shape[:2]
-                        img = cv2.resize(img, (int(iw * 0.75), int(ih * 0.75)), interpolation=cv2.INTER_LANCZOS4)
-                        ok, buf = cv2.imencode(".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 88])
-                        if ok:
-                            b64 = base64.b64encode(buf.tobytes()).decode()
-                            _screenshot_last[exec_id] = ("image/jpeg", b64)
-                            _broadcast_exec_event(
-                                {
-                                    "type": "execution:screenshot",
-                                    "execution_id": exec_id,
-                                    "data": b64,
-                                    "mime": "image/jpeg",
-                                }
-                            )
-                except Exception as _exc:
-                    from src.infrastructure.logger import get_logger
-
-                    get_logger("TerminalServerRPA.screenshot-loop").warning("screenshot.error", error=str(_exc))
-            await asyncio.sleep(0.25)
-    finally:
-        _screenshot_tasks.pop(exec_id, None)
-        _screenshot_last_hash.pop(exec_id, None)
-        _screenshot_last.pop(exec_id, None)
+def _page_of(exec_id: str) -> Page | None:
+    runner = _pool.get(exec_id)
+    return runner.page if runner else None
 
 
-def subscribe_screenshot(exec_id: str):
-    _screenshot_subscribers[exec_id] = _screenshot_subscribers.get(exec_id, 0) + 1
-    cached = _screenshot_last.get(exec_id)
-    if cached:
-        _broadcast_exec_event(
-            {
-                "type": "execution:screenshot",
-                "execution_id": exec_id,
-                "data": cached[1],
-                "mime": cached[0],
-            }
-        )
-    if exec_id not in _screenshot_tasks:
-        _screenshot_tasks[exec_id] = asyncio.create_task(_screenshot_loop(exec_id))
+_screenshots = ScreenshotManager(_page_of)
 
 
-def unsubscribe_screenshot(exec_id: str):
-    count = _screenshot_subscribers.get(exec_id, 0) - 1
-    if count <= 0:
-        _screenshot_subscribers.pop(exec_id, None)
-    else:
-        _screenshot_subscribers[exec_id] = count
+def subscribe_screenshot(exec_id: str) -> None:
+    _screenshots.subscribe(exec_id)
+
+
+def unsubscribe_screenshot(exec_id: str) -> None:
+    _screenshots.unsubscribe(exec_id)
 
 
 def get_pool() -> TaskPool:

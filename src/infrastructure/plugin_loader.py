@@ -83,3 +83,25 @@ def load_plugins() -> None:
 
     for d in PLUGINS_DIRS:
         _scan_dir(d)
+
+
+def reload_plugins() -> list[str]:
+    from src.config.settings import PLUGINS_DIRS
+    from src.infrastructure.task_registry import TaskRegistry
+
+    reloaded: list[str] = []
+    for plugins_dir in PLUGINS_DIRS:
+        if not plugins_dir.exists():
+            continue
+        for entry in plugins_dir.iterdir():
+            if not entry.is_dir() or not (entry / "__init__.py").exists():
+                continue
+            manifest = _read_manifest(entry)
+            plugin_name = (manifest or {}).get("name", entry.name)
+            TaskRegistry.unregister_plugin(plugin_name)
+            stale = [k for k in sys.modules if k == entry.name or k.startswith(entry.name + ".")]
+            for k in stale:
+                del sys.modules[k]
+            reloaded.append(plugin_name)
+        _scan_dir(plugins_dir)
+    return reloaded

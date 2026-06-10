@@ -1,8 +1,6 @@
-from unittest.mock import patch
+from unittest.mock import MagicMock
 
 from relatorio_contas_receber.task import GeracaoRelatorio
-
-_PATCH_PATH = "relatorio_contas_receber.task"
 
 
 class TestSchema:
@@ -38,21 +36,19 @@ class TestResolveCreds:
         return GeracaoRelatorio(runner=None, vault=vault)
 
     def test_resolves_from_vault_when_service_given(self):
-        with patch(f"{_PATCH_PATH}.Vault") as mock_vault_cls:
-            v = mock_vault_cls.return_value
-            v.list_credentials.return_value = [{"username": "u1"}]
-            v.get_password.return_value = "secret"
-            task = self._make_task(v)
-            out = task._resolve_creds({"TS Credenciais": {"service": "svc"}}, "TS Credenciais")
+        v = MagicMock()
+        v.list_credentials.return_value = [{"username": "u1"}]
+        v.get_password.return_value = "secret"
+        task = self._make_task(v)
+        out = task._resolve_creds({"TS Credenciais": {"service": "svc"}}, "TS Credenciais")
         assert out == {"username": "u1", "password": "secret"}
 
     def test_empty_password_falls_back_to_blank(self):
-        with patch(f"{_PATCH_PATH}.Vault") as mock_vault_cls:
-            v = mock_vault_cls.return_value
-            v.list_credentials.return_value = [{"username": "u1"}]
-            v.get_password.return_value = None
-            task = self._make_task(v)
-            out = task._resolve_creds({"TS Credenciais": {"service": "svc"}}, "TS Credenciais")
+        v = MagicMock()
+        v.list_credentials.return_value = [{"username": "u1"}]
+        v.get_password.return_value = None
+        task = self._make_task(v)
+        out = task._resolve_creds({"TS Credenciais": {"service": "svc"}}, "TS Credenciais")
         assert out == {"username": "u1", "password": ""}
 
     def test_returns_raw_dict_when_no_service(self):
@@ -66,9 +62,8 @@ class TestResolveCreds:
         assert out == {}
 
     def test_returns_empty_when_service_has_no_users(self):
-        with patch(f"{_PATCH_PATH}.Vault") as mock_vault_cls:
-            v = mock_vault_cls.return_value
-            v.list_credentials.return_value = []
-            task = self._make_task(v)
-            out = task._resolve_creds({"TS Credenciais": {"service": "svc"}}, "TS Credenciais")
+        v = MagicMock()
+        v.list_credentials.return_value = []
+        task = self._make_task(v)
+        out = task._resolve_creds({"TS Credenciais": {"service": "svc"}}, "TS Credenciais")
         assert out == {"service": "svc"}

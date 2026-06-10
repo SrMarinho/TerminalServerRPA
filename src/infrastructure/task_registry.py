@@ -88,6 +88,12 @@ class TaskRegistry:
         load_plugins()
 
     @classmethod
+    def unregister_plugin(cls, plugin_name: str) -> None:
+        prefix = f"{plugin_name}:"
+        for key in [k for k in cls._tasks if k.startswith(prefix)]:
+            del cls._tasks[key]
+
+    @classmethod
     def get_schema(cls, name: str) -> list:
         task_cls = cls.get(name)
         if task_cls is None or not hasattr(task_cls, "get_schema"):

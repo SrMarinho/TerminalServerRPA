@@ -1,5 +1,6 @@
 import json
 from contextlib import suppress
+from functools import lru_cache
 
 import keyring
 from cryptography.fernet import Fernet
@@ -97,3 +98,9 @@ class Vault:
     def list_credentials(self, service: str) -> list:
         idx = self._load_index()
         return [{"username": u} for u in idx.get(service, [])]
+
+
+@lru_cache
+def get_vault() -> Vault:
+    """Lazy process-wide singleton — single Fernet/key load shared across layers."""
+    return Vault()

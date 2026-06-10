@@ -65,17 +65,21 @@ class WebServer(BaseServer):
     def _build_app() -> FastAPI:
         @asynccontextmanager
         async def lifespan(app: FastAPI):
+            from src.infrastructure import events
             from src.infrastructure.task_registry import TaskRegistry
-            from src.interfaces.web.websocket import capture_loop
+            from src.interfaces.web.websocket import broadcast_event, capture_loop
 
             try:
                 TaskRegistry.auto_discover()
             except Exception:
                 log.exception("lifespan.auto_discover_failed")
             capture_loop()
+            events.subscribe(broadcast_event)
             WebServer._check_for_update()
 
             yield
+
+            events.unsubscribe(broadcast_event)
 
             from src.infrastructure.execution_manager import close_manager
             from src.infrastructure.task_runner import get_pool

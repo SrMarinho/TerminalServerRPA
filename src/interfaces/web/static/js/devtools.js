@@ -72,7 +72,6 @@ function onDevExecChange() {
 
 async function runDevSnippet() {
   var execId = document.getElementById('devExecSelect').value;
-  if (!execId) { toast('Selecione uma execução', true); return; }
   var code = _devEditor ? _devEditor.getValue() : document.getElementById('devSnippetCode').value;
   if (!code.trim()) return;
   var status = document.getElementById('devSnippetStatus');
@@ -83,11 +82,12 @@ async function runDevSnippet() {
   status.style.color = 'var(--text-2)';
   output.textContent = '';
   _devSnippetAbortCtrl = new AbortController();
-  _devSnippetExecId = execId;
+  _devSnippetExecId = execId || '__standalone__';
+  var url = execId ? '/api/executions/' + execId + '/snippet' : '/api/dev/snippet';
   if (abortBtn) abortBtn.style.display = '';
   if (runBtn) runBtn.disabled = true;
   try {
-    var res = await api('POST', '/api/executions/' + execId + '/snippet', { code: code }, _devSnippetAbortCtrl.signal);
+    var res = await api('POST', url, { code: code }, _devSnippetAbortCtrl.signal);
     if (res.error === 'abortado') {
       status.textContent = 'abortado';
       status.style.color = 'var(--warn)';
@@ -114,11 +114,25 @@ async function runDevSnippet() {
 }
 
 async function abortDevSnippet() {
-  if (_devSnippetExecId) {
-    try { await api('DELETE', '/api/executions/' + _devSnippetExecId + '/snippet'); } catch(e) {}
-  }
-  if (_devSnippetAbortCtrl) {
-    _devSnippetAbortCtrl.abort();
+  var deleteUrl = _devSnippetExecId === '__standalone__'
+    ? '/api/dev/snippet'
+    : '/api/executions/' + _devSnippetExecId + '/snippet';
+  try { await api('DELETE', deleteUrl); } catch(e) {}
+  if (_devSnippetAbortCtrl) _devSnippetAbortCtrl.abort();
+}
+
+async function reloadPlugins() {
+  var status = document.getElementById('devSnippetStatus');
+  status.textContent = 'recarregando plugins...';
+  status.style.color = 'var(--text-2)';
+  try {
+    var res = await api('POST', '/api/plugins/reload');
+    status.textContent = 'ok — ' + (res.reloaded || []).join(', ');
+    status.style.color = 'var(--accent)';
+  } catch(e) {
+    status.textContent = 'erro';
+    status.style.color = 'var(--danger)';
+    document.getElementById('devSnippetOutput').textContent = e.message;
   }
 }
 

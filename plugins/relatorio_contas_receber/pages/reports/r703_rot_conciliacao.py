@@ -4,22 +4,14 @@ from pathlib import Path
 
 from playwright.async_api import Page
 
-from src.config.settings import ASSETS_DIR
-from src.utils.image_match import MatchThreshold, find_template, find_text_position
+from tsrpa import ASSETS_DIR, MatchThreshold, find_template
 
-from .base_report import BaseReport, FieldDef
+from .base_report import BaseReport
 from .constants import AnaliticoSintetico, CsvRemoverEspacos, FormatoArquivo, OpcaoRelatorio
 
 _PLUGIN_ASSETS = Path(__file__).parent.parent.parent / "assets"
 _ERROR_IMG = ASSETS_DIR / "Senior" / "components" / "alert" / "error.png"
-_FORM_DIR = _PLUGIN_ASSETS / "selecao_modelos_para_execucao" / "valores_entrada_modelo" / "form"
-_FIELD_OFFSET_X = 200  # px right of label centre → wide input fields (1-6)
-_FIELD_OFFSET_X_SMALL = 35  # narrow 1-char fields (7-8: Opção, Analítico/Sintético)
-
-
-def _field_img(prefix: int) -> Path:
-    matches = list(_FORM_DIR.glob(f"{prefix}_*.png"))
-    return matches[0] if matches else Path()
+_VALS_DIR = _PLUGIN_ASSETS / "selecao_modelos_para_execucao" / "valores_entrada_modelo"
 
 
 class R703RotConciliacao(BaseReport):
@@ -99,23 +91,6 @@ class R703RotConciliacao(BaseReport):
     ) -> None:
         _log = log or (lambda _: None)
 
-        async def find_pos(img_path: Path, offset_x: int = _FIELD_OFFSET_X) -> tuple[int, int] | None:
-            if not img_path.exists():
-                return None
-            shot = await page.screenshot()
-            m = find_template(shot, img_path, MatchThreshold.FIELD)
-            if not m:
-                return None
-            lx, ly = m[0]
-            return (lx + offset_x, ly)
-
-        async def find_pos_ocr(keyword: str, offset_x: int = _FIELD_OFFSET_X_SMALL) -> tuple[int, int] | None:
-            shot = await page.screenshot()
-            pos = find_text_position(shot, keyword)
-            if pos is None:
-                return None
-            return (pos[0] + offset_x, pos[1])
-
         async def check_error(label_name: str) -> None:
             await asyncio.sleep(0.4)
             shot = await page.screenshot()
@@ -125,87 +100,39 @@ class R703RotConciliacao(BaseReport):
                     await page.keyboard.press("Escape")
                 raise ValueError(f"Senior error after filling '{label_name}' — registro não existe")
 
-        async def fill_field(
-            pos: tuple[int, int] | None,
-            value: str,
-            label_name: str = "",
-            prev_label: str = "",
-        ) -> None:
-            if not value:
-                return
-            if pos is None:
-                _log(f"template not found for '{label_name}' — skipping")
-                return
-            target_x, target_y = pos
-            # first click triggers focusout on previous field → validation fires
-            await page.mouse.click(target_x, target_y)
-            await asyncio.sleep(0.1)
+        async def tab_fill(value: str, label: str, prev_label: str = "") -> None:
+            await page.keyboard.press("Tab")
+            await asyncio.sleep(0.3)
             if prev_label:
                 await check_error(prev_label)
-            # second click to select + clear
-            await page.mouse.click(target_x, target_y)
+            if value:
+                await page.keyboard.type(value, delay=50)
+                _log(f"filled '{label}' → {value!r}")
             await asyncio.sleep(0.2)
-            await page.keyboard.press("Backspace")
-            await asyncio.sleep(0.2)
-            await page.keyboard.type(value, delay=50)
-            _log(f"filled '{label_name}' ({target_x},{target_y}) → {value!r}")
 
-        field_defs: list[FieldDef] = [
-            FieldDef(
-                img_prefix=1, ocr_keyword=None, param_key="empresa", default="", label="Empresa", offset=_FIELD_OFFSET_X
-            ),  # noqa: E501
-            FieldDef(
-                img_prefix=2, ocr_keyword=None, param_key="filial", default="1", label="Filial", offset=_FIELD_OFFSET_X
-            ),  # noqa: E501
-            FieldDef(
-                img_prefix=3, ocr_keyword=None, param_key="cliente", default="", label="Cliente", offset=_FIELD_OFFSET_X
-            ),  # noqa: E501
-            FieldDef(
-                img_prefix=4, ocr_keyword=None, param_key="titulo", default="", label="Título", offset=_FIELD_OFFSET_X
-            ),  # noqa: E501
-            FieldDef(
-                img_prefix=5,
-                ocr_keyword=None,
-                param_key="data_emissao",
-                default="",
-                label="Data Emissão",
-                offset=_FIELD_OFFSET_X,
-            ),  # noqa: E501
-            FieldDef(
-                img_prefix=6,
-                ocr_keyword=None,
-                param_key="data_movimento",
-                default="",
-                label="Data Movimento",
-                offset=_FIELD_OFFSET_X,
-            ),  # noqa: E501
-            FieldDef(
-                img_prefix=None,
-                ocr_keyword="Op",
-                param_key="opcao",
-                default=OpcaoRelatorio.VALIDAR,
-                label="Opção",
-                offset=_FIELD_OFFSET_X_SMALL,
-            ),  # noqa: E501
-            FieldDef(
-                img_prefix=None,
-                ocr_keyword="Anali",
-                param_key="analitico_sintetico",
-                default=AnaliticoSintetico.ANALITICO,
-                label="Analítico/Sintético",
-                offset=_FIELD_OFFSET_X_SMALL,
-            ),  # noqa: E501
+        shot = await page.screenshot()
+        m = find_template(shot, _VALS_DIR / "tab_entrada.png", MatchThreshold.DEFAULT)
+        if not m:
+            raise RuntimeError("tab_entrada not found — form not ready")
+        await page.mouse.click(*m[0])
+        await asyncio.sleep(0.3)
+
+        fields: list[tuple[str, str, str]] = [
+            ("empresa", "Empresa", ""),
+            ("filial", "Filial", "1"),
+            ("cliente", "Cliente", ""),
+            ("titulo", "Título", ""),
+            ("data_emissao", "Data Emissão", ""),
+            ("data_movimento", "Data Movimento", ""),
+            ("opcao", "Opção", OpcaoRelatorio.VALIDAR),
+            ("analitico_sintetico", "Analítico/Sintético", AnaliticoSintetico.ANALITICO),
         ]
 
         prev_label = ""
-        for fd in field_defs:
-            if fd.img_prefix is not None:
-                pos = await find_pos(_field_img(fd.img_prefix), fd.offset)
-            else:
-                pos = await find_pos_ocr(fd.ocr_keyword, fd.offset)  # type: ignore[arg-type]
-            await fill_field(pos, params.get(fd.param_key, fd.default), fd.label, prev_label=prev_label)
-            prev_label = fd.label
+        for param_key, label, default in fields:
+            value = params.get(param_key, default) or ""
+            await tab_fill(value, label, prev_label)
+            prev_label = label
 
-        # trigger focusout on last field + check its validation
         await page.keyboard.press("Tab")
         await check_error(prev_label)

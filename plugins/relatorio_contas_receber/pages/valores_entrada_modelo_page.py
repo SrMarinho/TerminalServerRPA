@@ -4,8 +4,7 @@ from pathlib import Path
 
 from playwright.async_api import Page
 
-from src.config.settings import ASSETS_DIR
-from src.utils.image_match import MatchThreshold, find_template, find_text_position
+from tsrpa import ASSETS_DIR, MatchThreshold, find_template, find_text_position
 
 from .reports.base_report import BaseReport
 from .reports.constants import FormatoArquivo
