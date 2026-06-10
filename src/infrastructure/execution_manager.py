@@ -1,12 +1,12 @@
 import sqlite3
 import threading
-from contextlib import suppress
 from datetime import datetime, timedelta
 from pathlib import Path
 
 from src.config.settings import DB_PATH
 from src.infrastructure.breakpoint_store import BreakpointStore
 from src.infrastructure.execution_repository import ExecutionRepository
+from src.infrastructure.migrations import run_migrations
 from src.infrastructure.models import Execution
 
 MAX_EXECUTIONS = 100
@@ -25,47 +25,8 @@ def _get_conn() -> sqlite3.Connection:
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA synchronous=NORMAL")
     conn.execute("PRAGMA foreign_keys=ON")
-    _migrate(conn)
+    run_migrations(conn, DB_PATH)
     return conn
-
-
-def _migrate(conn: sqlite3.Connection) -> None:
-    conn.executescript("""
-        CREATE TABLE IF NOT EXISTS executions (
-            id TEXT PRIMARY KEY,
-            task_name TEXT NOT NULL,
-            status TEXT NOT NULL DEFAULT 'running',
-            params TEXT DEFAULT '{}',
-            result TEXT,
-            started_at TEXT NOT NULL,
-            finished_at TEXT
-        );
-        CREATE TABLE IF NOT EXISTS steps (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            execution_id TEXT NOT NULL REFERENCES executions(id) ON DELETE CASCADE,
-            name TEXT NOT NULL,
-            status TEXT NOT NULL DEFAULT 'pending',
-            timestamp TEXT NOT NULL,
-            phase TEXT DEFAULT ''
-        );
-        CREATE TABLE IF NOT EXISTS logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            execution_id TEXT NOT NULL REFERENCES executions(id) ON DELETE CASCADE,
-            message TEXT NOT NULL,
-            level TEXT NOT NULL DEFAULT 'info',
-            timestamp TEXT NOT NULL
-        );
-        CREATE INDEX IF NOT EXISTS idx_steps_exec ON steps(execution_id);
-        CREATE INDEX IF NOT EXISTS idx_logs_exec ON logs(execution_id);
-        CREATE INDEX IF NOT EXISTS idx_exec_started ON executions(started_at DESC);
-        CREATE TABLE IF NOT EXISTS breakpoints (
-            execution_id TEXT NOT NULL REFERENCES executions(id) ON DELETE CASCADE,
-            step TEXT NOT NULL,
-            PRIMARY KEY (execution_id, step)
-        );
-    """)
-    with suppress(sqlite3.OperationalError):
-        conn.execute("ALTER TABLE steps ADD COLUMN phase TEXT DEFAULT ''")
 
 
 class ExecutionManager:
