@@ -34,6 +34,8 @@ como bitmap, então a navegação é feita por visão computacional:
 - **WebSocket ao vivo** — logs, screenshots, status da execução em tempo real
 - **Executor de tarefas** — máquina de estados com pausar/retomar/cancelar/pular
 - **CLI** — gerenciar cofre, executar tarefas, ver logs
+- **Sistema de plugins** — plugins autocontidos via SDK `tsrpa`, com hot reload (sem reiniciar)
+- **Migrações de schema** — SQLite versionado via `PRAGMA user_version` (aditivo, atômico, com backup)
 - **Instância única** — mutex do Windows + foco na janela existente
 - **Auto-atualização** — verifica GitHub Releases a cada 60s, aplica via installer silencioso
 - **Fallback de porta** — encontra próxima porta livre se 8080 estiver ocupada
@@ -84,12 +86,19 @@ src/
   interfaces/gui/            Janela pywebview + tray + auto-update
   interfaces/web/            FastAPI, WebSocket, UI estática
   interfaces/cli/            CLI Typer
-  infrastructure/            Vault, TaskRunner, SQLite, Logger, Updater, PlaywrightSetup
+  infrastructure/            Vault, TaskRunner, ExecutionManager/Repository,
+                             migrations, events, plugin_loader, Updater, ...
   automation/pages/          Page Objects (Playwright + OCR)
-  automation/tasks/          Tarefas RPA
+  automation/tasks/          Tarefas RPA embutidas
   config/                    Configuração + versão
   utils/                     image_match, window_utils
+tsrpa/                       SDK do plugin (única superfície importável por plugins)
+plugins/                     Plugins autocontidos (pages + tasks próprios)
 ```
+
+A camada de infraestrutura nunca importa de `interfaces` — o acoplamento é
+invertido por um event bus. Detalhes em [docs/architecture.md](docs/architecture.md)
+e [docs/plugins.md](docs/plugins.md).
 
 ## Segurança
 
@@ -115,7 +124,7 @@ src/
 | Público | Links |
 |---------|-------|
 | Usuários | [Instalação](docs/installation.md) · [Guia do usuário](docs/user-guide.md) · [CLI](docs/cli-reference.md) |
-| Devs | [Arquitetura](docs/architecture.md) · [Desenvolvimento](docs/development.md) · [API](docs/api-reference.md) · [Segurança](docs/security.md) |
+| Devs | [Arquitetura](docs/architecture.md) · [Plugins](docs/plugins.md) · [Desenvolvimento](docs/development.md) · [API](docs/api-reference.md) · [Segurança](docs/security.md) |
 | Decisões | [ADRs](docs/decisions/) · [Roadmap](docs/roadmap.md) · [CHANGELOG](CHANGELOG.md) |
 
 ## Licença

@@ -35,11 +35,14 @@ uv run playwright install chromium
 
 ```
 interfaces → infrastructure → automation
-use_cases → entities
 tasks → pages
 utils, config → módulos folha (importados por qualquer um)
+infrastructure NUNCA importa de interfaces (desacoplado via events.py)
+plugins/ importa SOMENTE de tsrpa (nunca src.*)
 Sem imports circulares. Sem pular camadas.
 ```
+
+Para criar plugins, veja [plugins.md](plugins.md).
 
 ### Estilo de código
 
@@ -67,12 +70,17 @@ tests/
 ├── unit/                    # Testes unitários (dependências mockadas)
 │   ├── infrastructure/
 │   ├── interfaces/
-│   └── automation/
-├── integration/             # Testes de integração (keyring real)
-│   └── infrastructure/
+│   ├── automation/
+│   └── config/
+├── integration/             # Testes de integração (SQLite + event bus + keyring reais)
+│   └── infrastructure/      # persistência, event bus, execução de tarefas, cofre
 └── e2e/
     └── test_vault_flow.py
 ```
+
+Os testes de integração exercitam o wiring real (sem mock): `ExecutionManager` +
+`ExecutionRepository` + `BreakpointStore` + `migrations` contra um SQLite em
+arquivo temporário, o event bus e o ciclo `TaskPool`/`TaskRunner`.
 
 ## Build
 

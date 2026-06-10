@@ -8,7 +8,14 @@ O TerminalServerRPA é uma aplicação RPA nativa de Windows com interface web l
 Usuário (pywebview) ←→ FastAPI (localhost) ←→ Task Runner ←→ Playwright (Chromium)
                            ↕                         ↕
                      Cofre (keyring)        structlog → arquivo JSON / WS
+                           ↕                         ↕
+                  SQLite (execuções)         Event Bus (infra → web)
 ```
+
+A camada de infraestrutura **nunca** importa de `interfaces`. O acoplamento é
+invertido por um event bus (`events.py`): a infra publica eventos sem saber quem
+ouve; a camada web registra o broadcast no startup. Em modo CLI ninguém assina —
+`publish()` é um no-op limpo.
 
 ## Modos de execução
 
@@ -57,12 +64,18 @@ src/interfaces/cli/                     Adaptador da CLI
 └── cli.py                              Comandos de cofre, run, logs, shutdown
 
 src/infrastructure/                     Infraestrutura
-├── vault.py                            Cofre de credenciais criptografado
-├── task_runner.py                      Máquina de estados assíncrona
-├── execution_manager.py               Persistência de execuções (SQLite) + eventos
+├── vault.py                            Cofre de credenciais criptografado (get_vault singleton)
+├── task_runner.py                      TaskRunner (máquina de estados) + TaskPool
+├── execution_manager.py               Orquestra estado da execução; publica eventos
+├── execution_repository.py            CRUD puro SQLite (sem eventos, sem domínio)
+├── breakpoint_store.py                Cache + persistência de breakpoints
+├── screenshot_manager.py              Loop de streaming de screenshots ao vivo
+├── migrations.py                       Migrações versionadas (PRAGMA user_version)
+├── events.py                           Event bus do processo (desacopla infra → web)
 ├── task_registry.py                    Registro de tarefas + auto-descoberta
 ├── task_config.py                      Persistência de parâmetros das tarefas
-├── logger.py                           Configuração do structlog
+├── plugin_loader.py                    Carga dinâmica de plugins + hot reload
+├── logger.py                           structlog + correlação de trace via contextvars
 ├── single_instance.py                  Mutex do Windows + foco via socket + token de API
 ├── updater.py                          Verificação (GitHub API + auth) + download + hot-swap
 │   ├── check_for_update()              Consulta releases/latest (suporta repo privado via PAT)
@@ -72,11 +85,23 @@ src/infrastructure/                     Infraestrutura
     └── ensure_playwright_driver()      Baixa da CDN se ausente ou versão diferente
 
 src/automation/pages/                   Page Objects do Playwright (telas do ERP Senior)
-src/automation/tasks/                   Fluxos orquestrados
+src/automation/tasks/                   Fluxos orquestrados (tarefas embutidas)
+src/automation/param_resolvers.py       Motor de fórmulas para parâmetros (=date.today(), concat, …)
 
-src/config/settings.py                  Configuração de runtime (ASSETS_DIR, DEV_MODE, DOWNLOADS_BASE)
+tsrpa/                                  SDK do plugin — única superfície que plugins importam
+plugins/                                Plugins autocontidos (próprios pages + tasks)
+
+src/config/settings.py                  Configuração de runtime (DB_PATH, ASSETS_DIR, DEV_MODE, DOWNLOADS_BASE, PLUGINS_DIRS)
 src/utils/                              Auxiliares (image_match, window_utils)
 ```
+
+### Camada de persistência
+
+`ExecutionManager` é um coordenador fino: delega CRUD ao `ExecutionRepository`
+(SQLite puro), mantém breakpoints no `BreakpointStore`, e após cada mutação
+publica no event bus. SQLite roda em modo WAL; o schema é versionado por
+`migrations.py` via `PRAGMA user_version` (migrações aditivas, atômicas, com
+backup `.bak` antes de aplicar pendências).
 
 ## Fluxo de dados (execução de tarefa)
 

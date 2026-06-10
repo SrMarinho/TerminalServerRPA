@@ -5,12 +5,35 @@ Todas as mudanças notáveis deste projeto são documentadas aqui. O formato é 
 ## [Não lançado]
 
 ### Adicionado
+- **Sistema de plugins** com SDK `tsrpa` — plugins importam só do facade `tsrpa`
+  (zero `src.*`); `TaskBase` formaliza o contrato antes duck-typed.
+- **Hot reload de plugins** — `POST /api/plugins/reload` recarrega plugins sem
+  reiniciar o servidor (purga `sys.modules` + re-registra tarefas).
+- **Migrações de schema versionadas** (`migrations.py`) via `PRAGMA user_version`:
+  aditivas, atômicas, com backup `.bak` antes de aplicar pendências.
+- **Correlação de trace** nos logs — execução carrega `execution_id` via
+  `contextvars`, propagado a todos os logs do fluxo.
+- **Testes de integração** (sem mock): persistência SQLite, event bus e execução
+  de tarefas ponta-a-ponta; cobertura de `param_resolvers`, `plugin_loader`,
+  `version` e `task_registry`.
 - Testes para a tarefa de produção `GeracaoRelatorio` (schema, fases de passos e
   resolução de credenciais do cofre).
+- Documentação de [plugins](docs/plugins.md).
+
+### Alterado
+- **Event bus** (`events.py`) inverte o acoplamento infra → web: a infraestrutura
+  publica eventos sem conhecer a camada web. Em modo CLI, `publish()` é no-op.
+- **`ExecutionManager` dividido** em coordenador fino + `ExecutionRepository`
+  (CRUD SQLite puro) + `BreakpointStore` (breakpoints). Streaming de screenshots
+  extraído para `ScreenshotManager`.
 
 ### Removido
 - Camada `core` órfã (`entities`/`use_cases`) que nenhuma parte da aplicação usava
   (ver [ADR-0003](docs/decisions/ADR-0003-remove-orphan-core-layer.md)).
+
+### Corrigido
+- `asyncio.iscoroutinefunction` (descontinuado, removido no Python 3.16) →
+  `inspect.iscoroutinefunction` em `task_registry`.
 
 ### Alterado
 - O cofre (`Vault`) e o pool de tarefas deixam de ser singletons criados no import

@@ -15,6 +15,7 @@ Aplicação RPA com interface web local, cofre de credenciais criptografado, exe
 | Documento | O que cobre |
 |-----------|-------------|
 | [Arquitetura](architecture.md) | Design do sistema, responsabilidades dos módulos, fluxo de dados |
+| [Plugins](plugins.md) | Criar plugins via SDK `tsrpa`, manifesto, hot reload |
 | [Desenvolvimento](development.md) | Setup, convenções, testes, build |
 | [Referência da API](api-reference.md) | Endpoints REST e protocolo WebSocket |
 | [Segurança](security.md) | Modelo de ameaça, controles, limitações conhecidas |
