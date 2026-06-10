@@ -1,4 +1,4 @@
-import asyncio
+import inspect
 from typing import Protocol
 
 from src.infrastructure.logger import get_logger
@@ -19,7 +19,7 @@ class TaskRegistry:
     def register(cls, name: str = ""):
         def decorator(task_cls: type):
             execute = getattr(task_cls, "execute", None)
-            if execute is None or not asyncio.iscoroutinefunction(execute):
+            if execute is None or not inspect.iscoroutinefunction(execute):
                 log.error("registry.invalid_task", cls=task_cls.__name__, reason="missing async execute method")
                 return task_cls
             task_name = name or task_cls.__name__.replace("Task", "").lower()
