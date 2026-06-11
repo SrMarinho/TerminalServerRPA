@@ -64,6 +64,16 @@ MIGRATIONS: tuple[Migration, ...] = (
             )""",
         ),
     ),
+    Migration(  # v1 -> v2: task_configs moves under migration control
+        # (was created ad-hoc by task_config.py; IF NOT EXISTS keeps field DBs safe)
+        target=2,
+        statements=(
+            """CREATE TABLE IF NOT EXISTS task_configs (
+                task_name TEXT PRIMARY KEY,
+                params TEXT NOT NULL
+            )""",
+        ),
+    ),
 )
 
 

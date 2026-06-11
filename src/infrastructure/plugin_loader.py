@@ -2,17 +2,10 @@ import importlib
 import sys
 from pathlib import Path
 
+from src.config.version import parse_version as _parse_version
 from src.infrastructure.logger import get_logger
 
 log = get_logger("TerminalServerRPA.plugins")
-
-
-def _parse_version(v: str) -> tuple[int, ...]:
-    parts = []
-    for chunk in v.split("."):
-        digits = "".join(c for c in chunk if c.isdigit())
-        parts.append(int(digits) if digits else 0)
-    return tuple(parts)
 
 
 def _read_manifest(plugin_dir: Path) -> dict | None:

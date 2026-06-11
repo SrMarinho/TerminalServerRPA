@@ -8,6 +8,7 @@ from pathlib import Path
 
 import httpx
 
+from src.config.version import parse_version as _parse_version
 from src.infrastructure.logger import get_logger
 
 log = get_logger("TerminalServerRPA.updater")
@@ -28,14 +29,6 @@ class Release:
     @property
     def version(self) -> str:
         return self.tag_name.lstrip("v")
-
-
-def _parse_version(v: str) -> tuple[int, ...]:
-    parts = []
-    for chunk in v.split("."):
-        digits = "".join(c for c in chunk if c.isdigit())
-        parts.append(int(digits) if digits else 0)
-    return tuple(parts)
 
 
 def check_for_update(current_version: str) -> Release | None:
@@ -91,7 +84,10 @@ def _download_asset(
 
 def _verify_checksum(file: Path, release: Release) -> bool:
     # Fail closed: a missing or undownloadable checksum aborts the update.
-    # Accepting an unverified binary would let a compromised release run as us.
+    # NOTE: the .sha256 ships in the same release as the EXE, so this proves
+    # download integrity only — NOT release authenticity (an attacker who can
+    # publish a release controls both files). Real authenticity requires
+    # Authenticode-signing the installer and verifying the signature here.
     exe_name = file.name
     checksum_asset = next((a for a in release.assets if a["name"] == f"{exe_name}.sha256"), None)
     if checksum_asset is None:

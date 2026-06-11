@@ -4,13 +4,16 @@
 import sqlite3
 
 from src.infrastructure.execution_manager import ExecutionManager
+from src.infrastructure.migrations import MIGRATIONS
 from src.infrastructure.models import ExecutionStatus, StepStatus
+
+_HEAD = len(MIGRATIONS)
 
 
 class TestSchemaOnDisk:
     def test_migrations_applied_on_first_open(self, manager):
         version = manager._conn.execute("PRAGMA user_version").fetchone()[0]
-        assert version == 1
+        assert version == _HEAD
         tables = {r[0] for r in manager._conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
         assert {"executions", "steps", "logs", "breakpoints"} <= tables
 
@@ -80,7 +83,7 @@ class TestDurability:
             assert execution.params == {"persist": True}
             assert execution.logs[0].message == "before close"
             # reopening a populated DB is a clean no-op migration (already at head)
-            assert reopened._conn.execute("PRAGMA user_version").fetchone()[0] == 1
+            assert reopened._conn.execute("PRAGMA user_version").fetchone()[0] == _HEAD
         finally:
             reopened.close()
 

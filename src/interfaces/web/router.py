@@ -20,13 +20,18 @@ _log = get_logger("TerminalServerRPA.router")
 TEMPLATES_DIR = Path(__file__).parent / "templates"
 
 
-def verify_token(authorization: str = Header(default=""), token: str = ""):
-    """Validate Bearer token from Authorization header or ?token= query param."""
+def verify_token(authorization: str = Header(default="")):
+    """Validate the Bearer token from the Authorization header.
+
+    Header-only on REST: query strings leak into history/proxies/logs more
+    easily. The WebSocket handshake still uses ?token= (browsers cannot set
+    headers on WS connections). compare_digest avoids timing side-channels.
+    """
+    import secrets
+
     extracted = authorization.removeprefix("Bearer ")
-    if not extracted:
-        extracted = token
     actual = get_or_create_token()
-    if not extracted or extracted != actual:
+    if not extracted or not secrets.compare_digest(extracted, actual):
         raise HTTPException(401, "Unauthorized — invalid or missing API token")
 
 
@@ -67,8 +72,10 @@ async def focus(request: Request):
 
 @router.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
+    import secrets
+
     token = ws.query_params.get("token", "")
-    if not token or token != get_or_create_token():
+    if not token or not secrets.compare_digest(token, get_or_create_token()):
         await ws.close(code=1008)  # policy violation
         return
     await manager.connect(ws)
@@ -91,7 +98,9 @@ async def websocket_endpoint(ws: WebSocket):
                     await ws.send_json({"type": "error", "message": str(e)})
             elif cmd == "screenshot:subscribe":
                 exec_id = data.get("execution_id", "")
-                if exec_id:
+                # Validate the execution exists, otherwise the manager would
+                # spin a polling loop for a bogus id until unsubscribe.
+                if exec_id and get_pool().get(exec_id) is not None:
                     from src.infrastructure.task_runner import subscribe_screenshot
 
                     subscribe_screenshot(exec_id)

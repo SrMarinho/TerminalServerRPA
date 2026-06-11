@@ -11,6 +11,15 @@ import sys
 from pathlib import Path
 
 
+def parse_version(v: str) -> tuple[int, ...]:
+    """Parse '1.2.3rc1'-style strings into a comparable tuple (non-digits stripped)."""
+    parts = []
+    for chunk in v.split("."):
+        digits = "".join(c for c in chunk if c.isdigit())
+        parts.append(int(digits) if digits else 0)
+    return tuple(parts)
+
+
 def _load_version() -> str:
     try:
         from importlib.metadata import version as _pkg_version

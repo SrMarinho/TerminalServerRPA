@@ -1,9 +1,8 @@
 import sqlite3
 import threading
 from datetime import datetime, timedelta
-from pathlib import Path
 
-from src.config.settings import DB_PATH
+from src.config.settings import APP_DATA_DIR, DB_PATH
 from src.infrastructure.breakpoint_store import BreakpointStore
 from src.infrastructure.execution_repository import ExecutionRepository
 from src.infrastructure.migrations import run_migrations
@@ -128,7 +127,8 @@ class ExecutionManager:
         self._conn.close()
 
 
-_DIAG_DIR = Path("logs/diag")
+# Under APP_DATA_DIR (not CWD-relative): a frozen build's CWD is unpredictable.
+_DIAG_DIR = APP_DATA_DIR / "logs" / "diag"
 _DIAG_MAX_DAYS = 7
 
 

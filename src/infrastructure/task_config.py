@@ -2,13 +2,14 @@ import json
 import sqlite3
 
 from src.config.settings import DB_PATH as _DB_PATH
+from src.infrastructure.migrations import run_migrations
 
 
 def _conn() -> sqlite3.Connection:
     _DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(_DB_PATH))
-    conn.execute("CREATE TABLE IF NOT EXISTS task_configs (task_name TEXT PRIMARY KEY, params TEXT NOT NULL)")
-    conn.commit()
+    # Schema lives in migrations.py; idempotent no-op when already at head.
+    run_migrations(conn)
     return conn
 
 
