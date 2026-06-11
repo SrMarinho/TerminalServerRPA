@@ -1,5 +1,5 @@
 const PANEL_KEY = 'TerminalServerRPA.panel';
-const PERSIST_PANELS = ['tasks', 'credentials', 'history'];
+const PERSIST_PANELS = ['tasks', 'credentials', 'history', 'schedules'];
 var _prevPanel = 'tasks';
 var _backFn = null;
 
@@ -17,6 +17,7 @@ function switchPanel(name) {
   if (name === 'tasks') loadTasks();
   if (name === 'credentials') loadCredentials();
   if (name === 'history') loadHistory();
+  if (name === 'schedules') loadSchedules();
   if (PERSIST_PANELS.includes(name)) try { sessionStorage.setItem(PANEL_KEY, name); } catch(e) {}
 }
 

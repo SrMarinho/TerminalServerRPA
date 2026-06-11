@@ -66,6 +66,7 @@ class WebServer(BaseServer):
         @asynccontextmanager
         async def lifespan(app: FastAPI):
             from src.infrastructure import events
+            from src.infrastructure.schedule_manager import get_schedule_manager
             from src.infrastructure.task_registry import TaskRegistry
             from src.interfaces.web.websocket import broadcast_event, capture_loop
 
@@ -75,10 +76,15 @@ class WebServer(BaseServer):
                 log.exception("lifespan.auto_discover_failed")
             capture_loop()
             events.subscribe(broadcast_event)
+            try:
+                get_schedule_manager().start()
+            except Exception:
+                log.exception("lifespan.scheduler_start_failed")
             WebServer._check_for_update()
 
             yield
 
+            get_schedule_manager().shutdown()
             events.unsubscribe(broadcast_event)
 
             from src.infrastructure.execution_manager import close_manager

@@ -74,6 +74,19 @@ MIGRATIONS: tuple[Migration, ...] = (
             )""",
         ),
     ),
+    Migration(  # v2 -> v3: recurring task schedules (cron)
+        target=3,
+        statements=(
+            """CREATE TABLE IF NOT EXISTS schedules (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                task_name TEXT NOT NULL,
+                cron TEXT NOT NULL,
+                enabled INTEGER NOT NULL DEFAULT 1,
+                last_run TEXT,
+                created_at TEXT NOT NULL
+            )""",
+        ),
+    ),
 )
 
 

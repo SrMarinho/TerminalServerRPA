@@ -21,6 +21,7 @@ dependencies = [
     "pywebview>=5.0.0",
     "pystray>=0.19.5",
     "pydantic>=2.13.4",
+    "apscheduler>=3.11.2",
 ]
 
 [tool.pytest.ini_options]
