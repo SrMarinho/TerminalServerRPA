@@ -115,6 +115,39 @@ class TestPoolGuards:
             runner.cancel()
             await asyncio.wait_for(runner._task, timeout=3)
 
+    async def test_enqueue_when_busy_then_drain(self, temp_db, fake_task):
+        name, state, aio = fake_task
+        state["gate"] = aio.Event()  # keep first run busy
+        pool = TaskPool()
+        first = pool.start(name, {})
+        runner = pool.get(first)
+        await _await_status(runner, ExecutionStatus.RUNNING)
+
+        result = pool.start_or_enqueue(name, {"second": True})
+        assert result == {"queued": True, "position": 1, "task": name}
+        assert pool.queue_info() == [{"position": 1, "task_name": name}]
+
+        state["gate"].set()  # release the first run
+        await asyncio.wait_for(runner._task, timeout=3)
+
+        # the drained task starts automatically; wait until it finishes
+        deadline = asyncio.get_event_loop().time() + 3
+        while pool.queue_info() and asyncio.get_event_loop().time() < deadline:
+            await asyncio.sleep(0.02)
+        assert pool.queue_info() == []
+        second = [tid for tid in pool.list_all() if tid != first]
+        assert second, "queued task never started"
+        await asyncio.wait_for(pool.get(second[0])._task, timeout=3)
+        assert pool.get(second[0]).status == ExecutionStatus.COMPLETED
+
+    async def test_start_or_enqueue_starts_when_free(self, temp_db, fake_task):
+        name, _state, _ = fake_task
+        pool = TaskPool()
+        result = pool.start_or_enqueue(name, {})
+        assert result["queued"] is False
+        await asyncio.wait_for(pool.get(result["task_id"])._task, timeout=3)
+        assert pool.get(result["task_id"]).status == ExecutionStatus.COMPLETED
+
     async def test_finished_runner_frees_pool(self, temp_db, fake_task):
         name, _state, _ = fake_task
         pool = TaskPool()

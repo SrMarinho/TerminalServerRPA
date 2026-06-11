@@ -1,6 +1,6 @@
 """Task catalog, configuration and execution start."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 
 from src.infrastructure.task_config import load_config, save_config
 from src.infrastructure.task_registry import TaskRegistry
@@ -36,11 +36,15 @@ async def run_task(task_name: str, data: dict | None = None, pool: TaskPool = De
         params = data
     if params:
         save_config(task_name, params)
-    try:
-        task_id = pool.start(task_name, params or None, bps)
-    except RuntimeError as e:
-        raise HTTPException(409, str(e))
-    return {"status": "started", "task": task_name, "task_id": task_id}
+    result = pool.start_or_enqueue(task_name, params or None, bps)
+    if result["queued"]:
+        return {"status": "queued", "task": task_name, "position": result["position"]}
+    return {"status": "started", "task": task_name, "task_id": result["task_id"]}
+
+
+@router.get("/api/tasks/queue")
+async def list_queue(pool: TaskPool = Depends(get_pool)):
+    return {"queue": pool.queue_info()}
 
 
 @router.get("/api/tasks/{task_name}/config")

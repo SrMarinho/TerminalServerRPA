@@ -1,5 +1,6 @@
 import asyncio
 import traceback
+from collections import deque
 from typing import TYPE_CHECKING
 
 from src.infrastructure.execution_manager import _broadcast_exec_event, get_manager, has_breakpoint
@@ -154,6 +155,8 @@ MAX_RUNNERS = 50
 class TaskPool:
     def __init__(self):
         self._runners: dict[str, TaskRunner] = {}
+        # FIFO of (task_name, params, breakpoints) waiting for the single slot.
+        self._queue: deque[tuple[str, dict | None, list[str] | None]] = deque()
 
     def is_busy(self) -> bool:
         return any(r.status in (ExecutionStatus.RUNNING, ExecutionStatus.PAUSED) for r in self._runners.values())
@@ -191,10 +194,35 @@ class TaskPool:
         runner._task = task
         return exec_id
 
+    def start_or_enqueue(
+        self, task_name: str, params: dict | None = None, breakpoints: list[str] | None = None
+    ) -> dict:
+        """Start now if the slot is free, otherwise queue (FIFO) instead of failing."""
+        if self.is_busy():
+            self._queue.append((task_name, params, breakpoints))
+            _broadcast_exec_event({"type": "pool:queue", "size": len(self._queue)})
+            return {"queued": True, "position": len(self._queue), "task": task_name}
+        return {"queued": False, "task_id": self.start(task_name, params, breakpoints)}
+
+    def queue_info(self) -> list[dict]:
+        return [{"position": i + 1, "task_name": name} for i, (name, _p, _b) in enumerate(self._queue)]
+
+    def _drain_queue(self) -> None:
+        if not self._queue or self.is_busy():
+            return
+        task_name, params, bps = self._queue.popleft()
+        _broadcast_exec_event({"type": "pool:queue", "size": len(self._queue)})
+        try:
+            self.start(task_name, params, bps)
+        except RuntimeError:
+            # Raced with a concurrent start — put it back at the front.
+            self._queue.appendleft((task_name, params, bps))
+
     async def _run(self, task_id: str, task_name: str, params: dict):
         runner = self._runners[task_id]
         await runner.run(task_name, params)
         _broadcast_exec_event({"type": "pool:update", "task_id": task_id, "status": runner.status.value})
+        self._drain_queue()
 
     def get(self, task_id: str) -> TaskRunner | None:
         return self._runners.get(task_id)

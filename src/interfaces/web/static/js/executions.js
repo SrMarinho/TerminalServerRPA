@@ -85,6 +85,11 @@ function _connectWS() {
         refreshRunning();
         return;
       }
+      if (data.type === 'pool:queue') {
+        var qEl = document.getElementById('queueCountSidebar');
+        if (qEl) qEl.textContent = data.size > 0 ? data.size + ' na fila' : '';
+        return;
+      }
       if (data.type && data.execution_id && _wsCallbacks[data.execution_id]) {
         _wsCallbacks[data.execution_id](data);
       }

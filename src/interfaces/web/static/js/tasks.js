@@ -106,12 +106,21 @@ async function saveDetailConfig() {
   toast('Config salva');
 }
 
+function _handleRunResponse(res) {
+  if (res.status === 'queued') {
+    toast('Na fila — posição ' + res.position);
+    return false;
+  }
+  toast('Tarefa iniciada');
+  openExecutionDetail(res.task_id);
+  return true;
+}
+
 async function runDetailTask() {
   var p = collectDetailParams(); if (!p) return;
   await api('POST', '/api/tasks/' + encodeURIComponent(currentTask) + '/config', p);
   var res = await api('POST', '/api/run/' + encodeURIComponent(currentTask), p);
-  toast('Tarefa iniciada');
-  openExecutionDetail(res.task_id);
+  _handleRunResponse(res);
 }
 
 async function rerunExec(execId) {
@@ -120,8 +129,7 @@ async function rerunExec(execId) {
   try {
     var bps = Object.keys(_execBreakpoints).filter(function(k) { return _execBreakpoints[k]; });
     var res = await api('POST', '/api/run/' + encodeURIComponent(entry.taskName), Object.assign({}, entry.params, { _breakpoints: bps }));
-    toast('Re-executando');
-    openExecutionDetail(res.task_id);
+    _handleRunResponse(res);
   } catch (e) { toast('Erro: ' + e.message, true); }
 }
 
@@ -167,8 +175,7 @@ async function saveAndRun() {
   try {
     await api('POST', '/api/tasks/' + encodeURIComponent(currentTask) + '/config', params);
     const res = await api('POST', '/api/run/' + encodeURIComponent(currentTask), params);
-    toast('Tarefa iniciada');
     closeConfigModal();
-    openExecutionDetail(res.task_id);
+    _handleRunResponse(res);
   } catch (e) { toast('Erro: ' + e.message, true); }
 }

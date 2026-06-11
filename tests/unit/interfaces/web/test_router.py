@@ -161,6 +161,7 @@ class TestDeleteCredential:
 def mock_pool():
     m = MagicMock()
     m.start.return_value = "abc12345"
+    m.start_or_enqueue.return_value = {"queued": False, "task_id": "abc12345"}
     m.list_all.return_value = {}
     m.get.return_value = None
     app.dependency_overrides[get_pool] = lambda: m
