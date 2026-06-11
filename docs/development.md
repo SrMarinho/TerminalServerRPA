@@ -82,6 +82,22 @@ Os testes de integração exercitam o wiring real (sem mock): `ExecutionManager`
 `ExecutionRepository` + `BreakpointStore` + `migrations` contra um SQLite em
 arquivo temporário, o event bus e o ciclo `TaskPool`/`TaskRunner`.
 
+## Frontend (offline-first)
+
+A UI não depende de CDN: Tailwind, CodeMirror e fontes vivem em
+`src/interfaces/web/static/vendor/` (commitados). Implicação: **classe Tailwind
+nova nos templates/JS exige regenerar o CSS**:
+
+```bash
+# Tailwind standalone CLI v3.x (https://github.com/tailwindlabs/tailwindcss/releases)
+tailwindcss -c tw.config.js -i tw-input.css \
+  -o src/interfaces/web/static/vendor/tailwind.css --minify
+# tw-input.css: as três diretivas @tailwind
+# tw.config.js: content = templates/**/*.html + static/js/**/*.js
+```
+
+Se uma classe não aparecer estilizada, é sinal de build desatualizado.
+
 ## Build
 
 ```bash
