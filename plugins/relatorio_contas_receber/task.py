@@ -1,4 +1,5 @@
 import asyncio
+import re
 from datetime import datetime
 from pathlib import Path
 
@@ -46,6 +47,53 @@ _SIDEBAR_ITEMS = [
 ]
 
 
+_TEMPLATE_VARS = [
+    {"name": "report_code", "hint": "código do relatório", "source": "relatorio"},
+    {"name": "report_desc", "hint": "descrição do relatório"},
+    {"name": "now", "hint": "data+hora (%Y%m%d_%H%M%S)"},
+    {"name": "date", "hint": "data (%Y%m%d)"},
+    {"name": "year", "hint": "ano (%Y)"},
+    {"name": "month", "hint": "mês (%m)"},
+    {"name": "day", "hint": "dia (%d)"},
+    {"name": "time", "hint": "hora (%H%M%S)"},
+]
+
+_INVALID_FILENAME_CHARS = re.compile(r'[<>:"/\\|?*]')
+
+_EXT_MAP = {
+    FormatoArquivo.EXCEL: ".xls",
+    FormatoArquivo.EXCEL_OPENXML: ".xlsx",
+    FormatoArquivo.CSV: ".csv",
+    FormatoArquivo.EXPORTACAO_EXCEL: ".xls",
+}
+
+
+def _render_template(template: str, ctx: dict, *, is_path: bool = False) -> str:
+    """Resolve {var} and {var:strftime} tokens. Strips invalid filename chars
+    from non-path segments; path templates keep separators."""
+    now = datetime.now()
+    base = {
+        "now": now.strftime("%Y%m%d_%H%M%S"),
+        "date": now.strftime("%Y%m%d"),
+        "year": now.strftime("%Y"),
+        "month": now.strftime("%m"),
+        "day": now.strftime("%d"),
+        "time": now.strftime("%H%M%S"),
+        **{k: str(v) for k, v in ctx.items() if v is not None},
+    }
+
+    def replace(m):
+        key, fmt = m.group(1), m.group(2)
+        if fmt:
+            return now.strftime(fmt)
+        return base.get(key, m.group(0))
+
+    result = re.sub(r"\{(\w+)(?::([^}]+))?\}", replace, template)
+    if not is_path:
+        result = _INVALID_FILENAME_CHARS.sub("_", result)
+    return result
+
+
 async def _wait_for_home(page, runner=None, timeout_s: float = 120) -> None:
     deadline = asyncio.get_event_loop().time() + timeout_s
     while True:
@@ -64,20 +112,69 @@ class GeracaoRelatorio(TaskBase):
     @staticmethod
     def get_schema():
         return [
-            {"name": "base_url", "label": "URL Base", "type": "string", "default": "https://sistema.nazaria.com.br/"},
-            {"name": "TS Credenciais", "label": "TS Credenciais", "type": "credential"},
-            {"name": "Senior Credenciais", "label": "Senior Credenciais", "type": "credential"},
+            {
+                "name": "base_url",
+                "label": "URL Base",
+                "type": "string",
+                "default": "https://sistema.nazaria.com.br/",
+                "group": "Conexão",
+                "group_panel": "inline",
+            },
+            {
+                "name": "TS Credenciais",
+                "label": "TS Credenciais",
+                "type": "credential",
+                "group": "Conexão",
+                "group_panel": "inline",
+                "required": True,
+            },
+            {
+                "name": "Senior Credenciais",
+                "label": "Senior Credenciais",
+                "type": "credential",
+                "group": "Conexão",
+                "group_panel": "inline",
+                "required": True,
+            },
             {
                 "name": "relatorio",
                 "label": "Relatório",
                 "type": "select",
                 "options": [{"value": r.code, "label": r.label} for r in REPORTS],
+                "group_panel": "inline",
             },
             *[
-                {**field, "when": {**field.get("when", {}), "relatorio": r.code}}
+                {
+                    **field,
+                    "when": {**field.get("when", {}), "relatorio": r.code},
+                    "group": "Parâmetros",
+                    "group_panel": "modal",
+                }
                 for r in REPORTS
                 for field in r.get_fields()
             ],
+            {
+                "name": "output_dir",
+                "label": "Pasta de destino",
+                "type": "template",
+                "default": str(DOWNLOADS_BASE / "{report_code}"),
+                "placeholder": r"Ex: C:\Relatorios\{report_code}\{year}\{month}",
+                "is_path": True,
+                "template_vars": _TEMPLATE_VARS,
+                "group": "Saída de Arquivo",
+                "group_panel": "inline",
+                "group_open": True,
+            },
+            {
+                "name": "output_name",
+                "label": "Nome do arquivo",
+                "type": "template",
+                "default": "rel_{report_code}_{now}",
+                "placeholder": "Ex: rel_{report_code}_{now:%Y%m%d_%H%M%S}",
+                "template_vars": _TEMPLATE_VARS,
+                "group": "Saída de Arquivo",
+                "group_panel": "inline",
+            },
         ]
 
     @staticmethod
@@ -97,6 +194,7 @@ class GeracaoRelatorio(TaskBase):
                 StepNames.MAXIMIZANDO_VALORES,
                 StepNames.PREENCHENDO_ENTRADA,
                 StepNames.PREENCHENDO_SAIDA,
+                StepNames.GERANDO_RELATORIO,
                 StepNames.SELECIONANDO_INFORMACOES,
                 StepNames.AGUARDANDO_SOLICITACAO,
             ],
@@ -210,7 +308,7 @@ class GeracaoRelatorio(TaskBase):
         nav = SidebarNavigator()
         await nav.navigate(home, _SIDEBAR_ITEMS, self._step)
 
-    async def _phase_report_actions(self, remote_page, relatorio_code: str, params: dict) -> str | None:
+    async def _phase_report_actions(self, remote_page, relatorio_code: str, params: dict, context=None) -> str | None:
         if not remote_page:
             await self._replay_steps(
                 StepNames.MAXIMIZANDO_RELATORIO,
@@ -264,7 +362,18 @@ class GeracaoRelatorio(TaskBase):
             await asyncio.sleep(0.3)
             await valores.fill_saida_label_field("Caminho", r"\\tsclient\WebFile")
             await asyncio.sleep(0.2)
-            nome_arquivo = f"rel_{relatorio_code}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+
+            tpl_ctx = {
+                "report_code": relatorio_code,
+                "report_desc": report.description,
+                **{k: v for k, v in params.items() if isinstance(v, str | int | float)},
+            }
+            output_dir_tpl = params.get("output_dir") or str(DOWNLOADS_BASE / "{report_code}")
+            output_name_tpl = params.get("output_name") or "rel_{report_code}_{now}"
+            nome_arquivo = _render_template(output_name_tpl, tpl_ctx)
+            downloads_path = Path(_render_template(output_dir_tpl, tpl_ctx, is_path=True))
+            downloads_path.mkdir(parents=True, exist_ok=True)
+
             await valores.fill_saida_label_field("Nome", nome_arquivo)
             await asyncio.sleep(0.2)
             if params.get("formato_arquivo") == FormatoArquivo.CSV:
@@ -276,11 +385,39 @@ class GeracaoRelatorio(TaskBase):
                     await valores.click_ocr_label("Remover")
                     await asyncio.sleep(0.2)
             await asyncio.sleep(0.3)
-            await valores.click_ok()
-            await self._wait_loading(
-                remote_page, _IMG_SELECIONANDO, StepNames.SELECIONANDO_INFORMACOES, next_img_path=_IMG_AGUARDANDO
-            )
-            await self._wait_loading(remote_page, _IMG_AGUARDANDO, StepNames.AGUARDANDO_SOLICITACAO)
+            await self._step(StepNames.GERANDO_RELATORIO)
+
+            if context is not None:
+                async with context.expect_event("download", timeout=180000) as dl_info:
+                    await valores.click_ok()
+                    await self._wait_loading(
+                        remote_page,
+                        _IMG_SELECIONANDO,
+                        StepNames.SELECIONANDO_INFORMACOES,
+                        next_img_path=_IMG_AGUARDANDO,
+                    )
+                    await self._wait_loading(remote_page, _IMG_AGUARDANDO, StepNames.AGUARDANDO_SOLICITACAO)
+                dl = await dl_info.value
+                log = self._runner.log if self._runner else (lambda m: None)
+                log(f"download.intercepted: suggested_filename={dl.suggested_filename!r} url={dl.url!r}")
+                failure = await dl.failure()
+                if failure:
+                    log(f"download.failure: {failure!r}")
+                fmt = params.get("formato_arquivo", FormatoArquivo.EXCEL)
+                ext = Path(dl.suggested_filename).suffix or _EXT_MAP.get(fmt, ".xls")
+                dest = downloads_path / (nome_arquivo + ext)
+                await dl.save_as(dest)
+                size = dest.stat().st_size if dest.exists() else -1
+                log(f"download.saved: path={dest!r} size={size}B")
+                await selecao.close()
+                return str(dest)
+            else:
+                await valores.click_ok()
+                await self._wait_loading(
+                    remote_page, _IMG_SELECIONANDO, StepNames.SELECIONANDO_INFORMACOES, next_img_path=_IMG_AGUARDANDO
+                )
+                await self._wait_loading(remote_page, _IMG_AGUARDANDO, StepNames.AGUARDANDO_SOLICITACAO)
+
             await selecao.close()
             return nome_arquivo
         else:
@@ -301,16 +438,8 @@ class GeracaoRelatorio(TaskBase):
         relatorio_code = params.get("relatorio", "")
 
         async with async_playwright() as p:
-            downloads_path = (
-                DOWNLOADS_BASE / "financas" / "gestao_contas_receber" / "contas_receber" / "relatorios" / relatorio_code
-            )
-            downloads_path.mkdir(parents=True, exist_ok=True)
             browser, context, page, _w, _h = await BrowserManager.launch(p)
 
-            async def _save_download(dl) -> None:
-                await dl.save_as(downloads_path / dl.suggested_filename)
-
-            context.on("download", _save_download)
             try:
                 self._attach_page(page)
                 remote = await self._phase_login_ts(context, page, ts_creds, base_url)
@@ -319,7 +448,7 @@ class GeracaoRelatorio(TaskBase):
                 await self._phase_senior_login(remote, sl, senior_creds)
                 home = await self._phase_home_setup(remote)
                 await self._phase_navigate_sidebar(home)
-                arquivo = await self._phase_report_actions(remote, relatorio_code, params)
+                arquivo = await self._phase_report_actions(remote, relatorio_code, params, context=context)
                 await self._step(StepNames.CONCLUIDO)
                 return {"status": "ok", **({"arquivo": arquivo} if arquivo else {})}
             finally:

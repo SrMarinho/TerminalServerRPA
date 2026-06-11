@@ -65,6 +65,9 @@ class WebServer(BaseServer):
     def _build_app() -> FastAPI:
         @asynccontextmanager
         async def lifespan(app: FastAPI):
+            import asyncio
+
+            from src.config.settings import PLUGINS_DIRS
             from src.infrastructure import events
             from src.infrastructure.schedule_manager import get_schedule_manager
             from src.infrastructure.task_registry import TaskRegistry
@@ -82,8 +85,12 @@ class WebServer(BaseServer):
                 log.exception("lifespan.scheduler_start_failed")
             WebServer._check_for_update()
 
+            watcher_task = asyncio.create_task(WebServer._watch_plugins(PLUGINS_DIRS))
+            log.info("plugin.watcher_started", dirs=[str(d) for d in PLUGINS_DIRS])
+
             yield
 
+            watcher_task.cancel()
             get_schedule_manager().shutdown()
             events.unsubscribe(broadcast_event)
 
@@ -114,16 +121,37 @@ class WebServer(BaseServer):
         return app
 
     @staticmethod
+    async def _watch_plugins(plugins_dirs: list[Path]) -> None:
+        import asyncio
+
+        from watchfiles import awatch
+
+        from src.infrastructure.plugin_loader import reload_plugins
+
+        watch_paths = [str(d) for d in plugins_dirs if d.exists()]
+        if not watch_paths:
+            return
+        try:
+            async for changes in awatch(*watch_paths, watch_filter=lambda _, p: p.endswith(".py")):
+                changed_files = {c[1] for c in changes}
+                log.info("plugin.changed", files=list(changed_files))
+                await asyncio.sleep(0.1)  # debounce
+                try:
+                    reloaded = reload_plugins()
+                    log.info("plugin.reloaded", plugins=reloaded)
+                except Exception:
+                    log.exception("plugin.reload_failed")
+        except asyncio.CancelledError:
+            pass
+
+    @staticmethod
     def _check_for_update() -> None:
         from src.config.version import VERSION
         from src.infrastructure.updater import check_for_update
 
         def _run():
             try:
-                release = check_for_update(VERSION)
-                if release is None:
-                    return
-                log.info("update.available", version=release.version, url=release.html_url)
+                check_for_update(VERSION)
             except Exception:
                 log.exception("update.background_check_failed")
 

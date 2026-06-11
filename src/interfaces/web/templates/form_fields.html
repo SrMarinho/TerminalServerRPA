@@ -1,32 +1,67 @@
+{% set ns = namespace(groups={}, order=[]) %}
 {% for f in fields %}
-<div{% if f.when %} id="wrap-{{ f.name }}" data-when='{{ f.when | tojson }}'{% endif %}{% if wrap_class %} class="{{ wrap_class }}"{% endif %}>
-  <label class="label" style="margin-bottom:6px">{{ f.label | e }}</label>
-  {% if f.type == 'credential' %}
-  <select id="cfg-{{ f.name }}" data-field-type="credential" class="input">
-    <option value="">— selecione —</option>
-    {% for cred in creds %}
-    <option value="{{ cred.service | e }}"{% if config.get(f.name, {}).get('service') == cred.service %} selected{% endif %}>{{ cred.service | e }}</option>
-    {% endfor %}
-  </select>
-  {% elif f.type == 'select' %}
-  {% set cur_val = config.get(f.name, f.default | default('')) | string %}
-  <select id="cfg-{{ f.name }}" data-field-type="select" class="input">
-    {% for opt in f.options | default([]) %}
-    {% set opt_val = opt.value if opt is mapping else opt %}
-    {% set opt_label = opt.label if opt is mapping else opt %}
-    <option value="{{ opt_val | e }}"{% if cur_val == opt_val | string %} selected{% endif %}>{{ opt_label | e }}</option>
-    {% endfor %}
-  </select>
-  {% elif f.type == 'json' %}
-  {% set jval = config.get(f.name) %}
-  <textarea id="cfg-{{ f.name }}" rows="5" class="input" style="font-family:'JetBrains Mono',monospace;resize:vertical;line-height:1.6" spellcheck="false">{{ jval | tojson(indent=2) if jval is not none else '' }}</textarea>
-  {% elif f.type == 'number' %}
-  <input id="cfg-{{ f.name }}" type="number" value="{{ config.get(f.name, '') | e }}" class="input">
-  {% else %}
-  {% set sv = config.get(f.name, f.default | default('')) %}
-  <input id="cfg-{{ f.name }}" type="text" value="{{ sv | e }}" placeholder="{{ f.label | e }}" class="input">
+  {% set g = f.group if f.group is defined and f.group else '' %}
+  {% if g not in ns.groups %}
+    {% set _ = ns.order.append(g) %}
+    {% set _ = ns.groups.update({g: []}) %}
   {% endif %}
-</div>
-{% else %}
+  {% set _ = ns.groups[g].append(f) %}
+{% endfor %}
+
+{% if not fields %}
 <div class="text-sm" style="color:var(--text-2)">Sem parâmetros.</div>
+{% endif %}
+
+{% for group_name in ns.order %}
+  {% set group_fields = ns.groups[group_name] %}
+  {% if group_name %}
+  {% set is_open = group_fields | selectattr('group_open', 'defined') | list | length > 0 %}
+  <details class="form-group"{% if is_open %} open{% endif %}>
+    <summary class="form-group-summary">{{ group_name }}</summary>
+    <div class="form-group-body">
+  {% endif %}
+
+  {% for f in group_fields %}
+  {% set req = f.required is defined and f.required %}
+  <div{% if f.when is defined %} id="wrap-{{ f.name }}" data-when='{{ f.when | tojson }}'{% endif %}{% if wrap_class %} class="{{ wrap_class }}"{% else %} class="field-wrap"{% endif %}>
+    <label class="label" style="margin-bottom:6px">{{ f.label | e }}{% if req %} <span style="color:var(--danger)">*</span>{% endif %}</label>
+    {% if f.type == 'credential' %}
+    <select id="cfg-{{ f.name }}" data-field-type="credential" class="input"{% if req %} data-required="1"{% endif %}>
+      <option value="">— selecione —</option>
+      {% for cred in creds %}
+      <option value="{{ cred.service | e }}"{% if config.get(f.name, {}).get('service') == cred.service %} selected{% endif %}>{{ cred.service | e }}</option>
+      {% endfor %}
+    </select>
+    {% elif f.type == 'select' %}
+    {% set cur_val = config.get(f.name, f.default | default('')) | string %}
+    <select id="cfg-{{ f.name }}" data-field-type="select" class="input"{% if req %} data-required="1"{% endif %}>
+      {% for opt in f.options | default([]) %}
+      {% set opt_val = opt.value if opt is mapping else opt %}
+      {% set opt_label = opt.label if opt is mapping else opt %}
+      <option value="{{ opt_val | e }}"{% if cur_val == opt_val | string %} selected{% endif %}>{{ opt_label | e }}</option>
+      {% endfor %}
+    </select>
+    {% elif f.type == 'json' %}
+    {% set jval = config.get(f.name) %}
+    <textarea id="cfg-{{ f.name }}" rows="5" class="input"{% if req %} data-required="1"{% endif %} style="font-family:'JetBrains Mono',monospace;resize:vertical;line-height:1.6" spellcheck="false">{{ jval | tojson(indent=2) if jval is not none else '' }}</textarea>
+    {% elif f.type == 'number' %}
+    <input id="cfg-{{ f.name }}" type="number" value="{{ config.get(f.name, '') | e }}" class="input"{% if req %} data-required="1"{% endif %}>
+    {% elif f.type == 'template' %}
+    {% set tv = config.get(f.name, f.default | default('')) %}
+    <input id="cfg-{{ f.name }}" type="text" value="{{ tv | e }}" placeholder="{{ f.placeholder | default(f.label) | e }}"
+      class="input" data-field-type="template" spellcheck="false"
+      {% if f.is_path is defined and f.is_path %}data-is-path="1"{% endif %}
+      {% if req %}data-required="1"{% endif %}
+      data-template-vars='{{ f.template_vars | default([]) | tojson }}'>
+    {% else %}
+    {% set sv = config.get(f.name, f.default | default('')) %}
+    <input id="cfg-{{ f.name }}" type="text" value="{{ sv | e }}" placeholder="{{ f.label | e }}" class="input"{% if req %} data-required="1"{% endif %}>
+    {% endif %}
+  </div>
+  {% endfor %}
+
+  {% if group_name %}
+    </div>
+  </details>
+  {% endif %}
 {% endfor %}

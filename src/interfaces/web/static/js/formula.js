@@ -441,7 +441,7 @@ function _initFormulaAutocomplete(container) {
   if (!dropdownEl) return;
   const dropdown = new FormulaDropdown(dropdownEl);
   const tooltip = new FormulaTooltip(document.getElementById('formula-tooltip'));
-  container.querySelectorAll('input[type="text"]').forEach(el => {
+  container.querySelectorAll('input[type="text"]:not([data-field-type="template"])').forEach(el => {
     new FormulaInput(el, dropdown, tooltip, resolverMeta).init();
   });
 }

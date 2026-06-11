@@ -240,8 +240,8 @@
     <div class="p-6 overflow-y-auto" id="configFields"></div>
     <div class="flex gap-2 justify-end px-6 py-4" style="border-top:1px solid var(--line)">
       <button onclick="closeConfigModal()" class="btn btn-ghost">cancelar</button>
-      <button onclick="saveModalConfig()" class="btn btn-ghost"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>salvar config</button>
-      <button onclick="saveAndRun()" class="btn btn-primary"><svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>salvar & executar</button>
+      <button onclick="saveModalConfig()" class="btn btn-ghost" id="configModalSaveBtn"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>salvar config</button>
+      <button onclick="launchRun()" class="btn btn-primary" id="configModalRunBtn"><svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>iniciar</button>
     </div>
   </div>
 </div>
@@ -286,10 +286,12 @@
   </div>
 </div>
 
+<script>document.addEventListener('keydown', function(e) { if (e.key === 'Escape') { if (typeof closeConfigModal === 'function') closeConfigModal(); } });</script>
 <script src="/static/js/utils.js?v={{ cache_bust }}"></script>
 <script src="/static/js/panel.js?v={{ cache_bust }}"></script>
 <script src="/static/js/credentials.js?v={{ cache_bust }}"></script>
 <script src="/static/js/formula.js?v={{ cache_bust }}"></script>
+<script src="/static/js/template.js?v={{ cache_bust }}"></script>
 <script src="/static/js/form.js?v={{ cache_bust }}"></script>
 <script src="/static/js/tasks.js?v={{ cache_bust }}"></script>
 <script src="/static/js/schedules.js?v={{ cache_bust }}"></script>

@@ -17,6 +17,7 @@ class StepNames(str, Enum):
     MAXIMIZANDO_VALORES = "Maximizando Valores"
     PREENCHENDO_ENTRADA = "Preenchendo Entrada"
     PREENCHENDO_SAIDA = "Preenchendo Saída"
+    GERANDO_RELATORIO = "Gerando Relatório"
     SELECIONANDO_INFORMACOES = "Selecionando Informações"
     AGUARDANDO_SOLICITACAO = "Aguardando Solicitação"
     CONCLUIDO = "Concluido"

@@ -22,6 +22,7 @@ function switchPanel(name) {
 }
 
 function goBack() {
+  try { sessionStorage.removeItem('TerminalServerRPA.task'); sessionStorage.removeItem('TerminalServerRPA.exec'); } catch(e) {}
   if (_backFn) { var fn = _backFn; _backFn = null; fn(); }
   else switchPanel(_prevPanel);
 }

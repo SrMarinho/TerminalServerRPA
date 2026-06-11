@@ -109,3 +109,12 @@ body::after{content:'';position:fixed;inset:0;background-image:url("data:image/s
 .cm-variable{color:var(--text-0)!important}
 .cm-atom{color:var(--accent-dim)!important}
 .cm-punctuation{color:var(--text-2)!important}
+.field-wrap{margin-bottom:0}
+.form-group{border:1px solid var(--line);margin-top:16px;position:relative}
+.form-group::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%;background:var(--accent-dim)}
+.form-group-summary{cursor:pointer;padding:9px 12px 9px 14px;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text-1);background:var(--bg-2);border:none;list-style:none;display:flex;align-items:center;gap:8px;user-select:none;transition:background .15s}
+.form-group-summary:hover{background:var(--bg-3,var(--bg-2))}
+.form-group-summary::before{content:'▸';font-size:9px;transition:transform .2s;flex-shrink:0;color:var(--accent)}
+.form-group[open]>.form-group-summary::before{transform:rotate(90deg)}
+.form-group-summary::-webkit-details-marker{display:none}
+.form-group-body{padding:14px 14px 14px 14px;display:flex;flex-direction:column;gap:12px;border-top:1px solid var(--line)}

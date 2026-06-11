@@ -1,5 +1,8 @@
 """Server lifecycle: shutdown, plugin reload, dev flag, on-demand update."""
 
+import os
+from pathlib import Path
+
 from fastapi import APIRouter, HTTPException, Request
 
 from src.infrastructure.logger import get_logger
@@ -7,6 +10,52 @@ from src.infrastructure.task_registry import TaskRegistry
 
 router = APIRouter()
 _log = get_logger("TerminalServerRPA.router")
+
+
+@router.get("/api/fs/dirs")
+async def list_dirs(prefix: str = ""):
+    """Return subdirectories of a path prefix for autocomplete."""
+    try:
+        prefix = prefix.strip()
+        if not prefix:
+            # Return drive roots on Windows, home on others
+            if os.name == "nt":
+                import string
+
+                drives = [f"{d}:\\" for d in string.ascii_uppercase if os.path.exists(f"{d}:\\")]
+                return {"dirs": drives}
+            return {"dirs": [str(Path.home())]}
+
+        p = Path(prefix)
+        # If prefix ends with separator (or is exact dir), list children
+        if prefix.endswith(("\\", "/")) or p.is_dir():
+            base = p if p.is_dir() else p.parent
+            partial = ""
+        else:
+            base = p.parent
+            partial = p.name.lower()
+
+        if not base.exists():
+            return {"dirs": []}
+
+        entries = []
+        try:
+            for child in sorted(base.iterdir()):
+                if not child.is_dir():
+                    continue
+                if child.name.startswith("."):
+                    continue
+                if partial and not child.name.lower().startswith(partial):
+                    continue
+                entries.append(str(child))
+                if len(entries) >= 20:
+                    break
+        except PermissionError:
+            pass
+
+        return {"dirs": entries}
+    except Exception:
+        return {"dirs": []}
 
 
 @router.post("/api/shutdown")

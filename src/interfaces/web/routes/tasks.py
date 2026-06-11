@@ -58,8 +58,10 @@ async def get_task_schema(task_name: str):
 
 
 @router.get("/api/tasks/{task_name}/form")
-async def get_task_form(task_name: str, wrap_class: str = "", vault: Vault = Depends(get_vault)):
+async def get_task_form(task_name: str, wrap_class: str = "", panel: str = "", vault: Vault = Depends(get_vault)):
     schema = TaskRegistry.get_schema(task_name)
+    if panel:
+        schema = [f for f in schema if f.get("group_panel", "inline") == panel]
     config = load_config(task_name) or {}
     creds = [{"service": s} for s in vault.list_services()]
     html = render_template("form_fields.html", fields=schema, config=config, creds=creds, wrap_class=wrap_class)

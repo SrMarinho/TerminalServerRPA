@@ -49,7 +49,7 @@ async function openTaskDetail(name) {
 
   try {
     const [formRes, executions] = await Promise.all([
-      api('GET', '/api/tasks/' + encodeURIComponent(name) + '/form'),
+      api('GET', '/api/tasks/' + encodeURIComponent(name) + '/form?panel=inline'),
       api('GET', '/api/executions'),
     ]);
     renderTaskDetail(name, formRes.html, executions);
@@ -87,23 +87,15 @@ function renderTaskDetail(name, formHtml, executions) {
     : '<div class="text-xs" style="color:var(--text-3)">Nenhuma execução anterior.</div>';
 
   document.getElementById('detailContent').innerHTML = ''
-    + '<div class="card p-6"><div class="label" style="margin-bottom:12px">PARÂMETROS</div>'
-    + (formHtml || '<div class="text-sm" style="color:var(--text-2)">Sem parâmetros.</div>')
-    + '<div class="flex gap-2 mt-4">'
-    + '<button class="btn btn-ghost" onclick="saveDetailConfig()"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>salvar config</button>'
-    + '<button class="btn btn-primary" onclick="runDetailTask()"><svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>executar</button>'
+    + '<div class="card p-6" id="detailInlineForm">'
+    + (formHtml || '')
+    + '<div class="flex gap-2 mt-5">'
+    + '<button class="btn btn-ghost" onclick="saveInlineConfig()"><svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>salvar config</button>'
+    + '<button class="btn btn-primary" onclick="openLaunchModal()"><svg width="11" height="11" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>executar</button>'
     + '</div></div>'
     + '<div class="card p-6"><div class="label" style="margin-bottom:12px">ÚLTIMAS EXECUÇÕES</div>' + histHtml + '</div>';
 
-  _initFormContainer(document.getElementById('detailContent'), name);
-}
-
-function collectDetailParams() { return _collectParams(document.getElementById('detailContent')); }
-
-async function saveDetailConfig() {
-  var p = collectDetailParams(); if (!p) return;
-  await api('POST', '/api/tasks/' + encodeURIComponent(currentTask) + '/config', p);
-  toast('Config salva');
+  _initFormContainer(document.getElementById('detailInlineForm'), name);
 }
 
 function _handleRunResponse(res) {
@@ -116,11 +108,50 @@ function _handleRunResponse(res) {
   return true;
 }
 
-async function runDetailTask() {
-  var p = collectDetailParams(); if (!p) return;
+// ---------------------------------------------------------------------------
+// Launch Modal (modal panel fields) + inline fields
+// ---------------------------------------------------------------------------
+
+function _collectAllParams() {
+  var inline = _collectParams(document.getElementById('detailInlineForm')) || {};
+  var modal = _collectParams(document.getElementById('launchFields')) || {};
+  return Object.assign({}, inline, modal);
+}
+
+async function saveInlineConfig() {
+  var p = _collectAllParams(); if (!p) return;
+  await api('POST', '/api/tasks/' + encodeURIComponent(currentTask) + '/config', p);
+  toast('Config salva');
+}
+
+async function openLaunchModal() {
+  var inlineContainer = document.getElementById('detailInlineForm');
+  if (!_validateRequired(inlineContainer)) return;
+  document.getElementById('configModalTitle').textContent = currentTask;
+  document.getElementById('configFields').innerHTML = '<div class="text-sm" style="color:var(--text-2)">Carregando...</div>';
+  document.getElementById('configModal').classList.remove('hidden');
+  document.getElementById('configModal').classList.add('flex');
+  try {
+    var res = await api('GET', '/api/tasks/' + encodeURIComponent(currentTask) + '/form?panel=modal');
+    document.getElementById('configFields').innerHTML = res.html || '<div class="text-xs" style="color:var(--text-3)">Sem parâmetros adicionais.</div>';
+    _initFormContainer(document.getElementById('configFields'), currentTask);
+  } catch (e) {
+    document.getElementById('configFields').innerHTML = '<div class="text-sm" style="color:var(--danger)">Erro: ' + esc(e.message) + '</div>';
+  }
+}
+
+async function launchRun() {
+  var modalContainer = document.getElementById('launchFields') || document.getElementById('configFields');
+  if (!_validateRequired(modalContainer)) return;
+  var p = _collectAllParams(); if (!p) return;
   await api('POST', '/api/tasks/' + encodeURIComponent(currentTask) + '/config', p);
   var res = await api('POST', '/api/run/' + encodeURIComponent(currentTask), p);
+  closeConfigModal();
   _handleRunResponse(res);
+}
+
+async function runDetailTask() {
+  openLaunchModal();
 }
 
 async function rerunExec(execId) {

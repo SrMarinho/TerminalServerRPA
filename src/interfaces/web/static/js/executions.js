@@ -232,6 +232,10 @@ async function openExecutionDetail(id) {
   try {
     const exec = await api('GET', '/api/executions/' + id);
     _backFn = function() { openTaskDetail(exec.task_name); };
+    _execBreakpoints = {};
+    if (exec.breakpoints && exec.breakpoints.length) {
+      exec.breakpoints.forEach(function(s) { _execBreakpoints[s] = true; });
+    }
     await _renderExecDetail(id, exec);
 
     if (!['completed', 'failed', 'cancelled'].includes(exec.status)) {
@@ -299,7 +303,8 @@ async function loadHistory() {
           var statusText = STATUS_PT[e.status] || e.status;
           var start = e.started_at ? e.started_at.slice(11, 19) : '--:--:--';
           var end = e.finished_at ? e.finished_at.slice(11, 19) : '—';
-          var borderColor = e.status === 'completed' ? 'var(--accent)' : e.status === 'failed' ? 'var(--danger)' : e.status === 'cancelled' ? 'var(--warn)' : 'var(--line)';
+          var isRunning = e.status === 'running' || e.status === 'paused';
+          var borderColor = e.status === 'completed' ? 'var(--accent)' : e.status === 'failed' ? 'var(--danger)' : e.status === 'cancelled' ? 'var(--warn)' : isRunning ? 'var(--accent)' : 'var(--line)';
           var statusBadge = e.status === 'completed' ? 'background:var(--accent);color:var(--accent-on)' : e.status === 'failed' ? 'background:var(--danger);color:#fff' : e.status === 'cancelled' ? 'background:var(--warn);color:#000' : 'background:var(--accent-glow);color:var(--accent)';
           var dur = '';
           if (e.started_at && e.finished_at) {
@@ -307,9 +312,11 @@ async function loadHistory() {
             var sec = Math.floor(diff / 1000);
             dur = (sec >= 60 ? Math.floor(sec / 60) + 'm ' : '') + (sec % 60) + 's';
           }
-          return '<div class="card p-4" onclick="openExecutionDetail(\'' + e.id + '\')" style="cursor:pointer;border-left:3px solid ' + borderColor + '">'
+          var cardExtra = isRunning ? 'background:color-mix(in srgb,var(--accent) 4%,var(--bg-1));border-left:3px solid ' + borderColor + ';box-shadow:0 0 0 1px var(--accent-glow)' : 'border-left:3px solid ' + borderColor;
+          var liveIndicator = isRunning ? '<span class="pulse" style="display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);margin-right:6px;flex-shrink:0;color:var(--accent)"></span>' : '';
+          return '<div class="card p-4" onclick="openExecutionDetail(\'' + e.id + '\')" style="cursor:pointer;' + cardExtra + '">'
             + '<div class="flex items-start justify-between mb-3">'
-            + '<span class="text-sm font-medium" style="color:var(--text-0)">' + esc(e.task_name) + '</span>'
+            + '<span class="text-sm font-medium flex items-center" style="color:var(--text-0)">' + liveIndicator + esc(e.task_name) + '</span>'
             + '<span class="text-[10px] px-2 py-0.5 rounded-sm font-semibold ml-2 shrink-0" style="' + statusBadge + '">' + statusText + '</span>'
             + '</div>'
             + '<div class="flex items-center gap-3 text-[10px] tabular-nums hist-time">'
