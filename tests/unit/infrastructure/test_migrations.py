@@ -7,10 +7,12 @@ from src.infrastructure.migrations import MIGRATIONS, Migration, Migrator, run_m
 _HEAD = len(MIGRATIONS)
 
 
-def _conn() -> sqlite3.Connection:
-    conn = sqlite3.connect(":memory:")
-    conn.row_factory = sqlite3.Row
-    return conn
+@pytest.fixture
+def conn():
+    c = sqlite3.connect(":memory:")
+    c.row_factory = sqlite3.Row
+    yield c
+    c.close()
 
 
 def _tables(conn: sqlite3.Connection) -> set[str]:
@@ -19,45 +21,43 @@ def _tables(conn: sqlite3.Connection) -> set[str]:
 
 
 class TestFreshDb:
-    def test_version_rises_to_head(self):
-        conn = _conn()
+    def test_version_rises_to_head(self, conn):
         run_migrations(conn)
         assert conn.execute("PRAGMA user_version").fetchone()[0] == _HEAD
 
-    def test_baseline_tables_created(self):
-        conn = _conn()
+    def test_baseline_tables_created(self, conn):
         run_migrations(conn)
-        assert {"executions", "steps", "logs", "breakpoints"} <= _tables(conn)
+        assert {"executions", "steps", "logs", "breakpoints", "task_configs"} <= _tables(conn)
 
-    def test_steps_has_phase_column(self):
-        conn = _conn()
+    def test_steps_has_phase_column(self, conn):
         run_migrations(conn)
         cols = {r["name"] for r in conn.execute("PRAGMA table_info(steps)").fetchall()}
         assert "phase" in cols
 
 
 class TestIdempotency:
-    def test_rerun_is_noop(self):
-        conn = _conn()
+    def test_rerun_is_noop(self, conn):
         run_migrations(conn)
         run_migrations(conn)  # must not raise / recreate
         assert conn.execute("PRAGMA user_version").fetchone()[0] == _HEAD
 
     def test_no_backup_when_at_head(self, tmp_path):
         db = tmp_path / "executions.db"
-        conn = sqlite3.connect(str(db))
-        run_migrations(conn, db)  # v0 -> head, writes .v0.bak only if file existed
-        # second run is no-op: no new backup files for the head version
-        before = set(tmp_path.iterdir())
-        run_migrations(conn, db)
-        assert set(tmp_path.iterdir()) == before
+        c = sqlite3.connect(str(db))
+        try:
+            run_migrations(c, db)  # v0 -> head, writes .v0.bak only if file existed
+            # second run is no-op: no new backup files for the head version
+            before = set(tmp_path.iterdir())
+            run_migrations(c, db)
+            assert set(tmp_path.iterdir()) == before
+        finally:
+            c.close()
 
 
 class TestExistingDb:
-    def test_legacy_schema_at_version_zero_is_safe(self):
+    def test_legacy_schema_at_version_zero_is_safe(self, conn):
         # Simulate a field DB: schema already present (IF NOT EXISTS style) but
         # user_version still 0. Baseline must no-op and bump to head.
-        conn = _conn()
         conn.executescript(
             "CREATE TABLE executions (id TEXT PRIMARY KEY, task_name TEXT NOT NULL, "
             "status TEXT, params TEXT, result TEXT, started_at TEXT NOT NULL, finished_at TEXT);"
@@ -70,8 +70,7 @@ class TestExistingDb:
 
 
 class TestAtomicRollback:
-    def test_invalid_statement_rolls_back_version(self, monkeypatch):
-        conn = _conn()
+    def test_invalid_statement_rolls_back_version(self, conn, monkeypatch):
         bad = (Migration(target=1, statements=("CREATE TABLE ok (id INTEGER)", "THIS IS NOT SQL")),)
         monkeypatch.setattr("src.infrastructure.migrations.MIGRATIONS", bad)
         with pytest.raises(sqlite3.OperationalError):
