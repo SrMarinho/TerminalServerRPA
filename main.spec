@@ -15,6 +15,7 @@ a = Analysis(
     datas=[
         ("src/interfaces/web/templates", "src/interfaces/web/templates"),
         ("src/interfaces/web/static", "src/interfaces/web/static"),
+        ("src/interfaces/gui/assets", "src/interfaces/gui/assets"),
         ("assets", "assets"),
         ("plugins", "plugins"),
         ("pyproject.toml", "."),

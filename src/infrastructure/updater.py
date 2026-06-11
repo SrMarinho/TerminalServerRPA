@@ -19,6 +19,21 @@ log = get_logger("TerminalServerRPA.updater")
 OWNER = "SrMarinho"
 REPO = "TerminalServerRPA-releases"
 
+# Hot-swap script: waits for this process to exit, runs the installer silently,
+# cleans up and relaunches. Declarative template — formatted with pid/paths only.
+_UPDATE_BAT_TEMPLATE = """@echo off
+:wait
+tasklist /FI "PID eq {pid}" 2>nul | find "{pid}" >nul
+if not errorlevel 1 (
+    timeout /t 2 /nobreak >nul
+    goto wait
+)
+start /wait "" "{setup}" /SILENT
+del /q "{setup}" 2>nul
+del /q "%~f0"
+start "" "{exe}" gui
+"""
+
 
 @dataclass
 class Release:
@@ -141,21 +156,9 @@ def apply_update(
         log.error("update.aborted", reason="checksum_mismatch")
         return
 
-    pid = os.getpid()
     batch = current_exe.parent / "_update.bat"
     batch.write_text(
-        f"""@echo off
-:wait
-tasklist /FI "PID eq {pid}" 2>nul | find "{pid}" >nul
-if not errorlevel 1 (
-    timeout /t 2 /nobreak >nul
-    goto wait
-)
-start /wait "" "{dest}" /SILENT
-del /q "{dest}" 2>nul
-del /q "%~f0"
-start "" "{current_exe}" gui
-""",
+        _UPDATE_BAT_TEMPLATE.format(pid=os.getpid(), setup=dest, exe=current_exe),
         encoding="utf-8",
     )
 

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  :root{--bg-0:#000;--line:#2a2e36;--accent:#4ade80;--accent-glow:rgba(74,222,128,.25);--text-0:#fff;--text-2:#a3a8b5;--text-3:#5a5f6b}
+  html,body{height:100%}
+  body{
+    background:var(--bg-0);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;
+    height:100vh;
+    font-family:'JetBrains Mono',ui-monospace,monospace;
+    color:var(--text-2);overflow:hidden;position:relative;
+    letter-spacing:-.005em;-webkit-font-smoothing:antialiased;
+  }
+  body::before{
+    content:'';position:fixed;inset:0;
+    background-image:linear-gradient(var(--line) 1px,transparent 1px),
+      linear-gradient(90deg,var(--line) 1px,transparent 1px);
+    background-size:48px 48px;background-position:-1px -1px;opacity:.4;pointer-events:none;
+    mask-image:radial-gradient(ellipse at center,black 20%,transparent 75%);
+    -webkit-mask-image:radial-gradient(ellipse at center,black 20%,transparent 75%);
+  }
+  .wrap{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center}
+  .tick{width:32px;height:2px;background:var(--accent);margin-bottom:14px;box-shadow:0 0 16px var(--accent-glow)}
+  .logo{font-size:2.4rem;font-weight:700;color:var(--text-0);letter-spacing:-.02em}
+  .logo .dot{color:var(--accent)}
+  .sub{margin-top:10px;font-size:.8rem;color:var(--text-2)}
+  .bar{margin-top:32px;width:200px;height:2px;background:var(--line);position:relative;overflow:hidden}
+  .bar::after{content:'';position:absolute;top:0;left:0;height:100%;width:40%;
+    background:var(--accent);box-shadow:0 0 12px var(--accent-glow);animation:slide 1.2s ease-in-out infinite}
+  .msg{margin-top:18px;font-size:.7rem;color:var(--text-3);text-transform:lowercase;letter-spacing:.04em}
+  @keyframes slide{0%{left:-40%}100%{left:100%}}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="tick"></div>
+    <div class="logo">Terminal<span class="dot">&middot;</span>RPA</div>
+    <div class="sub">automa&ccedil;&atilde;o rpa para terminal server</div>
+    <div class="sub" style="margin-top:4px;font-size:.7rem;color:var(--text-3)">__VERSION__</div>
+    <div class="bar"></div>
+    <div class="msg">iniciando servidor...</div>
+  </div>
+</body>
+</html>

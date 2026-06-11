@@ -3,99 +3,26 @@ import threading
 import time
 from typing import Any
 
-import pystray
 import webview
-from PIL import Image
 
 from src.config.settings import ASSETS_DIR
 from src.config.version import VERSION
 from src.infrastructure.logger import get_logger
 from src.interfaces.base_server import BaseServer
+from src.interfaces.gui.tray import TrayIcon
+from src.interfaces.gui.update_flow import UpdateFlow
+from src.interfaces.gui.webview_assets import load_asset
 from src.interfaces.web.server import WebServer
 
 log = get_logger("TerminalServerRPA.gui")
 
-_UPDATE_INITIAL_DELAY_S = 5
-_UPDATE_POLL_INTERVAL_S = 60
-
-_LOADING_HTML = """<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<style>
-  *{margin:0;padding:0;box-sizing:border-box}
-  :root{--bg-0:#000;--line:#2a2e36;--accent:#4ade80;--accent-glow:rgba(74,222,128,.25);--text-0:#fff;--text-2:#a3a8b5;--text-3:#5a5f6b}
-  html,body{height:100%}
-  body{
-    background:var(--bg-0);
-    display:flex;flex-direction:column;align-items:center;justify-content:center;
-    height:100vh;
-    font-family:'JetBrains Mono',ui-monospace,monospace;
-    color:var(--text-2);overflow:hidden;position:relative;
-    letter-spacing:-.005em;-webkit-font-smoothing:antialiased;
-  }
-  body::before{
-    content:'';position:fixed;inset:0;
-    background-image:linear-gradient(var(--line) 1px,transparent 1px),
-      linear-gradient(90deg,var(--line) 1px,transparent 1px);
-    background-size:48px 48px;background-position:-1px -1px;opacity:.4;pointer-events:none;
-    mask-image:radial-gradient(ellipse at center,black 20%,transparent 75%);
-    -webkit-mask-image:radial-gradient(ellipse at center,black 20%,transparent 75%);
-  }
-  .wrap{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center}
-  .tick{width:32px;height:2px;background:var(--accent);margin-bottom:14px;box-shadow:0 0 16px var(--accent-glow)}
-  .logo{font-size:2.4rem;font-weight:700;color:var(--text-0);letter-spacing:-.02em}
-  .logo .dot{color:var(--accent)}
-  .sub{margin-top:10px;font-size:.8rem;color:var(--text-2)}
-  .bar{margin-top:32px;width:200px;height:2px;background:var(--line);position:relative;overflow:hidden}
-  .bar::after{content:'';position:absolute;top:0;left:0;height:100%;width:40%;
-    background:var(--accent);box-shadow:0 0 12px var(--accent-glow);animation:slide 1.2s ease-in-out infinite}
-  .msg{margin-top:18px;font-size:.7rem;color:var(--text-3);text-transform:lowercase;letter-spacing:.04em}
-  @keyframes slide{0%{left:-40%}100%{left:100%}}
-</style>
-</head>
-<body>
-  <div class="wrap">
-    <div class="tick"></div>
-    <div class="logo">Terminal<span class="dot">&middot;</span>RPA</div>
-    <div class="sub">automa&ccedil;&atilde;o rpa para terminal server</div>
-    <div class="sub" style="margin-top:4px;font-size:.7rem;color:var(--text-3)">__VERSION__</div>
-    <div class="bar"></div>
-    <div class="msg">iniciando servidor...</div>
-  </div>
-</body>
-</html>"""
-
-
-def _loading_html(version: str) -> str:
-    return _LOADING_HTML.replace("__VERSION__", f"v{version}")
-
-
-_UPDATE_MODAL_HTML = (
-    '<div id="_upd_dlg" style="position:fixed;inset:0;background:rgba(0,0,0,.88);'
-    "display:flex;align-items:center;justify-content:center;z-index:9998;"
-    'font-family:JetBrains Mono,ui-monospace,monospace">'
-    '<div style="background:#0d0f13;border:1px solid #2a2e36;padding:32px 40px;max-width:420px;width:90%">'
-    '<div style="color:#4ade80;font-size:.7rem;letter-spacing:.1em;'
-    'text-transform:uppercase;margin-bottom:16px">atualização disponível</div>'
-    '<div style="color:#fff;font-size:1.1rem;font-weight:700;margin-bottom:8px">__VERSION__</div>'
-    '<div style="color:#a3a8b5;font-size:.85rem;margin-bottom:28px">'
-    "Uma nova versão está disponível. Deseja atualizar agora?</div>"
-    '<div style="display:flex;gap:12px">'
-    '<button id="_upd_yes" style="flex:1;padding:10px;background:#4ade80;color:#000;'
-    'border:none;cursor:pointer;font-family:inherit;font-weight:700;font-size:.85rem">Atualizar</button>'
-    '<button id="_upd_no" style="flex:1;padding:10px;background:transparent;color:#a3a8b5;'
-    'border:1px solid #2a2e36;cursor:pointer;font-family:inherit;font-size:.85rem">Agora não</button>'
-    "</div></div></div>"
-)
-
 
 class GuiServer(BaseServer):
+    """Native window lifecycle: pywebview window + wiring of tray/update threads."""
+
     def __init__(self, port: int = 8080, dev: bool = False) -> None:
         super().__init__(port=port, dev=dev)
         self._window: Any = None
-        self._tray: Any = None
-        self._tray_started = False
         self._web = WebServer(port=port, open_browser=False, dev=dev)
 
     def start(self) -> None:
@@ -118,7 +45,7 @@ class GuiServer(BaseServer):
 
         self._window = webview.create_window(
             f"Terminal Server RPA v{VERSION}",
-            html=_loading_html(VERSION),
+            html=load_asset("loading.html").replace("__VERSION__", f"v{VERSION}"),
             width=1280,
             height=800,
             min_size=(900, 600),
@@ -136,8 +63,8 @@ class GuiServer(BaseServer):
 
         self._install_ctrl_c_handler()
         threading.Thread(target=self._wait_and_navigate, args=(app_url, actual_port), daemon=True).start()
-        threading.Thread(target=self._check_and_prompt_update, daemon=True).start()
-        threading.Thread(target=self._start_tray, daemon=True).start()
+        threading.Thread(target=UpdateFlow(self._window).run, daemon=True).start()
+        threading.Thread(target=TrayIcon(self._window).run, daemon=True).start()
         webview.start(icon=str(ASSETS_DIR / "icon.ico"), debug=self._dev)
 
     def _wait_and_navigate(self, url: str, port: int) -> None:
@@ -151,106 +78,11 @@ class GuiServer(BaseServer):
                 time.sleep(0.5)
         self._window.load_url(url)
 
-    def _check_and_prompt_update(self) -> None:
-        """Scheduling: poll for updates, delegating decision/UI/apply to helpers."""
-        from src.config.version import VERSION
-        from src.infrastructure.updater import check_for_update
-
-        time.sleep(_UPDATE_INITIAL_DELAY_S)
-        rejected: set[str] = set()
-
-        while True:
-            release = check_for_update(VERSION)
-            if release and release.version not in rejected:
-                if self._prompt_update(release.version):
-                    self._apply_update(release)
-                    return
-                rejected.add(release.version)
-            time.sleep(_UPDATE_POLL_INTERVAL_S)
-
-    def _prompt_update(self, version: str) -> bool:
-        """Inject a styled HTML modal into the webview and poll for user response.
-
-        Native MessageBox appears behind the maximized window and freezes the GUI
-        loop. window.confirm() is functional but visually inconsistent. An injected
-        modal is always in-front, styled to match the app, and non-blocking for the
-        webview main thread.
-        """
-        self._window.show()
-        html = _UPDATE_MODAL_HTML.replace("__VERSION__", f"versão {version}")
-        escaped = html.replace("\\", "\\\\").replace("'", "\\'")
-        self._window.evaluate_js(
-            f"(function(){{"
-            f"var e=document.getElementById('_upd_dlg');if(e)e.remove();"
-            f"window._upd_choice=null;"
-            f"document.body.insertAdjacentHTML('beforeend','{escaped}');"
-            f"document.getElementById('_upd_yes').onclick=function(){{"
-            f"window._upd_choice='yes';document.getElementById('_upd_dlg').remove();}};"
-            f"document.getElementById('_upd_no').onclick=function(){{"
-            f"window._upd_choice='no';document.getElementById('_upd_dlg').remove();}};"
-            f"}})()"
-        )
-        while True:
-            choice = self._window.evaluate_js("window._upd_choice")
-            if choice is not None:
-                return choice == "yes"
-            time.sleep(0.2)
-
-    def _apply_update(self, release: Any) -> None:
-        """Action: download, verify and install the release."""
-        from src.infrastructure.updater import apply_update
-
-        self._window.evaluate_js(
-            "document.body.insertAdjacentHTML('beforeend',"
-            '\'<div id="_upd_overlay" style="position:fixed;inset:0;background:rgba(0,0,0,.88);'
-            "display:flex;flex-direction:column;align-items:center;justify-content:center;"
-            'z-index:9999;font-family:monospace;color:#4ade80;gap:16px">'
-            '<div id="_upd_label" style="font-size:1.1rem">Baixando atualização...</div>'
-            '<div style="width:240px;height:4px;background:#2a2e36;border-radius:2px">'
-            '<div id="_upd_bar" style="height:100%;width:0%;background:#4ade80;'
-            'border-radius:2px;transition:width .15s"></div></div>'
-            '<div id="_upd_pct" style="font-size:.75rem;color:#5a5f6b">0%</div>'
-            "</div>')"
-        )
-
-        def _on_progress(downloaded: int, total: int) -> None:
-            if total > 0:
-                pct = int(downloaded * 100 / total)
-                mb_done = downloaded / 1_048_576
-                mb_total = total / 1_048_576
-                self._window.evaluate_js(
-                    f"(function(){{"
-                    f"var b=document.getElementById('_upd_bar');"
-                    f"var p=document.getElementById('_upd_pct');"
-                    f"if(b)b.style.width='{pct}%';"
-                    f"if(p)p.textContent='{pct}% — {mb_done:.1f} / {mb_total:.1f} MB';"
-                    f"}})()"
-                )
-
-        apply_update(release, progress_cb=_on_progress)
-
     def _on_closing(self) -> bool:
         # Never actually close on the window's X button — just hide to tray.
-        # The tray runs for the whole app lifetime; quitting is done from its
-        # "Sair" menu item.
+        # Quitting is done from the tray's "Sair" menu item.
         self._window.hide()
         return False
-
-    def _start_tray(self) -> None:
-        if self._tray_started:
-            return
-        self._tray_started = True
-        image = Image.open(str(ASSETS_DIR / "icon.png"))
-        menu = pystray.Menu(
-            pystray.MenuItem("Abrir", self._show_window, default=True),
-            pystray.MenuItem("Sair", self._quit),
-        )
-        self._tray = pystray.Icon("TerminalServerRPA", image, "Terminal Server RPA", menu)
-        self._tray.run()
-
-    def _show_window(self, _icon: Any, _item: Any) -> None:
-        # Keep the tray alive; only restore the window.
-        self._window.show()
 
     @staticmethod
     def _install_ctrl_c_handler() -> None:
@@ -265,11 +97,6 @@ class GuiServer(BaseServer):
             return False
 
         ctypes.windll.kernel32.SetConsoleCtrlHandler(_handler, True)
-
-    def _quit(self, icon: Any, _item: Any) -> None:
-        icon.stop()
-        self._window.destroy()
-        os._exit(0)
 
 
 def run_server(port: int = 8080, dev: bool = False) -> None:

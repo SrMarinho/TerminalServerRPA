@@ -16,9 +16,11 @@ AUTH_TOKEN = "test-token-123"
 
 @pytest.fixture(autouse=True)
 def mock_token():
-    with patch(
-        "src.interfaces.web.router.get_or_create_token",
-        return_value=AUTH_TOKEN,
+    # get_or_create_token is imported by both deps.py (verify_token) and ui.py
+    # (index + ws handshake) — patch both bindings.
+    with (
+        patch("src.interfaces.web.routes.deps.get_or_create_token", return_value=AUTH_TOKEN),
+        patch("src.interfaces.web.routes.ui.get_or_create_token", return_value=AUTH_TOKEN),
     ):
         yield
 
@@ -37,22 +39,24 @@ def mock_vault():
 @pytest.fixture(autouse=True)
 def mock_config():
     with (
-        patch("src.interfaces.web.router.load_config", return_value={}),
-        patch("src.interfaces.web.router.save_config") as m,
+        patch("src.interfaces.web.routes.tasks.load_config", return_value={}),
+        patch("src.interfaces.web.routes.tasks.save_config") as m,
     ):
         yield m
 
 
 @pytest.fixture(autouse=True)
 def mock_registry():
+    # Class-attribute patches: the canonical path affects every module that
+    # imported the TaskRegistry class.
     with (
         patch(
-            "src.interfaces.web.router.TaskRegistry.list",
+            "src.infrastructure.task_registry.TaskRegistry.list",
             return_value=["bulk-register-users"],
         ),
-        patch("src.interfaces.web.router.TaskRegistry.auto_discover"),
+        patch("src.infrastructure.task_registry.TaskRegistry.auto_discover"),
         patch(
-            "src.interfaces.web.router.TaskRegistry.get_schema",
+            "src.infrastructure.task_registry.TaskRegistry.get_schema",
             return_value=[{"name": "x", "type": "string"}],
         ),
     ):
