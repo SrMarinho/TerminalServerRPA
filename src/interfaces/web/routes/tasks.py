@@ -61,9 +61,11 @@ async def get_task_schema(task_name: str):
 async def get_task_form(task_name: str, wrap_class: str = "", panel: str = "", vault: Vault = Depends(get_vault)):
     schema = TaskRegistry.get_schema(task_name)
     if panel:
-        schema = [f for f in schema if f.get("group_panel", "inline") == panel]
+        schema = [field for field in schema if field.get("group_panel", "inline") == panel]
+        if panel == "modal":
+            schema = [{**field, "group_open": True} for field in schema]
     config = load_config(task_name) or {}
-    creds = [{"service": s} for s in vault.list_services()]
+    creds = [{"service": service} for service in vault.list_services()]
     html = render_template("form_fields.html", fields=schema, config=config, creds=creds, wrap_class=wrap_class)
     return {"html": html}
 

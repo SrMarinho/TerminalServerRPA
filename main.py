@@ -11,14 +11,20 @@ configure_playwright_env()
 
 
 @app.command()
-def gui(port: int = 8080, dev: bool = False):
+def gui(port: int = 8080, dev: bool = False, headless: bool = True):
+    import os
+
+    os.environ["TERMINALSERVERRPA_HEADLESS"] = "1" if headless else "0"
     from src.interfaces.gui.server import run_server
 
     run_server(port=port, dev=dev)
 
 
 @app.command()
-def web(port: int = 8080, browser: bool = True, dev: bool = False):
+def web(port: int = 8080, browser: bool = True, dev: bool = False, headless: bool = True):
+    import os
+
+    os.environ["TERMINALSERVERRPA_HEADLESS"] = "1" if headless else "0"
     from src.interfaces.web.server import run_server
 
     run_server(port=port, open_browser=browser, dev=dev)

@@ -46,12 +46,23 @@ class BrowserManager:
 
     @classmethod
     async def launch(cls, playwright) -> tuple:
-        """Launch Chromium, create context + page, maximise the local window."""
-        browser = await playwright.chromium.launch(headless=False, args=["--start-maximized"])
+        import os
+
+        headless = os.getenv("TERMINALSERVERRPA_HEADLESS", "1").lower() not in ("0", "false")
+
         screen_w, screen_h = cls.get_screen_size()
-        context = await browser.new_context(viewport=None, accept_downloads=True)
-        page = await context.new_page()
-        await cls.maximize_cdp(context, page)
-        await page.bring_to_front()
-        await asyncio.sleep(1)
+        if headless:
+            browser = await playwright.chromium.launch(headless=True)
+            context = await browser.new_context(
+                viewport={"width": screen_w, "height": screen_h},
+                accept_downloads=True,
+            )
+            page = await context.new_page()
+        else:
+            browser = await playwright.chromium.launch(headless=False, args=["--start-maximized"])
+            context = await browser.new_context(viewport=None, accept_downloads=True)
+            page = await context.new_page()
+            await cls.maximize_cdp(context, page)
+            await page.bring_to_front()
+        await asyncio.sleep(0.5)
         return browser, context, page, screen_w, screen_h

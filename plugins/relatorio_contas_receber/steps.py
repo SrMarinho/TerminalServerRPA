@@ -20,6 +20,7 @@ class StepNames(str, Enum):
     GERANDO_RELATORIO = "Gerando Relatório"
     SELECIONANDO_INFORMACOES = "Selecionando Informações"
     AGUARDANDO_SOLICITACAO = "Aguardando Solicitação"
+    SALVANDO_ARQUIVO = "Salvando Arquivo"
     CONCLUIDO = "Concluido"
 
     def __str__(self) -> str:

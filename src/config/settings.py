@@ -5,6 +5,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).parents[2]
 ASSETS_DIR = BASE_DIR / "assets"
 DEV_MODE: bool = os.getenv("TERMINALSERVERRPA_DEV", "").lower() in ("1", "true")
+HEADLESS: bool = os.getenv("TERMINALSERVERRPA_HEADLESS", "1").lower() not in ("0", "false")
 
 DOWNLOADS_BASE = Path.home() / "downloads"
 

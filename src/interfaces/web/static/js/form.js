@@ -1,6 +1,7 @@
-async function _applyWhen(container, taskName) {
+async function _applyWhen(container, taskName, extraParams) {
   var params = _collectParams(container);
   if (!params) return;
+  if (extraParams) Object.assign(params, extraParams);
   try {
     var vis = await api('POST', '/api/tasks/' + encodeURIComponent(taskName) + '/visibility', { params: params });
     Object.entries(vis).forEach(function(entry) {
@@ -10,10 +11,10 @@ async function _applyWhen(container, taskName) {
   } catch(e) {}
 }
 
-function _initWhen(container, taskName) {
-  _applyWhen(container, taskName);
+function _initWhen(container, taskName, extraParams) {
+  _applyWhen(container, taskName, extraParams);
   container.querySelectorAll('select[data-field-type="select"]').forEach(function(sel) {
-    sel.addEventListener('change', function() { _applyWhen(container, taskName); });
+    sel.addEventListener('change', function() { _applyWhen(container, taskName, extraParams); });
   });
 }
 
@@ -37,8 +38,8 @@ function _collectParams(container) {
   return p;
 }
 
-function _initFormContainer(container, taskName) {
-  _initWhen(container, taskName);
+function _initFormContainer(container, taskName, extraParams) {
+  _initWhen(container, taskName, extraParams);
   _initFormulaAutocomplete(container);
   _initTemplateAutocomplete(container);
   container.querySelectorAll('[data-required="1"]').forEach(function(el) {

@@ -113,8 +113,10 @@ function _handleRunResponse(res) {
 // ---------------------------------------------------------------------------
 
 function _collectAllParams() {
-  var inline = _collectParams(document.getElementById('detailInlineForm')) || {};
-  var modal = _collectParams(document.getElementById('launchFields')) || {};
+  var inlineContainer = document.getElementById('detailInlineForm');
+  var modalContainer = document.getElementById('configFields');
+  var inline = inlineContainer ? (_collectParams(inlineContainer) || {}) : {};
+  var modal = modalContainer ? (_collectParams(modalContainer) || {}) : {};
   return Object.assign({}, inline, modal);
 }
 
@@ -126,7 +128,7 @@ async function saveInlineConfig() {
 
 async function openLaunchModal() {
   var inlineContainer = document.getElementById('detailInlineForm');
-  if (!_validateRequired(inlineContainer)) return;
+  var inlineParams = _collectParams(inlineContainer) || {};
   document.getElementById('configModalTitle').textContent = currentTask;
   document.getElementById('configFields').innerHTML = '<div class="text-sm" style="color:var(--text-2)">Carregando...</div>';
   document.getElementById('configModal').classList.remove('hidden');
@@ -134,14 +136,16 @@ async function openLaunchModal() {
   try {
     var res = await api('GET', '/api/tasks/' + encodeURIComponent(currentTask) + '/form?panel=modal');
     document.getElementById('configFields').innerHTML = res.html || '<div class="text-xs" style="color:var(--text-3)">Sem parâmetros adicionais.</div>';
-    _initFormContainer(document.getElementById('configFields'), currentTask);
+    _initFormContainer(document.getElementById('configFields'), currentTask, inlineParams);
   } catch (e) {
     document.getElementById('configFields').innerHTML = '<div class="text-sm" style="color:var(--danger)">Erro: ' + esc(e.message) + '</div>';
   }
 }
 
 async function launchRun() {
-  var modalContainer = document.getElementById('launchFields') || document.getElementById('configFields');
+  var inlineContainer = document.getElementById('detailInlineForm');
+  if (inlineContainer && !_validateRequired(inlineContainer)) { closeConfigModal(); return; }
+  var modalContainer = document.getElementById('configFields');
   if (!_validateRequired(modalContainer)) return;
   var p = _collectAllParams(); if (!p) return;
   await api('POST', '/api/tasks/' + encodeURIComponent(currentTask) + '/config', p);
@@ -186,8 +190,8 @@ async function openConfigModal(name) {
 function closeConfigModal() {
   document.getElementById('configModal').classList.add('hidden');
   document.getElementById('configModal').classList.remove('flex');
-  currentTask = '';
 }
+
 
 function collectConfigParams() { return _collectParams(document.getElementById('configFields')); }
 

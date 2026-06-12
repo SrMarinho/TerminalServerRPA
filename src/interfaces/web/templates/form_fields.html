@@ -15,8 +15,9 @@
 {% for group_name in ns.order %}
   {% set group_fields = ns.groups[group_name] %}
   {% if group_name %}
-  {% set is_open = group_fields | selectattr('group_open', 'defined') | list | length > 0 %}
-  <details class="form-group"{% if is_open %} open{% endif %}>
+  {% set open_ns = namespace(val=false) %}
+  {% for _f in group_fields %}{% if _f.group_open is defined and _f.group_open %}{% set open_ns.val = true %}{% endif %}{% endfor %}
+  <details class="form-group"{% if open_ns.val %} open{% endif %}>
     <summary class="form-group-summary">{{ group_name }}</summary>
     <div class="form-group-body">
   {% endif %}
